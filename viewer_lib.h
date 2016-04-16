@@ -166,6 +166,10 @@ void loadmodel(GLFWwindow* window, const char* filename, const char* xmlstring)
   d2 = mj_makeData(m);
   mj_forward(m, d2);
 
+  // center and scale view
+  if (lastfile[0] == 0) 
+    autoscale(window);
+
   // save filename for reload
   if( !xmlstring )
     strcpy(lastfile, filename);
@@ -184,8 +188,6 @@ void loadmodel(GLFWwindow* window, const char* filename, const char* xmlstring)
   if( window && m->names )
     glfwSetWindowTitle(window, m->names);
 
-  // center and scale view
-  autoscale(window);
 }
 
 

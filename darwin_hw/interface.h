@@ -169,7 +169,8 @@ class DarwinRobot {
     }
 
     bool get_state(double* qpos, double* qvel, double *sensor) {
-      // get data from sensors, process into qpos, qvel
+      // TODO convert this to just be for sensor vector: 20, 20, 3, 3, 6, 6
+      // get data from sensors, process into qpos, qvel 
       // converts things to mujoco centric
 
       // try to asynchronously get the data

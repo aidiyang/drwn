@@ -84,7 +84,9 @@ class UKF : public Estimator {
             x[i] = &v; // TODO double check allocated right
          }
 
-         P = new MatrixXd::Identity(L,L);
+         //P = new MatrixXd::Identity(L,L);
+         P_t = new MatrixXd::Identity(L,L);
+         P_z = new MatrixXd::Zero(L,L);
       };
 
       ~UKF() : ~Estimator() {};
@@ -102,7 +104,7 @@ class UKF : public Estimator {
          } // should be accessible from x now
 
          // get the matrix square root
-         MatrixXd sqrt( ((L+lambda)*P).llt().matrixL() ); // chol
+         MatrixXd sqrt( ((L+lambda)*P_t).llt().matrixL() ); // chol
 
          // perturb x with covariance values => make sigma point vectors
          for (int i=0; i<L; i++) {
@@ -118,22 +120,24 @@ class UKF : public Estimator {
             mj_step(m, sigma_statesi]);
          }
 
+         VectorXd x_t->Zero(N);
          for (int i=0; i<N; i++) {
             x_t += W_s[i] * x[i];
          }
+         P_t->setZero();
          for (int i=0; i<N; i++) {
             VectorXd x_i(x[i] - x_t);
             P_t += W_c[i] * (x_i * x_i.transpose());
          }
 
          // x_t, P_t are outputs
-         x[0] = x_t;
-         P = P_t;
+         //x[0] = x_t;
+         //P = P_t;
       }
 
       // TODO changes this? joint qpos, not 'actual'
       void correct(double* j_qpos, double* j_qvel, double* sensors) {
-         m->opt.timestep = dt; // smoother way of doing this?
+         //m->opt.timestep = dt; // smoother way of doing this?
 
          //mju_copy(d->ctrl, u, nu); // set controls for this t
 
@@ -144,7 +148,7 @@ class UKF : public Estimator {
          } // should be accessible from x now
 
          // get the matrix square root
-         MatrixXd sqrt( ((L+lambda)*P).llt().matrixL() ); // chol
+         MatrixXd sqrt( ((L+lambda)*P_t).llt().matrixL() ); // chol
 
          // perturb x with covariance values => make sigma point vectors
          for (int i=1; i<=L; i++) { // TODO check bounds
@@ -157,17 +161,30 @@ class UKF : public Estimator {
          for (int i=0; i<N; i++) {
             //mj_copyData(sigma_states[i], this->m, this->d);
             set_state(sigma_states[i], raw[i]);
-            mj_step(m, sigma_statesi]);
+            // get sensor data; mj_forward?
+            //mj_step(m, sigma_statesi]);
+            // gamma[i] = sensordata();
          }
 
+         VectorXd z_k.Zero(N);
          for (int i=0; i<N; i++) {
-            x_t += W_s[i] * x[i];
-         }
-         for (int i=0; i<N; i++) {
-            VectorXd x_i(x[i] - x_t);
-            P_t += W_c[i] * (x_i * x_i.transpose());
+            z_k += W_s[i] * gamma[i];
          }
 
+         P_z.setZero();
+         for (int i=0; i<N; i++) {
+            VectorXd z(gamma[i] - z_k);
+            VectorXd x_i(x[i] - x[0]);
+            P_z += W_c[i] * (z * z.transpose());
+            Pxz += W_c[i] * (x_i * z.transpose());
+            // TODO size assert
+         }
+
+         MatrixXd K = Pxz * Pxz.inverse();
+
+         Map<VectorXd> s(s, d->nsensordata); // map our real z to vector
+         x_t = x_t + K*(s-z_k);
+         P_t = P_t - K * P_z * K.transpose();
       }
 
    private:
@@ -179,9 +196,9 @@ class UKF : public Estimator {
       std::vector<double *> raw; // raw data storage pointed to by x
       std::vector<VectorXd *> x;
       VectorXd * x_t;
-      //std::vector<MatrixXd *> P;
-      MatrixXd * P;
+      //MatrixXd * P;
       MatrixXd * P_t;
+      MatrixXd * P_z;
       std::vector<mjData *> sigma_states;
 };
 

@@ -7,6 +7,7 @@ list(REMOVE_ITEM DARWIN_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/test_contacts.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_darwin.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/loop_time.cpp )
+#${CMAKE_CURRENT_SOURCE_DIR}/walker.cpp )
 if (WIN32)
   list(REMOVE_ITEM DARWIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/LinuxCM730.cpp )
 else ()
@@ -73,10 +74,6 @@ link_directories(
 
 set(DARWIN_HW_LIBS phidget21 owlsock labjackusb)
 
-  #${PHIDGETS_LIBRARIES}
-  #${PHASESPACE_LIBRARIES}
-  #${LABJACK_LIBRARIES})
-
 message(STATUS ${DARWIN_HW_LIBS})
 message(STATUS ${OTHER_SOURCES})
 
@@ -91,7 +88,7 @@ message(STATUS ${OTHER_SOURCES})
 #endif(MUJOCO_SIMULATOR_PARALLEL)
 
 #add_library(darwin_hw SHARED ${DARWIN_SOURCES} ${OTHER_SOURCES} ${UJ_SOURCES})
-add_library(darwin_hw ${DARWIN_SOURCES} ${OTHER_SOURCES})
+add_library(darwin_hw SHARED ${DARWIN_SOURCES} ${OTHER_SOURCES})
 target_link_libraries(darwin_hw ${DARWIN_HW_LIBS})
 
 add_executable(test_darwin "test_darwin.cpp" )

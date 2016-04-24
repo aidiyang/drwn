@@ -43,18 +43,35 @@ set(MUJOCO_LIBRARIES
 
 include_directories(
 	"./"
-	"/usr/include/eigen3"
+	"/usr/local/include/eigen3"
+  "/opt/intel/mkl/include"
 	${MUJOCO_INCLUDE_DIRS}
 )
 link_directories(
+  "/opt/intel/mkl/lib/intel64/"
 	${MUJOCO_LIBRARY_DIRS}
 )
+
+set(MKL_LIBRARIES
+  "mkl_intel_lp64"
+  "mkl_core"
+  "mkl_gnu_thread"
+  "m"
+  "dl"
+  "pthread"
+  #"mkl_sequential"
+  )
+
 #link_libraries(
 #    ${Boost_LIBRARIES}
 #    ${PYTHON_LIBRARIES}
 #)
 
 option(MUJOCO_SIMULATOR_PARALLEL "OpenMP for parallel Mujoco." on)
+option(USE_EIGEN_MKL "Use MKL for Eigen backend." off)
+if (USE_EIGEN_MKL)
+  add_definitions(-DUSE_EIGEN_MKL)
+endif()
 #option(ENABLE_SOCKET_STREAMING "Set Mujoco Viewer to support data streaming" off)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=gnu++11 -fopenmp -O2")
@@ -76,8 +93,13 @@ subdirs(darwin_hw)
 
 # Viewer Rendering
 add_executable(viewer "viewer.cpp" )
-#target_compile_features(viewer PRIVATE cxx_range_for)
-target_link_libraries(viewer ${MUJOCO_LIBRARIES}  )
-target_include_directories(viewer PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+#target_link_libraries(viewer ${MUJOCO_LIBRARIES} )
+if(USE_EIGEN_MKL)
+  target_link_libraries(viewer ${MUJOCO_LIBRARIES} darwin_hw mkl_intel_lp64 mkl_core
+    mkl_gnu_thread pthread m dl)
+else()
+  target_link_libraries(viewer ${MUJOCO_LIBRARIES} darwin_hw )
+endif()
+#target_include_directories(viewer PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 

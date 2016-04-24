@@ -26,9 +26,10 @@ int main (int argc, char* argv[]) {
   double *qpos = new double[27];
   double *qvel = new double[26];
   double *ctrl = new double[20];
+  double time; 
   int IMU_SIZE=6;
   int CONTACTS_SIZE=12;
-  double *sensors = new double[IMU_SIZE+CONTACTS_SIZE];
+  double *sensors = new double[40+IMU_SIZE+CONTACTS_SIZE];
 
   int count = 1000;
   double t1=0.0, t2=0.0;
@@ -36,20 +37,20 @@ int main (int argc, char* argv[]) {
   for (int i = 0; i < count; i++) {
     
     t1 = GetCurrentTimeMS();
-    d->get_state(qpos, qvel, sensors);
+    d->get_sensors(&time, sensors);
     for (int id=0; id<20; id++) {
-      ctrl[id] = qpos[id+7];
+      ctrl[id] = sensors[id];
     }
     d->set_controls(ctrl, NULL, NULL);
     t2 = GetCurrentTimeMS();
 
     printf("%f ms\t", t2-t1);
     for (int id=0; id<10; id++) {
-      printf("%1.2f ", qpos[id+7]);
+      printf("%1.2f ", sensors[id]);
     }
     printf("\t::\t");
     for (int id=0; id<6; id++) {
-      printf("%1.6f ", sensors[id]);
+      printf("%1.6f ", sensors[40+id]);
     }
     printf("\n");
 

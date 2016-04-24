@@ -36,11 +36,11 @@ class DarwinRobot {
     bool darwin_ok;
 
 #ifdef _WIN32
-      std::string BOARD_NAME="\\\\.\\COM3";
-      WindowsCM730 *my_cm730;
+    std::string BOARD_NAME="\\\\.\\COM3";
+    WindowsCM730 *my_cm730;
 #else
-      std::string BOARD_NAME="/dev/ttyUSB0";
-      LinuxCM730 *my_cm730;
+    std::string BOARD_NAME="/dev/ttyUSB0";
+    LinuxCM730 *my_cm730;
 #endif
 
   public:
@@ -84,7 +84,7 @@ class DarwinRobot {
     }
 
     bool is_running() {
-        return darwin_ok;
+      return darwin_ok;
     }
 
     bool init_CM730(int p, int d) {
@@ -137,7 +137,7 @@ class DarwinRobot {
     bool init_contacts() {
       this->ati = new ContactSensors();
       return this->ati->is_running();
-	  return true;
+      return true;
     }
 
     bool init_phasespace(std::string server, bool use_rigid, bool use_markers) {
@@ -168,79 +168,84 @@ class DarwinRobot {
       }
     }
 
-    bool get_state(double* qpos, double* qvel, double *sensor) {
+    bool get_sensors(double * time, double* sensor) {
       // TODO convert this to just be for sensor vector: 20, 20, 3, 3, 6, 6
+      // and phasespace markers
       // get data from sensors, process into qpos, qvel 
       // converts things to mujoco centric
 
       // try to asynchronously get the data
-      auto body_data = std::async(std::launch::async, &CM730::BulkRead, cm730);
-      //int ret = cm730->BulkRead();
-      //if (ret != CM730::SUCCESS) {printf("BAD READ ");}
-
-
-      double pose[8];
-      double markers[32];
-      // TODO need to do quaternion fix
-      //if (!(ps->getData(pose, markers))) {
-      //  return false;
-      //}
-
-      double a[3];
-      double g[3];
-      imu->getData(a, g); // should be in m/s^2 and rad/sec
-
-
-      double r[6];
-      double l[6];
-      bool c_ret = ati->getData(r, l);
-
-      // TODO add raw joint values to sensors?
       if (sensor) {
-        printf(" %f %f %f\n", a[0], a[1], a[2]);
-        sensor[0]=a[0]; sensor[1]=a[1]; sensor[2]=a[2];
-        sensor[3]=g[0]; sensor[4]=g[1]; sensor[5]=g[2];
-        if (c_ret) {
+        auto body_data = std::async(std::launch::async, &CM730::BulkRead, cm730);
+
+        double pose[8];
+        double markers[32];
+        // TODO need to do quaternion fix
+        //if (!(ps->getData(pose, markers))) {
+        //  return false;
+        //}
+
+        double a[3];
+        double g[3];
+        int idx = 40;
+        if (imu->getData(a, g)) { // should be in m/s^2 and rad/sec
+          sensor[idx+0]=a[0]; sensor[idx+1]=a[1]; sensor[idx+2]=a[2];
+          sensor[idx+3]=g[0]; sensor[idx+4]=g[1]; sensor[idx+5]=g[2];
+        }
+
+        double r[6];
+        double l[6];
+        idx = 46;
+        if (ati->getData(r, l)) {
           for (int id=0; id<6; id++) {
-            sensor[6+id] = r[id];
+            sensor[idx+id] = r[id];
           }
           for (int id=0; id<6; id++) {
-            sensor[12+id] = l[id];
+            sensor[idx+id] = l[id];
           }
         }
+
+        if (body_data.get() != CM730::SUCCESS) {
+          printf("BAD JOINT READ\n");
+        }
+        else {
+          // raw values collected, convert to mujoco
+          int i = 0;
+          // positions
+          double *s_vec = sensor;
+          for(int id = 1; id <= 17; id+=2) // Right Joints
+            s_vec[i++] = joint2radian(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_POSITION_L));
+          for(int id = 2; id <= 18; id+=2) // Left Joints
+            s_vec[i++] = joint2radian(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_POSITION_L));
+          for(int id = 19; id <= 20; id++) // Head Joints
+            s_vec[i++] = joint2radian(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_POSITION_L));
+
+          // velocities
+          for(int id = 1; id <= 17; id+=2) // Right Joints
+            s_vec[i++] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
+          for(int id = 2; id <= 18; id+=2) // Left Joints
+            s_vec[i++] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
+          for(int id = 19; id <= 20; id++) // Head Joints
+            s_vec[i++] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
+        }
+
+        // TODO generate root positions and velocities
+        //for(int id = 0; id < 20; id++) {
+        //  qpos[id+7] = s_vec[id];
+        //  qvel[id+7] = s_vec[id+20];
+        //}
+
       }
-
-      if (body_data.get() != CM730::SUCCESS) {printf("BAD READ ");}
-
-      // raw values collected, convert to mujoco
-      int i = 0;
-      // positions
-      double *s_vec = new double[40];
-      for(int id = 1; id <= 17; id+=2) // Right Joints
-        s_vec[i++] = joint2radian(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_POSITION_L));
-      for(int id = 2; id <= 18; id+=2) // Left Joints
-        s_vec[i++] = joint2radian(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_POSITION_L));
-      for(int id = 19; id <= 20; id++) // Head Joints
-        s_vec[i++] = joint2radian(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_POSITION_L));
-
-      // velocities
-      for(int id = 1; id <= 17; id+=2) // Right Joints
-        s_vec[i++] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
-      for(int id = 2; id <= 18; id+=2) // Left Joints
-        s_vec[i++] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
-      for(int id = 19; id <= 20; id++) // Head Joints
-        s_vec[i++] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
-
-      // TODO generate root positions and velocities
-      for(int id = 0; id < 20; id++) {
-        qpos[id+7] = s_vec[id];
-        qvel[id+7] = s_vec[id+20];
+      else {
+        printf("Initialize sensor buffer\n");
+        return false;
       }
 
       my_cm730->Sleep(10); // some delay between readings seems to be help?
       return true;
     }
 
+    // mujoco controls to darwin centric controls
     bool set_controls(double * u, int *p, int *d) {
       // converts controls to darwin positions
       int joint_num = 0;

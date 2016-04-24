@@ -3,12 +3,12 @@
   <!--
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
    -->
-    <option	timestep="0.001" />
+    <option	timestep="0.0025" />
 
     <default>
       <geom material="meshmat" margin='0.0000000001' />
       <joint limited='true' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
-      <position ctrllimited='true' kp='0'/>
+      <position ctrllimited='true' kp='20'/>
     </default>
     <asset>
       <mesh file="body_coll.stl"/>
@@ -253,21 +253,25 @@
       <position name='r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
       <position name='r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.3'  	/>
       <position name='r_elbow'          	joint='r_elbow'             ctrlrange='-1.55 1.25'	/>
+
       <position name='r_hip_yaw'        	joint='r_hip_yaw'           ctrlrange='-1 .9'   	/>
       <position name='r_hip_roll'       	joint='r_hip_roll'          ctrlrange='-.7 .45'   />
       <position name='r_hip_pitch'      	joint='r_hip_pitch'         ctrlrange='-1.7 .45'  />
       <position name='r_knee'           	joint='r_knee'              ctrlrange='-0.05 2.2' />
       <position name='r_ankle_pitch'    	joint='r_ankle_pitch'       ctrlrange='-1.2 1.35' />
       <position name='r_ankle_roll'     	joint='r_ankle_roll'        ctrlrange='-.7 .95'   />
+
       <position name='l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5  1.5' />
       <position name='l_shoulder_roll'  	joint='l_shoulder_roll'     ctrlrange='-1.25 .85' />
       <position name='l_elbow'          	joint='l_elbow'             ctrlrange='-1.25 1.55' />
+
       <position name='l_hip_yaw'        	joint='l_hip_yaw'           ctrlrange='-.9 1'   />
       <position name='l_hip_roll'       	joint='l_hip_roll'          ctrlrange='-.45 .7'   />
       <position name='l_hip_pitch'      	joint='l_hip_pitch'         ctrlrange='-.45 1.7'  />
       <position name='l_knee'           	joint='l_knee'              ctrlrange='-2.2  .05' />
       <position name='l_ankle_pitch'    	joint='l_ankle_pitch'       ctrlrange='-1.35 1.2' />
       <position name='l_ankle_roll'     	joint='l_ankle_roll'        ctrlrange='-.95 .7'   />
+
       <position name='head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
       <position name='head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
     </actuator>

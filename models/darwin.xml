@@ -2,8 +2,9 @@
   <compiler angle="radian" coordinate="local" inertiafromgeom="true" meshdir="meshes/"/>
   <!--
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
+    <option	timestep="0.00025" gravity="0 0 -9.81"/>
    -->
-    <option	timestep="0.0025" />
+    <option	timestep="0.00025" gravity="0 0 0"/>
 
     <default>
       <geom material="meshmat" margin='0.0000000001' />
@@ -51,15 +52,27 @@
 
     <worldbody>
       <geom material="boring" pos="0 0 0" size=".5 .5 .5" type="plane"/>
+      <!--
       <body pos="0.5 0 0">
         <light attenuation="1 1 1" castshadow="true" cutoff="40" diffuse="1 1 1" dir="-1 0 0.8" directional="false" exponent="10" pos="0 0 0.04" specular="1 1 1.25"/>
         <geom material="meshmat" size=".02 .02 .03" type="box"/>
       </body>
+      -->
       <body name="torso" pos="0 0 0.4">
         <inertial diaginertia="6.53693 6.39822 1.88344" mass="0.975599" pos="-0.003053 -0.038651 -0.019268" quat="-0.00879356 0.867004 0.0524199 0.495458"/>
+        <!--
         <joint type="free" limited='false' />
-        <site name="imu" pos="0.0 0 -0.04" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
+        -->
+
+        <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
+        <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
+        <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
+        <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
+        <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
+        <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
+
         <geom material="meshmat" mesh="body_coll" type="mesh"/>
+        <site name="imu" pos="0.0 0 -0.04" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
         <body name="neck" pos="0 0 0.0235" quat="0.707107 0 0 0.707107">
           <inertial diaginertia="0.00482356 0.00482356 0.00482356" mass="0.0243577" pos="0.001424 -0.016567 -0.007128" quat="0.640564 0.00150549 0.00338323 0.767896"/>
           <joint axis="0 0 1" limited="true" name="head_pan" pos="0 0 0" range="-3.141592 3.141592" type="hinge"/>
@@ -239,14 +252,17 @@
       <jointvel joint="r_ankle_pitch" />
       <jointvel joint="r_ankle_roll" />
 
+      <!--
       <accelerometer name="accel" site="imu" />
       <gyro name="gyro"           site="imu" />
+      -->
 
       <force  name="right_f"   site="right_ati" />
       <torque name="right_t"   site="right_ati" />
 
       <force  name="left_f"    site="left_ati" />
       <torque name="left_t"    site="left_ati" />
+      <sitepos name="mocap"       site="imu" />
     </sensor>
 
     <actuator>

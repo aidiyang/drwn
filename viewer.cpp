@@ -5,8 +5,12 @@
 
 #include "estimator.h"
 
+#include <cnpy.h>
+
 
 #include <omp.h>
+#include <iostream>
+#include <fstream>
 
 
 std::string model_name;
@@ -25,19 +29,95 @@ double now_t() {
   return d.count(); // returns milliseconds
 }
 
+std::ofstream myfile;
+void save_states(std::string filename, mjData * real, mjData * est, std::string mode = "w") {
+  if (mode=="w") {
+    // create file
+    myfile.open(filename, std::ofstream::out);
+    myfile<<"time,";
+    for (int i=0; i<m->nq; i++) 
+      myfile<<"qpos,";
+    for (int i=0; i<m->nv; i++) 
+      myfile<<"qvel,";
+    for (int i=0; i<m->nu; i++) 
+      myfile<<"ctrl,";
+    for (int i=0; i<m->nsensordata; i++) 
+      myfile<<"snsr,";
+
+    for (int i=0; i<m->nq; i++) 
+      myfile<<"est_p,";
+    for (int i=0; i<m->nv; i++) 
+      myfile<<"est_v,";
+    for (int i=0; i<m->nu; i++) 
+      myfile<<"est_c,";
+    for (int i=0; i<m->nsensordata; i++) 
+      myfile<<"est_s,";
+    myfile<<"\n";
+
+    myfile.close();
+  }
+  else if (mode=="c") {
+    myfile.close();
+    return;
+  }
+  else {
+    if (!myfile.is_open()) {
+      printf("HAD TO OPEN OUTPUT FILE AGAIN!!!!!!\n");
+      myfile.open(filename, std::ofstream::out | std::ofstream::app );
+    }
+
+    myfile<<d->time<<",";
+    for (int i=0; i<m->nq; i++) 
+      myfile<<d->qpos[i]<<",";
+    for (int i=0; i<m->nv; i++) 
+      myfile<<d->qvel[i]<<",";
+    for (int i=0; i<m->nu; i++) 
+      myfile<<d->ctrl[i]<<",";
+    for (int i=0; i<m->nsensordata; i++) 
+      myfile<<d->sensordata[i]<<",";
+
+    for (int i=0; i<m->nq; i++) 
+      myfile<<est->qpos[i]<<",";
+    for (int i=0; i<m->nv; i++) 
+      myfile<<est->qvel[i]<<",";
+    for (int i=0; i<m->nu; i++) 
+      myfile<<est->ctrl[i]<<",";
+    for (int i=0; i<m->nsensordata; i++) 
+      myfile<<est->sensordata[i]<<",";
+    myfile<<"\n";
+  }
+
+}
+
+void print_state(const mjModel* m, const mjData* d) {
+  for (int i=0; i<m->nq; i++) {
+    printf("%1.4f ", d->qpos[i]);
+  }
+  for (int i=0; i<m->nv; i++) {
+    printf("%1.4f ", d->qvel[i]);
+  }
+  printf("\n");
+}
+
+
 int main(int argc, const char** argv) {
 
-  omp_set_num_threads(8);
+  omp_set_num_threads(12);
 
   if( argc==2 )
     model_name = argv[1];
 
   if (init_viz(model_name)) { return 1; }
 
+
+  std::string output_file = "out.csv";
   // init darwin 'robot'
-  double s_noise = 0.0;
+  double s_noise = 0.00;
   double s_time_noise = 0.0;
-  SimDarwin *robot = new SimDarwin(m, d, s_noise, s_time_noise);
+
+  
+  double dt = m->opt.timestep;
+  SimDarwin *robot = new SimDarwin(m, d, 2.0*dt, s_noise, s_time_noise);
 
   int nq = m->nq;
   int nv = m->nv;
@@ -58,10 +138,11 @@ int main(int argc, const char** argv) {
   // init darwin to walker pose
   Walking * walker = new Walking();
   walker->Initialize(ctrl);
+
   robot->set_controls(ctrl, NULL, NULL);
-  
-  for (int i=0; i<5; i++)
-    render(window, NULL); // get state updated model / data, mj_steps
+
+  //for (int i=0; i<5; i++)
+  //  render(window, NULL); // get state updated model / data, mj_steps
 
   // init UKF to darwin data
   //UKF * est = new UKF(m, d, 10e-3, 2, 0);
@@ -69,7 +150,6 @@ int main(int argc, const char** argv) {
 
 
   // init estimator from darwin 'robot'
-  double dt = m->opt.timestep;
   printf("DT is set %f\n", dt);
   mjData * est_data;
 
@@ -92,8 +172,11 @@ int main(int argc, const char** argv) {
       case 2:
         if (est)
           delete est;
-        est = new UKF(m, d, 10e-3, 2, 0);
         printf("New UKF initialization\n");
+        est = new UKF(m, d, 10e-5, 2, 0);
+
+        est_data = est->get_state();
+        save_states(output_file, d, est_data, "w");
         viewer_set_signal(0);
         break;
       default: 
@@ -103,59 +186,85 @@ int main(int argc, const char** argv) {
     // simulate and render
     //printf("time: %f\t", d->time);
     if (robot->get_sensors(&time, sensors)) {
-      // we got sensor values
-      //printf("got new sensors at %f \n", time);
 
-      walker->Process(time-prev_time, 0, ctrl);
-      robot->set_controls(ctrl, NULL, NULL);
+      printf("robot hw time: %f\n", time);
+      printf("true state:\n");
+      print_state(m, d);
 
       double t0 = now_t();
-      if (est)
-        est->predict(ctrl, time-prev_time);
+      if (est) est->predict(ctrl, time-prev_time);
 
+      //////////////////////////////////
+      //
+      printf("robot sensor time: %f\n", d->time);
+      //printf("true sensors:\n");
+      //for (int i=0; i<nsensordata; i++) {
+      //  printf("%1.6f ", d->sensordata[i]);
+      //}
+      //printf("\n");
+
+      //////////////////////////////////
       double t1 = now_t();
-      //if (est)
-      //  est->correct(sensors);
+      if (est) est->correct(sensors);
 
       double t2 = now_t();
 
-      printf("time: %f\t\t estimator update %f ms, predict %f ms, total %f ms\n", time, t1-t0, t2-t1, t2-t0);
-      printf("qpos: ");
+
+      printf("\t\t estimator update %f ms, predict %f ms, total %f ms\n",
+          t1-t0, t2-t1, t2-t0);
+      printf("qpos at t: ");
       for (int i=0; i<nq; i++) {
-        printf("%1.4f ", d->qpos[i]);
+        printf("%1.6f ", d->qpos[i]);
       }
       if (est) {
         est_data = est->get_state();
-        printf("\n est: ");
+        printf("\n est at t: ");
         for (int i=0; i<nq; i++) {
-          printf("%1.4f ", est_data->qpos[i]);
+          printf("%1.6f ", est_data->qpos[i]);
         }
+      }printf("\nsnsr: ");
+      for (int i=0; i<nsensordata; i++) {
+        printf("%1.4f ", d->sensordata[i]);
       }
       printf("\nctrl: ");
       for (int i=0; i<nu; i++) {
         printf("%1.4f ", ctrl[i]);
       }
       printf("\n\n");
+
+      if (est) {
+        save_states(output_file, d, est_data, "a");
+      }
+
+      // we have estimated and logged the data,
+      // now get new controls
+      walker->Process(time-prev_time, 0, ctrl);
+      robot->set_controls(ctrl, NULL, NULL);
+
       prev_time = time;
+
     }
     else {
       //printf("no  new sensors at %f \n", time);
       // we just advanced the sim, nothing else
-
     }
 
     if (est) {
-    //render(window, est_data); // get state updated model / data, mj_steps
-    render(window, NULL); // get state updated model / data, mj_steps
+      //render(window, est_data); // get state updated model / data, mj_steps
+      render(window, est->get_sigmas()); // get state updated model / data, mj_steps
     }
     else {
-    render(window, NULL); // get state updated model / data, mj_steps
+      std::vector<mjData*> a;
+      render(window, a);
     }
 
     finalize();
   }
 
   end_viz();
+  if (est) {
+    save_states(output_file, d, est_data, "c"); // close file
+  }
 
   // end_estimator
   // end darwin 'robot'

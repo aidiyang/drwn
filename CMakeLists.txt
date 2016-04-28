@@ -28,12 +28,12 @@ find_package(Threads REQUIRED)
 set(MUJOCO_INCLUDE_DIRS 
    #"${PROJECT_SOURCE_DIR}/source/mujoco"
    #"/opt/mujoco122"
-   "/opt/mujoco130/include"
+   "/opt/mujoco131/include"
 )
 
 set(MUJOCO_LIBRARY_DIRS
   #"/opt/mujoco/"
-	"/opt/mujoco130/bin/"
+	"/opt/mujoco131/bin/"
 )
 
 set(MUJOCO_LIBRARIES
@@ -62,6 +62,16 @@ set(MKL_LIBRARIES
   #"mkl_sequential"
   )
 
+set(MY_LINKER_LIBS "")
+
+#find_package(HDF5 COMPONENTS HL REQUIRED)
+#include_directories(SYSTEM ${HDF5_INCLUDE_DIRS} ${HDF5_HL_INCLUDE_DIR})
+#list(APPEND MY_LINKER_LIBS ${HDF5_LIBRARIES})
+
+list(APPEND MY_LINKER_LIBS cnpy) # save / read npy numpy python files
+list(APPEND MY_LINKER_LIBS z) # crc32 check
+
+
 #link_libraries(
 #    ${Boost_LIBRARIES}
 #    ${PYTHON_LIBRARIES}
@@ -72,7 +82,13 @@ option(USE_EIGEN_MKL "Use MKL for Eigen backend." off)
 if (USE_EIGEN_MKL)
   add_definitions(-DUSE_EIGEN_MKL)
 endif()
+
 #option(ENABLE_SOCKET_STREAMING "Set Mujoco Viewer to support data streaming" off)
+
+if(UNIX OR APPLE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -Wall")
+endif()
+
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=gnu++11 -fopenmp -O2")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
@@ -95,10 +111,10 @@ subdirs(darwin_hw)
 add_executable(viewer "viewer.cpp" )
 #target_link_libraries(viewer ${MUJOCO_LIBRARIES} )
 if(USE_EIGEN_MKL)
-  target_link_libraries(viewer ${MUJOCO_LIBRARIES} darwin_hw mkl_intel_lp64 mkl_core
+  target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} darwin_hw mkl_intel_lp64 mkl_core
     mkl_gnu_thread pthread m dl)
 else()
-  target_link_libraries(viewer ${MUJOCO_LIBRARIES} darwin_hw )
+  target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} darwin_hw )
 endif()
 #target_include_directories(viewer PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 

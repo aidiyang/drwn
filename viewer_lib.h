@@ -9,6 +9,7 @@
 #include "string.h"
 #include <mutex>
 
+#include <vector>
 //-------------------------------- global variables -------------------------------------
 
 // synchronization
@@ -131,8 +132,8 @@ void loadmodel(GLFWwindow * window, const char *filename, const char *xmlstring)
 	m = mnew;
 	d = mj_makeData(m);
 	mj_forward(m, d);
-	d2 = mj_makeData(m);
-	mj_forward(m, d2);
+	//d2 = mj_makeData(m);
+	//mj_forward(m, d2);
 
 	// center and scale view
 	if (lastfile[0] == 0)
@@ -487,7 +488,7 @@ void advance(void)
 }
 
 // render
-void render(GLFWwindow * window, mjData * frame)
+void render(GLFWwindow * window, std::vector<mjData *> frame)
 {
 	// past data for FPS calculation
 	static double lastrendertm = 0;
@@ -602,21 +603,27 @@ void render(GLFWwindow * window, mjData * frame)
 		needselect = 0;
 	}
 
-	if (frame) {
-    mju_copy(d2->qpos, frame->qpos, m->nq);
-		mjv_makeGeoms(m, d2, &objects2, &vopt, mjCAT_ALL, selbody, 
-        (perturb & mjPERT_TRANSLATE) ? refpos : 0, 
-        (perturb & mjPERT_ROTATE) ? refquat : 0, selpos);
-		//mjv_makeLights(m, d2, &objects);
+	if (frame.size()) {
+    for (auto it = frame.begin(); it != frame.end(); ++it) {
+      //mjv_makeGeoms(m, frame, &objects2, &vopt, mjCAT_ALL, selbody, 
+      mjv_makeGeoms(m, *it, &objects2, &vopt, mjCAT_ALL, selbody, 
+          (perturb & mjPERT_TRANSLATE) ? refpos : 0, 
+          (perturb & mjPERT_ROTATE) ? refquat : 0, selpos);
+      //mjv_makeLights(m, d2, &objects);
 
-		for (int i = 0; i < objects2.ngeom; i++) {
-			//objects->geoms[objects->ngeom + i] = objects2->geoms[i]; 
-			mjvGeom *p = objects.geoms;
-			mjvGeom *p2 = objects2.geoms;
-			memcpy(p + (objects.ngeom + i), p2 + i, sizeof(mjvGeom));
-			objects.geomorder[objects.ngeom + i] = objects2.geomorder[i];	// ptrs 
-		}
-		objects.ngeom += objects2.ngeom;
+      mjvGeom *p = objects.geoms;
+      mjvGeom *p2 = objects2.geoms;
+      for (int i = 0; i < objects2.ngeom; i++) {
+        //objects->geoms[objects->ngeom + i] = objects2->geoms[i]; 
+        p2[i].rgba[0] = 0.0f;
+        p2[i].rgba[1] = 1.0f;
+        p2[i].rgba[2] = 0.0f;
+        p2[i].rgba[3] = 1.0f;
+        memcpy(p + (objects.ngeom + i), p2 + i, sizeof(mjvGeom));
+        objects.geomorder[objects.ngeom + i] = objects2.geomorder[i];	// ptrs 
+      }
+      objects.ngeom += objects2.ngeom;
+    }
 	}
 	// render rgb
 	mjr_render(0, rect, &objects, &ropt, &cam.pose, &con);
@@ -755,7 +762,7 @@ int init_viz(std::string model_name)
 	scale = (double)width / (double)width1;
 
 	// init MuJoCo rendering
-	mjv_makeObjects(&objects, 2000);
+	mjv_makeObjects(&objects, 20000);
 	mjv_makeObjects(&objects2, 1000);
 	mjv_defaultCamera(&cam);
 	mjv_defaultOption(&vopt);
@@ -779,13 +786,14 @@ int init_viz(std::string model_name)
 
 void end_viz()
 {
+	// terminate
+	glfwTerminate();
+
 	// delete everything we allocated
 	mj_deleteData(d);
 	mj_deleteModel(m);
 	mjr_freeContext(&con);
 	mjv_freeObjects(&objects);
 
-	// terminate
-	glfwTerminate();
 	mj_deactivate();
 }

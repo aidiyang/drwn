@@ -21,6 +21,7 @@ class SimDarwin {
     std::random_device rd;
     std::mt19937 gen;
     std::normal_distribution<> t_noise;
+    std::normal_distribution<> sen_noise;
 
 
     // model helpers
@@ -30,8 +31,9 @@ class SimDarwin {
 
   public:
     SimDarwin(
-        mjModel *m, mjData * d,
-        double s_noise, double s_time_noise) : gen(rd()), t_noise(0, s_time_noise) {
+        mjModel *m, mjData * d, double dt,
+        double s_noise, double s_time_noise) : gen(rd()),
+    t_noise(0, s_time_noise), sen_noise(0, s_noise) {
       // s_noise ; magnitude of sensors noise 
       // s_time_noise ; noise is getting sensor values
 
@@ -39,7 +41,9 @@ class SimDarwin {
       this->d = d;
 
       this->sensor_time = 0.0; 
-      this->s_dt = 0.0055; //ms in seconds
+      //this->s_dt = 0.0025; //ms in seconds
+      //this->s_dt = 0.0055; //ms in seconds
+      this->s_dt = dt; // 2x the ms of the 'robot' timestep
       this->s_noise = s_noise;
       this->s_time_noise = s_time_noise;
 
@@ -87,9 +91,14 @@ class SimDarwin {
       // current time + next sensor time + sensor time noise
       sensor_time = d->time + s_dt + t_noise(gen);
 
+      mj_forward(m, d);
+      mj_sensor(m, d);
+
       if (sensor) {
         for (int id=0; id<m->nsensordata; id++) {
-          sensor[id] = d->sensordata[id]; // s_noise perturbation;
+          double r = sen_noise(gen);
+          sensor[id] = d->sensordata[id] + r; // s_noise perturbation;
+          //printf("%f %f %f\n", sensor[id], d->sensordata[id], r);
         }
       }
       else {

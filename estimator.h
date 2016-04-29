@@ -68,7 +68,7 @@ class Estimator {
 class UKF : public Estimator {
   public:
     UKF(mjModel *m, mjData * d,
-        double _alpha, double _beta, double _kappa) : Estimator(m, d) {
+        double _alpha, double _beta, double _kappa, double _noise) : Estimator(m, d) {
       L = nq + nv; // size of state dimensions
       N = 2*L + 1;
 
@@ -100,10 +100,10 @@ class UKF : public Estimator {
         }
         x[i] = VectorXd::Zero(L); // point into raw buffer, not mjdata
 
-        //x[i] = VectorXd::Zero(L); // point into raw buffer, not mjdata
-
         //gamma[i] = Map<VectorXd>(sigma_states[i]->sensordata, m->nsensordata);
         gamma[i] = VectorXd::Zero(m->nsensordata);
+
+        mj_forward(m, sigma_states[i]);
       }
       double suma = 0.0;
       double sumb = 0.0;
@@ -129,6 +129,23 @@ class UKF : public Estimator {
       mju_copy(&x_t(0), sigma_states[0]->qpos, nq);
       mju_copy(&x_t(nq), sigma_states[0]->qvel, nv);
 
+      this->noise = _noise;
+
+      /*
+      for (int i=0; i<nq; i++)
+        sigma_states[0]->qpos[i] = (double) i;
+      for (int i=0; i<nv; i++)
+        this->d->qvel[i] = (double) i+nq;
+
+      mju_copy(&x[0](0), this->d->qpos, nq);
+      mju_copy(&x[0](nq), sigma_states[0]->qvel, nv);
+
+      printf("\n HELOOOOOOOOOOOOOOOOOO\n");
+      for (int i=0; i<L; i++)
+        printf("%f ", x[0](i));
+      printf("\n\n");
+      */
+
       //x_t = Map<VectorXd> (p_state, L);
       //x_t.setZero();
     };
@@ -146,14 +163,14 @@ class UKF : public Estimator {
     void predict(double * ctrl, double dt) {
 
       m->opt.timestep = dt; // smoother way of doing this?
-      IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
+      IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
 
       printf("Predict t-1 = %f seconds\n", sigma_states[0]->time);
 
       double t1 = omp_get_wtime()*1000.0;
 
       mju_copy(d->ctrl, ctrl, nu); // set controls for this t
-      mj_forward(m, d);
+      //mj_forward(m, d);
 
       // d should have our previous correction
       // copy to sigma_states
@@ -219,6 +236,9 @@ class UKF : public Estimator {
 
         mju_copy(&x[i](0), sigma_states[i]->qpos, nq);
         mju_copy(&x[i](nq), sigma_states[i]->qvel, nv);
+        
+        //VectorXd r = VectorXd::Random(L)*0.000001;
+        //x[i] = x[i] + r;
         // TODO can put the W_s multiplication here
       }
 
@@ -257,12 +277,17 @@ class UKF : public Estimator {
         VectorXd x_i(x[i] - x_t);
         P_t += W_c[i] * (x_i * x_i.transpose());
       }
-      std::cout<<"\n\nPrediction P_T:\n"<<P_t.diagonal().transpose().format(CleanFmt)<<"\n\n";
+      //std::cout<<"\n\nPrediction P_T:\n"<<P_t.diagonal().transpose().format(CleanFmt)<<"\n\n";
       for (int i=0; i<L; i++) {
         if (P_t.row(i).isZero())
           P_t(i,i) = 1.0;
       }
-      std::cout<<"\n\nFixed?? P_T:\n"<<P_t.diagonal().transpose().format(CleanFmt)<<"\n\n";
+      //std::cout<<"\n\nFixed?? P_T:\n"<<P_t.diagonal().transpose().format(CleanFmt)<<"\n\n";
+      //std::cout<<"\n\nNot random P_T:\n"<<P_t.format(CleanFmt)<<"\n\n";
+      P_t = P_t + MatrixXd::Random(L,L) * noise;
+      P_t = (P_t * P_t.transpose());// - MatrixXd(P_t.diagonal().asDiagonal());
+
+      //std::cout<<"\n\nFixed?? P_T:\n"<<P_t.format(CleanFmt)<<"\n\n";
 
       double t6 = omp_get_wtime()*1000.0;
 
@@ -280,7 +305,7 @@ class UKF : public Estimator {
       mju_copy(d->qpos, &(x_t(0)), nq);
       mju_copy(d->qvel, &(x_t(nq)), nv);
 
-      mj_forward(m, d);
+      //mj_forward(m, d);
 
       mju_copy(&x[0](0), d->qpos, nq);
       mju_copy(&x[0](nq), d->qvel, nv);
@@ -437,6 +462,7 @@ class UKF : public Estimator {
     double alpha;
     double beta;
     double lambda;
+    double noise;
     double * W_s;
     double * W_c;
     double * p_state;

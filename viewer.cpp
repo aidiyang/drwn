@@ -13,7 +13,9 @@
 #include <fstream>
 
 
-std::string model_name;
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
+
 
 extern mjModel* m; // defined in viewer_lib.h to capture perturbations
 extern mjData* d;
@@ -102,22 +104,66 @@ void print_state(const mjModel* m, const mjData* d) {
 
 int main(int argc, const char** argv) {
 
-  omp_set_num_threads(12);
+  int num_threads;
+  int estimation_counts;
+	bool engage; // for real robot?
+  std::string model_name;// = new std::string();
+  std::string output_file;// = new std::string();
+  double s_noise;
+  double c_noise;
+  double e_noise;
+  double s_time_noise=0.0;
 
-  if( argc==2 )
-    model_name = argv[1];
+	try {
+		po::options_description desc("Allowed options");
+		desc.add_options()
+			("help", "Usage guide")
+			//("engage,e", po::value<bool>(&engage)->default_value(false), "Engage motors for live run.")
+			("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
+			("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
+			("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
+			//("gains,g", po::value<bool>(&use_gains)->default_value(false), "Use feedback gains if available")
+			//("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
+			("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
+			("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
+			("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
+			//("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
+			("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_threads()), "Number of OpenMP threads to use.")
+			//("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
+			//("d_gain,d", po::value<int>(&d_gain)->default_value(0), "D gain of PiD controller, 0-32")
+			;
+
+		po::variables_map vm;
+		po::store(po::parse_command_line(argc, argv, desc), vm);
+		if (vm.count("help")) {
+			std::cout << desc << std::endl;
+			return 0;
+		}
+		po::notify(vm);
+	}
+	catch(std::exception& e) {
+		std::cerr << "Error: " << e.what() << "\n";
+		return 0;
+	}
+	catch(...) {
+		std::cerr << "Unknown error!\n";
+		return 0;
+	}
+
+  printf("Model:\t\t%s\n", model_name.c_str());
+  printf("OMP threads:\t\t%d\n", num_threads);
+  printf("Timesteps:\t\t%d\n", estimation_counts);
+  printf("Sensor Noise:\t\t%f\n", s_noise);
+  printf("Control Noise:\t\t%f\n", c_noise);
+
+  // Start Initializations
+  omp_set_num_threads(num_threads);
 
   if (init_viz(model_name)) { return 1; }
 
-
-  std::string output_file = "out.csv";
-  // init darwin 'robot'
-  double s_noise = 0.00;
-  double s_time_noise = 0.0;
-
   
   double dt = m->opt.timestep;
-  SimDarwin *robot = new SimDarwin(m, d, 2.0*dt, s_noise, s_time_noise);
+  SimDarwin *robot = new SimDarwin(m, d, 2.0*dt, s_noise, s_time_noise, c_noise);
 
   int nq = m->nq;
   int nv = m->nv;
@@ -134,24 +180,18 @@ int main(int argc, const char** argv) {
   }
   double *sensors = new double[nsensordata];
 
-
   // init darwin to walker pose
   Walking * walker = new Walking();
   walker->Initialize(ctrl);
-
   robot->set_controls(ctrl, NULL, NULL);
 
-  //for (int i=0; i<5; i++)
-  //  render(window, NULL); // get state updated model / data, mj_steps
 
-  // init UKF to darwin data
-  //UKF * est = new UKF(m, d, 10e-3, 2, 0);
   UKF * est = 0;
-
 
   // init estimator from darwin 'robot'
   printf("DT is set %f\n", dt);
   mjData * est_data;
+  bool color = false;
 
   while( !closeViewer() ) {
 
@@ -173,7 +213,7 @@ int main(int argc, const char** argv) {
         if (est)
           delete est;
         printf("New UKF initialization\n");
-        est = new UKF(m, d, 10e-5, 2, 0);
+        est = new UKF(m, d, 10e-4, 2, 0, e_noise);
 
         est_data = est->get_state();
         save_states(output_file, d, est_data, "w");
@@ -192,16 +232,17 @@ int main(int argc, const char** argv) {
       print_state(m, d);
 
       double t0 = now_t();
-      if (est) est->predict(ctrl, time-prev_time);
 
       //////////////////////////////////
-      //
       printf("robot sensor time: %f\n", d->time);
-      //printf("true sensors:\n");
-      //for (int i=0; i<nsensordata; i++) {
-      //  printf("%1.6f ", d->sensordata[i]);
-      //}
-      //printf("\n");
+
+
+      //////////////////////////////////
+      if (est) est->predict(ctrl, time-prev_time);
+
+
+      mj_forward(m, d);
+      mj_sensor(m, d);
 
       //////////////////////////////////
       double t1 = now_t();
@@ -232,9 +273,8 @@ int main(int argc, const char** argv) {
       }
       printf("\n\n");
 
-      if (est) {
-        save_states(output_file, d, est_data, "a");
-      }
+
+      if (est) { save_states(output_file, d, est_data, "a"); }
 
       // we have estimated and logged the data,
       // now get new controls
@@ -242,20 +282,26 @@ int main(int argc, const char** argv) {
       robot->set_controls(ctrl, NULL, NULL);
 
       prev_time = time;
-
+      if (estimation_counts > 0) {
+        estimation_counts--;
+      }
+      else if (estimation_counts == 0) {
+        shouldCloseViewer();
+      }
+      printf("RENDERING CORRECTED SIGMA POINTS\n");
+      color = true;
     }
     else {
-      //printf("no  new sensors at %f \n", time);
-      // we just advanced the sim, nothing else
+      // allow time to progress
     }
 
     if (est) {
-      //render(window, est_data); // get state updated model / data, mj_steps
-      render(window, est->get_sigmas()); // get state updated model / data, mj_steps
+      // render sigma points
+      render(window, est->get_sigmas(), color); // get state updated model / data, mj_steps
     }
     else {
       std::vector<mjData*> a;
-      render(window, a);
+      render(window, a, false);
     }
 
     finalize();

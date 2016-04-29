@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 2.8)
 #find_package(CUDA 7.0)
 #find_package(Ceres)
 find_package(Threads REQUIRED)
+find_package(Boost 1.55 COMPONENTS program_options)
 
 #add_definitions(${Caffe_DEFINITIONS})
 #set(Caffe_INCLUDE_DIRS 
@@ -68,8 +69,9 @@ set(MY_LINKER_LIBS "")
 #include_directories(SYSTEM ${HDF5_INCLUDE_DIRS} ${HDF5_HL_INCLUDE_DIR})
 #list(APPEND MY_LINKER_LIBS ${HDF5_LIBRARIES})
 
-list(APPEND MY_LINKER_LIBS cnpy) # save / read npy numpy python files
-list(APPEND MY_LINKER_LIBS z) # crc32 check
+#list(APPEND MY_LINKER_LIBS cnpy) # save / read npy numpy python files
+#list(APPEND MY_LINKER_LIBS z) # crc32 check
+list(APPEND MY_LINKER_LIBS ${Boost_LIBRARIES}) # boost
 
 
 #link_libraries(

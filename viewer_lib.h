@@ -488,7 +488,7 @@ void advance(void)
 }
 
 // render
-void render(GLFWwindow * window, std::vector<mjData *> frame)
+void render(GLFWwindow * window, std::vector<mjData *> frame, bool step)
 {
 	// past data for FPS calculation
 	static double lastrendertm = 0;
@@ -509,7 +509,7 @@ void render(GLFWwindow * window, std::vector<mjData *> frame)
 	}
 	// start timers
 	double starttm = glfwGetTime();
-	mjtNum startsimtm = d->time;
+	//mjtNum startsimtm = d->time;
 
 	if (paused) {
 		// edit
@@ -525,7 +525,10 @@ void render(GLFWwindow * window, std::vector<mjData *> frame)
 		}
 		// 15 msec delay
 		while (glfwGetTime() - starttm < 0.015) ;
-	} else {
+	}
+  //else if (step) 
+    else
+    {
 		// simulate for 15 msec of CPU time
 		int n = 0;
 		/*
@@ -615,10 +618,16 @@ void render(GLFWwindow * window, std::vector<mjData *> frame)
       mjvGeom *p2 = objects2.geoms;
       for (int i = 0; i < objects2.ngeom; i++) {
         //objects->geoms[objects->ngeom + i] = objects2->geoms[i]; 
-        p2[i].rgba[0] = 0.0f;
-        p2[i].rgba[1] = 1.0f;
-        p2[i].rgba[2] = 0.0f;
-        p2[i].rgba[3] = 1.0f;
+        if (step) {
+          p2[i].rgba[0] = 0.0f;
+          p2[i].rgba[1] = 1.0f;
+          p2[i].rgba[2] = 0.0f;
+        } else {
+          p2[i].rgba[0] = 1.0f;
+          p2[i].rgba[1] = 0.0f;
+          p2[i].rgba[2] = 0.0f;
+        }
+        p2[i].rgba[3] = 0.75f;
         memcpy(p + (objects.ngeom + i), p2 + i, sizeof(mjvGeom));
         objects.geomorder[objects.ngeom + i] = objects2.geomorder[i];	// ptrs 
       }
@@ -710,6 +719,11 @@ void viewer_set_signal(int s) {
 bool closeViewer()
 {
 	return glfwWindowShouldClose(window);
+}
+
+void shouldCloseViewer()
+{
+  glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
 void finalize()

@@ -2,9 +2,9 @@
   <compiler angle="radian" coordinate="local" inertiafromgeom="true" meshdir="meshes/"/>
   <!--
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
-    <option	timestep="0.00025" gravity="0 0 -9.81"/>
-   -->
     <option	timestep="0.00025" gravity="0 0 0"/>
+   -->
+    <option	timestep="0.00025" gravity="0 0 -9.81"/>
 
     <default>
       <geom material="meshmat" margin='0.0000000001' />
@@ -67,9 +67,9 @@
         <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
-        <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
+        <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
 
         <geom material="meshmat" mesh="body_coll" type="mesh"/>
         <site name="imu" pos="0.0 0 -0.04" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
@@ -210,6 +210,17 @@
     </worldbody>
 
     <sensor>
+      <sitepos name="mocap"       site="imu" />
+
+      <jointpos joint="rootx" />
+      <jointpos joint="rooty" />
+      <jointpos joint="rootz" />
+      <jointpos joint="rootc" />
+      <jointpos joint="roota" />
+      <jointpos joint="rootb" />
+      <!--
+      -->
+
       <jointpos joint="head_pan" />
       <jointpos joint="head_tilt" />
       <jointpos joint="l_shoulder_pitch" />
@@ -230,6 +241,15 @@
       <jointpos joint="r_knee" />
       <jointpos joint="r_ankle_pitch" />
       <jointpos joint="r_ankle_roll" />
+
+      <jointvel joint="rootx" />
+      <jointvel joint="rooty" />
+      <jointvel joint="rootz" />
+      <jointvel joint="rootc" />
+      <jointvel joint="roota" />
+      <jointvel joint="rootb" />
+      <!--
+      -->
 
       <jointvel joint="head_pan" />
       <jointvel joint="head_tilt" />
@@ -252,17 +272,14 @@
       <jointvel joint="r_ankle_pitch" />
       <jointvel joint="r_ankle_roll" />
 
-      <!--
       <accelerometer name="accel" site="imu" />
       <gyro name="gyro"           site="imu" />
-      -->
 
       <force  name="right_f"   site="right_ati" />
       <torque name="right_t"   site="right_ati" />
 
       <force  name="left_f"    site="left_ati" />
       <torque name="left_t"    site="left_ati" />
-      <sitepos name="mocap"       site="imu" />
     </sensor>
 
     <actuator>

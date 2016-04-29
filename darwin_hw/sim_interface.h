@@ -15,13 +15,13 @@ class SimDarwin {
     double sensor_time;
     double s_dt;
 
-    double s_noise;
     double s_time_noise;
 
     std::random_device rd;
     std::mt19937 gen;
     std::normal_distribution<> t_noise;
     std::normal_distribution<> sen_noise;
+    std::normal_distribution<> ctrl_noise;
 
 
     // model helpers
@@ -32,8 +32,8 @@ class SimDarwin {
   public:
     SimDarwin(
         mjModel *m, mjData * d, double dt,
-        double s_noise, double s_time_noise) : gen(rd()),
-    t_noise(0, s_time_noise), sen_noise(0, s_noise) {
+        double s_noise, double s_time_noise, double c_noise) : gen(rd()),
+    t_noise(0, s_time_noise), sen_noise(0, s_noise), ctrl_noise(0, c_noise) {
       // s_noise ; magnitude of sensors noise 
       // s_time_noise ; noise is getting sensor values
 
@@ -44,7 +44,6 @@ class SimDarwin {
       //this->s_dt = 0.0025; //ms in seconds
       //this->s_dt = 0.0055; //ms in seconds
       this->s_dt = dt; // 2x the ms of the 'robot' timestep
-      this->s_noise = s_noise;
       this->s_time_noise = s_time_noise;
 
       darwin_ok = true;
@@ -91,8 +90,8 @@ class SimDarwin {
       // current time + next sensor time + sensor time noise
       sensor_time = d->time + s_dt + t_noise(gen);
 
-      mj_forward(m, d);
-      mj_sensor(m, d);
+      //mj_forward(m, d);
+      //mj_sensor(m, d);
 
       if (sensor) {
         for (int id=0; id<m->nsensordata; id++) {
@@ -113,7 +112,9 @@ class SimDarwin {
     bool set_controls(double * u, int *pgain, int *dgain) {
       // converts controls to darwin positions
       for(int id = 0; id < nu; id++) {
-        d->ctrl[id] = u[id];
+        double r = ctrl_noise(gen);
+        d->ctrl[id] = u[id] + r;
+        //printf("%f %f %f\n", u[id], d->ctrl[id], r);
       }
 
       // TODO setting pgain and dgain not configured yet

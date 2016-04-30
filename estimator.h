@@ -123,7 +123,7 @@ class UKF : public Estimator {
       printf("\nSums %f %f\n", suma, sumb);
 
       //P = new MatrixXd::Identity(L,L);
-      P_t = MatrixXd::Identity(L,L) * 1e-6;
+      P_t = MatrixXd::Identity(L,L) * 1e-3;
       P_z = MatrixXd::Zero(m->nsensordata,m->nsensordata);
       Pxz = MatrixXd::Zero(L,m->nsensordata);
 
@@ -204,22 +204,23 @@ class UKF : public Estimator {
       double t2 = omp_get_wtime()*1000.0;
 
       // get the matrix square root
+      std::cout<<"\n\nPrediction P_T:\n"<<P_t.format(CleanFmt)<<"\n\n";
       LLT<MatrixXd> chol((L+lambda)*(P_t));
       MatrixXd sqrt = chol.matrixL(); // chol
       std::cout<<"\n\nPrediction sqrt(P_T):\n"<<sqrt.diagonal().transpose().format(CleanFmt)<<"\n\n";
 
       double t3 = omp_get_wtime()*1000.0;
-//#define NUMBER_CHECK
+#define NUMBER_CHECK
 
       // perturb x with covariance values => make sigma point vectors
 #pragma omp parallel for
       for (int i=1; i<=L; i++) {
         //x[i+0] += sqrt.col(i-1);
         //x[i+L] -= sqrt.col(i-1);
-        //x[i+0] = x[0]+sqrt.col(i-1);
-        //x[i+L] = x[0]-sqrt.col(i-1);
-        x[i+0] = x[0];
-        x[i+L] = x[0];
+        x[i+0] = x[0]+sqrt.col(i-1);
+        x[i+L] = x[0]-sqrt.col(i-1);
+        //x[i+0] = x[0];
+        //x[i+L] = x[0];
 
         mju_copy(sigma_states[i]->qpos,   &x[i](0), nq);
         mju_copy(sigma_states[i]->qvel,   &x[i](nq), nv);
@@ -383,10 +384,10 @@ class UKF : public Estimator {
         //x[i+0] += sqrt.col(i-1);
         //x[i+L] -= sqrt.col(i-1);
 
-        //x[i+0] = x[0]+sqrt.col(i-1);
-        //x[i+L] = x[0]-sqrt.col(i-1);
-        x[i+0] = x[0];
-        x[i+L] = x[0];
+        x[i+0] = x[0]+sqrt.col(i-1);
+        x[i+L] = x[0]-sqrt.col(i-1);
+        //x[i+0] = x[0];
+        //x[i+L] = x[0];
 
         mju_copy(sigma_states[i]->qpos,   &x[i](0), nq);
         mju_copy(sigma_states[i]->qvel,   &x[i](nq), nv);
@@ -514,4 +515,5 @@ class UKF : public Estimator {
 
     std::vector<mjData *> sigma_states;
 };
+
 

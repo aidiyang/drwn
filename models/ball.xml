@@ -37,15 +37,15 @@
       <jointpos joint="rootx" />
       <jointpos joint="rooty" />
       <jointpos joint="rootz" />
+      <!--
       
       <jointvel joint="rootx" />
       <jointvel joint="rooty" />
       <jointvel joint="rootz" />
-      <!--
-      <sitepos name="mocap"       site="imu" />
       <accelerometer name="accel" site="imu" />
       <gyro name="gyro"           site="imu" />
       -->
+      <sitepos name="mocap"       site="imu" />
     </sensor>
 
     <actuator>

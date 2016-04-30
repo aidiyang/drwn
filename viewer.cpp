@@ -254,7 +254,6 @@ int main(int argc, const char** argv) {
       if (est) est->predict(ctrl, time-prev_time);
 
 
-
       //////////////////////////////////
       double t1 = now_t();
       if (est && do_correct) est->correct(sensors);

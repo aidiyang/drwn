@@ -32,7 +32,9 @@ double now_t() {
 }
 
 std::ofstream myfile;
-void save_states(std::string filename, mjData * real, mjData * est, std::string mode = "w") {
+void save_states(std::string filename,
+        mjData * real, mjData * est, double t1, double t2,
+        std::string mode = "w") {
   if (mode=="w") {
     // create file
     myfile.open(filename, std::ofstream::out);
@@ -54,6 +56,9 @@ void save_states(std::string filename, mjData * real, mjData * est, std::string 
       myfile<<"est_c,";
     for (int i=0; i<m->nsensordata; i++) 
       myfile<<"est_s,";
+
+    myfile<<"predict,";
+    myfile<<"correct,";
     myfile<<"\n";
 
     myfile.close();
@@ -86,6 +91,10 @@ void save_states(std::string filename, mjData * real, mjData * est, std::string 
       myfile<<est->ctrl[i]<<",";
     for (int i=0; i<m->nsensordata; i++) 
       myfile<<est->sensordata[i]<<",";
+
+    myfile<<t1<<",";
+    myfile<<t2<<",";
+
     myfile<<"\n";
   }
 
@@ -113,6 +122,7 @@ int main(int argc, const char** argv) {
   double c_noise;
   double e_noise;
   double s_time_noise=0.0;
+  bool do_correct;
 
 	try {
 		po::options_description desc("Allowed options");
@@ -122,11 +132,11 @@ int main(int argc, const char** argv) {
 			("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
 			("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
 			("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
-			//("gains,g", po::value<bool>(&use_gains)->default_value(false), "Use feedback gains if available")
+			("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
 			//("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
 			("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
-			("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
-			("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
+			("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
+			("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
 			//("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 			("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_threads()), "Number of OpenMP threads to use.")
 			//("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
@@ -213,10 +223,10 @@ int main(int argc, const char** argv) {
         if (est)
           delete est;
         printf("New UKF initialization\n");
-        est = new UKF(m, d, 10e-4, 2, 0, e_noise);
+        est = new UKF(m, d, 10e-4, 3, 0, e_noise);
 
         est_data = est->get_state();
-        save_states(output_file, d, est_data, "w");
+        save_states(output_file, d, est_data, 0, 0, "w");
         viewer_set_signal(0);
         break;
       default: 
@@ -231,28 +241,30 @@ int main(int argc, const char** argv) {
       printf("true state:\n");
       print_state(m, d);
 
-      double t0 = now_t();
+      //mj_forward(m, d); // to get the sensord data at the current place
+      //mj_sensor(m, d);
+
 
       //////////////////////////////////
       printf("robot sensor time: %f\n", d->time);
 
 
       //////////////////////////////////
+      double t0 = now_t();
       if (est) est->predict(ctrl, time-prev_time);
 
 
-      mj_forward(m, d);
-      mj_sensor(m, d);
 
       //////////////////////////////////
       double t1 = now_t();
-      if (est) est->correct(sensors);
+      if (est && do_correct) est->correct(sensors);
 
       double t2 = now_t();
 
 
-      printf("\t\t estimator update %f ms, predict %f ms, total %f ms\n",
+      printf("\n\t\t estimator predict %f ms, correct %f ms, total %f ms\n\n",
           t1-t0, t2-t1, t2-t0);
+
       printf("qpos at t: ");
       for (int i=0; i<nq; i++) {
         printf("%1.6f ", d->qpos[i]);
@@ -274,7 +286,7 @@ int main(int argc, const char** argv) {
       printf("\n\n");
 
 
-      if (est) { save_states(output_file, d, est_data, "a"); }
+      if (est) { save_states(output_file, d, est_data, t1-t0, t2-t1, "a"); }
 
       // we have estimated and logged the data,
       // now get new controls
@@ -297,11 +309,11 @@ int main(int argc, const char** argv) {
 
     if (est) {
       // render sigma points
-      render(window, est->get_sigmas(), color); // get state updated model / data, mj_steps
+      render(window, est->get_sigmas(), nq, color); // get state updated model / data, mj_steps
     }
     else {
       std::vector<mjData*> a;
-      render(window, a, false);
+      render(window, a, 0, false);
     }
 
     finalize();
@@ -309,7 +321,7 @@ int main(int argc, const char** argv) {
 
   end_viz();
   if (est) {
-    save_states(output_file, d, est_data, "c"); // close file
+    save_states(output_file, d, est_data, 0, 0, "c"); // close file
   }
 
   // end_estimator

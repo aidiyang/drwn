@@ -3,14 +3,17 @@
   <!--
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
     <option	timestep="0.00025" gravity="0 0 0"/>
+      <flag contact="disable"/>
    -->
-    <option	timestep="0.00025" gravity="0 0 -9.81"/>
+    <option	timestep="0.0025" gravity="0 0 0" >
+    </option>
 
     <default>
       <geom material="meshmat" margin='0.0000000001' />
       <joint limited='true' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
       <position ctrllimited='true' kp='20'/>
     </default>
+
     <asset>
       <mesh file="body_coll.stl"/>
       <mesh file="neck_coll.stl"/>
@@ -211,14 +214,14 @@
 
     <sensor>
       <sitepos name="mocap"       site="imu" />
-
+       
+      <!--
       <jointpos joint="rootx" />
       <jointpos joint="rooty" />
       <jointpos joint="rootz" />
       <jointpos joint="rootc" />
       <jointpos joint="roota" />
       <jointpos joint="rootb" />
-      <!--
       -->
 
       <jointpos joint="head_pan" />
@@ -242,13 +245,13 @@
       <jointpos joint="r_ankle_pitch" />
       <jointpos joint="r_ankle_roll" />
 
+      <!--
       <jointvel joint="rootx" />
       <jointvel joint="rooty" />
       <jointvel joint="rootz" />
       <jointvel joint="rootc" />
       <jointvel joint="roota" />
       <jointvel joint="rootb" />
-      <!--
       -->
 
       <jointvel joint="head_pan" />
@@ -307,6 +310,34 @@
 
       <position name='head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
       <position name='head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
+
+      <!--
+      <motor name='r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
+      <motor name='r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.3'  	/>
+      <motor name='r_elbow'          	joint='r_elbow'             ctrlrange='-1.55 1.25'	/>
+
+      <motor name='r_hip_yaw'        	joint='r_hip_yaw'           ctrlrange='-1 .9'   	/>
+      <motor name='r_hip_roll'       	joint='r_hip_roll'          ctrlrange='-.7 .45'   />
+      <motor name='r_hip_pitch'      	joint='r_hip_pitch'         ctrlrange='-1.7 .45'  />
+      <motor name='r_knee'           	joint='r_knee'              ctrlrange='-0.05 2.2' />
+      <motor name='r_ankle_pitch'    	joint='r_ankle_pitch'       ctrlrange='-1.2 1.35' />
+      <motor name='r_ankle_roll'     	joint='r_ankle_roll'        ctrlrange='-.7 .95'   />
+
+      <motor name='l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5  1.5' />
+      <motor name='l_shoulder_roll'  	joint='l_shoulder_roll'     ctrlrange='-1.25 .85' />
+      <motor name='l_elbow'          	joint='l_elbow'             ctrlrange='-1.25 1.55' />
+
+      <motor name='l_hip_yaw'        	joint='l_hip_yaw'           ctrlrange='-.9 1'   />
+      <motor name='l_hip_roll'       	joint='l_hip_roll'          ctrlrange='-.45 .7'   />
+      <motor name='l_hip_pitch'      	joint='l_hip_pitch'         ctrlrange='-.45 1.7'  />
+      <motor name='l_knee'           	joint='l_knee'              ctrlrange='-2.2  .05' />
+      <motor name='l_ankle_pitch'    	joint='l_ankle_pitch'       ctrlrange='-1.35 1.2' />
+      <motor name='l_ankle_roll'     	joint='l_ankle_roll'        ctrlrange='-.95 .7'   />
+
+      <motor name='head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
+      <motor name='head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
+      -->
+
     </actuator>
 
   </mujoco>

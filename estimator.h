@@ -3,6 +3,7 @@
 #include <string.h>
 #include <iostream>
 #include <random>
+#include <functional>
 
 #include <omp.h>
 
@@ -16,7 +17,9 @@
 #include <vector>
 #include <Eigen/Dense>
 
-
+//#include <boost/random.hpp>
+//#include <boost/random/normal_distribution.hpp>
+//
 using namespace Eigen;
 
 class Estimator {
@@ -120,7 +123,7 @@ class UKF : public Estimator {
       printf("\nSums %f %f\n", suma, sumb);
 
       //P = new MatrixXd::Identity(L,L);
-      P_t = MatrixXd::Identity(L,L);
+      P_t = MatrixXd::Identity(L,L) * 1e-6;
       P_z = MatrixXd::Zero(m->nsensordata,m->nsensordata);
       Pxz = MatrixXd::Zero(L,m->nsensordata);
 
@@ -160,9 +163,26 @@ class UKF : public Estimator {
       delete[] W_c;
     };
 
+    double random_sample(double a) {
+      static std::random_device rd;
+      static std::mt19937 rng(rd());
+      static std::normal_distribution<> nd(0, 0.01);
+
+      return nd(rng);
+    }
+
+    double sensor_sample(double a) {
+      static std::random_device rd;
+      static std::mt19937 rng(rd());
+      static std::normal_distribution<> nd(0, 0.01);
+
+      return nd(rng);
+    }
+
     void predict(double * ctrl, double dt) {
 
       m->opt.timestep = dt; // smoother way of doing this?
+
       IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
 
       printf("Predict t-1 = %f seconds\n", sigma_states[0]->time);
@@ -176,6 +196,7 @@ class UKF : public Estimator {
       // copy to sigma_states
       mju_copy(d->qpos, &(x_t(0)), nq);
       mju_copy(d->qvel, &(x_t(nq)), nv);
+
       // copy to our data vectors
       mju_copy(&x[0](0), d->qpos, nq);
       mju_copy(&x[0](nq), d->qvel, nv);
@@ -195,12 +216,15 @@ class UKF : public Estimator {
       for (int i=1; i<=L; i++) {
         //x[i+0] += sqrt.col(i-1);
         //x[i+L] -= sqrt.col(i-1);
-        x[i+0] = x[0]+sqrt.col(i-1);
-        x[i+L] = x[0]-sqrt.col(i-1);
+        //x[i+0] = x[0]+sqrt.col(i-1);
+        //x[i+L] = x[0]-sqrt.col(i-1);
+        x[i+0] = x[0];
+        x[i+L] = x[0];
 
         mju_copy(sigma_states[i]->qpos,   &x[i](0), nq);
         mju_copy(sigma_states[i]->qvel,   &x[i](nq), nv);
         mju_copy(sigma_states[i]->ctrl,   ctrl, nu); // set controls for this t
+
         //mju_copy(sigma_states[i]->qact, d->qact, nv);
         mju_copy(sigma_states[i+L]->qpos, &x[i+L](0), nq);
         mju_copy(sigma_states[i+L]->qvel, &x[i+L](nq), nv);
@@ -229,16 +253,19 @@ class UKF : public Estimator {
 #pragma omp parallel for
       for (int i=0; i<N; i++) {
         mj_step(m, sigma_states[i]);
+        //mj_Euler(m, sigma_states[i]); // WOW, that's faster
         
         // TODO is the forward and sensor necessary?
-        mj_forward(m, sigma_states[i]);
-        mj_sensor(m, sigma_states[i]);
+        //mj_forward(m, sigma_states[i]);
+        //mj_sensor(m, sigma_states[i]);
 
         mju_copy(&x[i](0), sigma_states[i]->qpos, nq);
         mju_copy(&x[i](nq), sigma_states[i]->qvel, nv);
         
-        //VectorXd r = VectorXd::Random(L)*0.000001;
-        //x[i] = x[i] + r;
+        // TODO process noise??
+        VectorXd r = VectorXd::Random(L)*noise;
+        //VectorXd r = VectorXd::Zero(L).unaryExpr(std::mem_fun(&UKF::random_sample));
+        x[i] = x[i] + r;
         // TODO can put the W_s multiplication here
       }
 
@@ -263,11 +290,13 @@ class UKF : public Estimator {
 
       x_t.setZero();
       //std::cout << "\n0pred: "<< x_t.transpose() << std::endl;
-      for (int i=0; i<N; i++) {
-        x_t += W_s[i] * x[i];
+      for (int i=1; i<N; i++) {
+        x_t += x[i];
       }
+      x_t = (W_s[0] * x[0]) + (W_s[1] * x_t);
 
       std::cout << "\n1pred: "<< x_t.transpose() << std::endl;
+
       //P_t = P_t + 0.0001;
       //P_t.setIdentity() * 0.0001;
       // TODO random noise in the covariance, with symmetry
@@ -282,10 +311,14 @@ class UKF : public Estimator {
         if (P_t.row(i).isZero())
           P_t(i,i) = 1.0;
       }
-      //std::cout<<"\n\nFixed?? P_T:\n"<<P_t.diagonal().transpose().format(CleanFmt)<<"\n\n";
+
       //std::cout<<"\n\nNot random P_T:\n"<<P_t.format(CleanFmt)<<"\n\n";
-      P_t = P_t + MatrixXd::Random(L,L) * noise;
-      P_t = (P_t * P_t.transpose());// - MatrixXd(P_t.diagonal().asDiagonal());
+      // sets noise in the covariance matrix; seems bad
+      //if (noise > 1e-15) {
+      //  P_t = P_t + MatrixXd::Random(L,L) * noise;
+      //  P_t = (P_t * P_t.transpose());// - MatrixXd(P_t.diagonal().asDiagonal());
+      //  std::cout<<"\n\nFixed?? P_T:\n"<<P_t.diagonal().transpose().format(CleanFmt)<<"\n\n";
+      //}
 
       //std::cout<<"\n\nFixed?? P_T:\n"<<P_t.format(CleanFmt)<<"\n\n";
 
@@ -350,8 +383,10 @@ class UKF : public Estimator {
         //x[i+0] += sqrt.col(i-1);
         //x[i+L] -= sqrt.col(i-1);
 
-        x[i+0] = x[0]+sqrt.col(i-1);
-        x[i+L] = x[0]-sqrt.col(i-1);
+        //x[i+0] = x[0]+sqrt.col(i-1);
+        //x[i+L] = x[0]-sqrt.col(i-1);
+        x[i+0] = x[0];
+        x[i+L] = x[0];
 
         mju_copy(sigma_states[i]->qpos,   &x[i](0), nq);
         mju_copy(sigma_states[i]->qvel,   &x[i](nq), nv);
@@ -365,11 +400,13 @@ class UKF : public Estimator {
       // copy back to sigma_states and step forward in time
 #pragma omp parallel for
       for (int i=0; i<N; i++) {
-        // to get sensor values at the current time
-        mj_forward(m, sigma_states[i]);
+        mj_forward(m, sigma_states[i]); // TODO use forward_skip for non_qpos changes
         mj_sensor(m, sigma_states[i]);
 
         gamma[i] = Map<VectorXd>(sigma_states[i]->sensordata, m->nsensordata);
+
+        //VectorXd r = VectorXd::Zero(m->nsensordata).unaryExpr(&UKF::sensor_sample);
+        //gamma[i] = gamma[i] + r;
         //mju_copy(&gamma[i](0), sigma_states[i]->sensordata, m->nsensordata);
         // TODO can do W_s multiply here
       }
@@ -392,34 +429,33 @@ class UKF : public Estimator {
       double t5 = omp_get_wtime()*1000.0;
 
       VectorXd z_k = VectorXd::Zero(m->nsensordata);
-      for (int i=0; i<N; i++) {
-        z_k += W_s[i] * gamma[i];
+      for (int i=1; i<N; i++) {
+        z_k += gamma[i];
       }
+      z_k = (W_s[0]*gamma[0]) + (W_s[1]*z_k); 
 
       P_z.setZero();
       Pxz.setZero();
-      //P_z.setIdentity() * 0.0001;
-      //Pxz.setIdentity() * 0.0001;
-      //P_z.setIdentity();
-      //Pxz.setIdentity();
 
-      for (int i=0; i<N; i++) {
+      for (int i=1; i<N; i++) {
         VectorXd z(gamma[i] - z_k);
         VectorXd x_i(x[i] - x_t);
         
-        P_z += W_c[i] * (z * z.transpose());
-        Pxz += W_c[i] * (x_i * z.transpose());
+        P_z += (z * z.transpose());
+        Pxz += (x_i * z.transpose());
       }
+      VectorXd z(gamma[0] - z_k);
+      VectorXd x_i(x[0] - x_t);
+      P_z = (W_c[0] * (z * z.transpose())) + (W_c[1] * P_z);
+      Pxz = (W_c[0] * (x_i * z.transpose())) + (W_c[1] * Pxz);
+
       for (int i=0; i<m->nsensordata; i++) {
         if (P_z.row(i).isZero())
           P_z(i,i) = 1.0;
       }
 
       MatrixXd K = Pxz * P_z.inverse();
-      //for (int i=0; i<m->nsensordata; i++) {
-      //  if (K(i,i) == 0)
-      //    K(i,i) = 1.0;
-      //}
+      
       VectorXd s = Map<VectorXd>(sensors, m->nsensordata); // map our real z to vector
       x_t = x_t + (K*(s-z_k));
       P_t = P_t - (K * P_z * K.transpose());
@@ -441,8 +477,8 @@ class UKF : public Estimator {
 #endif
 
       // set our ideal state to be our calculated estimate
-      mju_copy(d->qpos, &(x_t(0)), nq);
-      mju_copy(d->qvel, &(x_t(nq)), nv);
+      //mju_copy(d->qpos, &(x_t(0)), nq);
+      //mju_copy(d->qvel, &(x_t(nq)), nv);
     }
 
     mjData* get_state() {
@@ -478,5 +514,4 @@ class UKF : public Estimator {
 
     std::vector<mjData *> sigma_states;
 };
-
 

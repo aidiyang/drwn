@@ -488,7 +488,7 @@ void advance(void)
 }
 
 // render
-void render(GLFWwindow * window, std::vector<mjData *> frame, bool step)
+void render(GLFWwindow * window, std::vector<mjData *> frame, int num_frame, bool step)
 {
 	// past data for FPS calculation
 	static double lastrendertm = 0;
@@ -607,9 +607,9 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool step)
 	}
 
 	if (frame.size()) {
-    for (auto it = frame.begin(); it != frame.end(); ++it) {
+    for (int idx = 0; idx<num_frame; idx++) {
       //mjv_makeGeoms(m, frame, &objects2, &vopt, mjCAT_ALL, selbody, 
-      mjv_makeGeoms(m, *it, &objects2, &vopt, mjCAT_ALL, selbody, 
+      mjv_makeGeoms(m, frame[idx], &objects2, &vopt, mjCAT_ALL, selbody, 
           (perturb & mjPERT_TRANSLATE) ? refpos : 0, 
           (perturb & mjPERT_ROTATE) ? refquat : 0, selpos);
       //mjv_makeLights(m, d2, &objects);

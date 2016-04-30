@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 2.8)
 #find_package(CUDA 7.0)
 #find_package(Ceres)
 find_package(Threads REQUIRED)
-find_package(Boost 1.55 COMPONENTS program_options)
+find_package(Boost 1.55 COMPONENTS program_options random)
 
 #add_definitions(${Caffe_DEFINITIONS})
 #set(Caffe_INCLUDE_DIRS 
@@ -120,4 +120,6 @@ else()
 endif()
 #target_include_directories(viewer PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
+add_executable(sim "simulate.cpp" )
+target_link_libraries(sim ${MUJOCO_LIBRARIES} )
 

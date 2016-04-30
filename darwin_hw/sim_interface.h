@@ -89,15 +89,15 @@ class SimDarwin {
 
       // current time + next sensor time + sensor time noise
       sensor_time = d->time + s_dt + t_noise(gen);
-
-      //mj_forward(m, d);
-      //mj_sensor(m, d);
+      
+      // get sensor values at this timestep
+      mj_forward(m, d);
+      mj_sensor(m, d);
 
       if (sensor) {
         for (int id=0; id<m->nsensordata; id++) {
           double r = sen_noise(gen);
           sensor[id] = d->sensordata[id] + r; // s_noise perturbation;
-          //printf("%f %f %f\n", sensor[id], d->sensordata[id], r);
         }
       }
       else {

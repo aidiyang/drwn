@@ -121,8 +121,12 @@ int main(int argc, const char** argv) {
   double s_noise;
   double c_noise;
   double e_noise;
+  double alpha;
+  double beta;
+  double kappa;
   double s_time_noise=0.0;
   bool do_correct;
+  bool debug;
 
 	try {
 		po::options_description desc("Allowed options");
@@ -133,10 +137,14 @@ int main(int argc, const char** argv) {
 			("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
 			("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
 			("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
+			("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
 			//("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
 			("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
 			("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
 			("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
+			("alpha,a", po::value<double>(&alpha)->default_value(10e-3), "Gaussian amount of sensor noise to corrupt data with.")
+			("beta,b", po::value<double>(&beta)->default_value(2), "Gaussian amount of control noise to corrupt data with.")
+			("kappa,k", po::value<double>(&kappa)->default_value(0), "Gaussian amount of estimator noise to corrupt data with.")
 			//("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 			("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_threads()), "Number of OpenMP threads to use.")
 			//("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
@@ -165,9 +173,13 @@ int main(int argc, const char** argv) {
   printf("Timesteps:\t\t%d\n", estimation_counts);
   printf("Sensor Noise:\t\t%f\n", s_noise);
   printf("Control Noise:\t\t%f\n", c_noise);
+  printf("UKF alpha:\t\t%f\n", alpha);
+  printf("UKF beta:\t\t%f\n", beta);
+  printf("UKF kappa:\t\t%f\n", kappa);
 
   // Start Initializations
   omp_set_num_threads(num_threads);
+  omp_set_dynamic(0);
 
   if (init_viz(model_name)) { return 1; }
 
@@ -194,7 +206,6 @@ int main(int argc, const char** argv) {
   Walking * walker = new Walking();
   walker->Initialize(ctrl);
   robot->set_controls(ctrl, NULL, NULL);
-
 
   UKF * est = 0;
 
@@ -223,7 +234,7 @@ int main(int argc, const char** argv) {
         if (est)
           delete est;
         printf("New UKF initialization\n");
-        est = new UKF(m, d, 10e-4, 3, 0, e_noise);
+        est = new UKF(m, d, alpha, beta, kappa, e_noise, debug);
 
         est_data = est->get_state();
         save_states(output_file, d, est_data, 0, 0, "w");
@@ -248,11 +259,18 @@ int main(int argc, const char** argv) {
       //////////////////////////////////
       printf("robot sensor time: %f\n", d->time);
 
-
       //////////////////////////////////
       double t0 = now_t();
       if (est) est->predict(ctrl, time-prev_time);
 
+
+      printf("true state:\n");
+      print_state(m, d);
+      printf("\nprovided snsr data: ");
+      for (int i=0; i<nsensordata; i++) {
+        printf("%1.6f ", sensors[i]);
+      }
+      printf("\n");
 
       //////////////////////////////////
       double t1 = now_t();

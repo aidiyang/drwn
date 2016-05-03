@@ -123,3 +123,5 @@ endif()
 add_executable(sim "simulate.cpp" )
 target_link_libraries(sim ${MUJOCO_LIBRARIES} )
 
+add_executable(speed_test "multithread.cpp" )
+target_link_libraries(speed_test ${MUJOCO_LIBRARIES} )

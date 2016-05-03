@@ -65,7 +65,6 @@
         <inertial diaginertia="6.53693 6.39822 1.88344" mass="0.975599" pos="-0.003053 -0.038651 -0.019268" quat="-0.00879356 0.867004 0.0524199 0.495458"/>
         <!--
         <joint type="free" limited='false' />
-        -->
 
         <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
@@ -73,6 +72,7 @@
         <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
+        -->
 
         <geom material="meshmat" mesh="body_coll" type="mesh"/>
         <site name="imu" pos="0.0 0 -0.04" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />

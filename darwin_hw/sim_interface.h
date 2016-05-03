@@ -97,7 +97,7 @@ class SimDarwin {
       if (sensor) {
         for (int id=0; id<m->nsensordata; id++) {
           double r = sen_noise(gen);
-          sensor[id] = d->sensordata[id] + r; // s_noise perturbation;
+          sensor[id] = d->sensordata[id] + r; //cs_noise perturbation;
         }
       }
       else {

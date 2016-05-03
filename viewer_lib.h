@@ -609,7 +609,7 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, int num_frame, boo
 	if (frame.size()) {
     for (int idx = 0; idx<num_frame; idx++) {
       //mjv_makeGeoms(m, frame, &objects2, &vopt, mjCAT_ALL, selbody, 
-      mjv_makeGeoms(m, frame[idx], &objects2, &vopt, mjCAT_ALL, selbody, 
+      mjv_makeGeoms(m, frame[idx], &objects2, &vopt, mjCAT_DYNAMIC, selbody, 
           (perturb & mjPERT_TRANSLATE) ? refpos : 0, 
           (perturb & mjPERT_ROTATE) ? refquat : 0, selpos);
       //mjv_makeLights(m, d2, &objects);
@@ -627,7 +627,7 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, int num_frame, boo
           p2[i].rgba[1] = 0.0f;
           p2[i].rgba[2] = 0.0f;
         }
-        p2[i].rgba[3] = 0.75f;
+        p2[i].rgba[3] = 0.15f;
         memcpy(p + (objects.ngeom + i), p2 + i, sizeof(mjvGeom));
         objects.geomorder[objects.ngeom + i] = objects2.geomorder[i];	// ptrs 
       }

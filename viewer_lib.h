@@ -607,7 +607,8 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, int num_frame, boo
 	}
 
 	if (frame.size()) {
-    for (int idx = 0; idx<num_frame; idx++) {
+    for (unsigned int idx = 0; idx<frame.size(); idx++) {
+      mj_forward(m, frame[idx]);
       //mjv_makeGeoms(m, frame, &objects2, &vopt, mjCAT_ALL, selbody, 
       mjv_makeGeoms(m, frame[idx], &objects2, &vopt, mjCAT_DYNAMIC, selbody, 
           (perturb & mjPERT_TRANSLATE) ? refpos : 0, 

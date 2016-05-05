@@ -5,7 +5,7 @@
     <option	timestep="0.00025" gravity="0 0 0"/>
       <flag contact="disable"/>
    -->
-    <option	timestep="0.0025" gravity="0 0 0" >
+    <option	timestep="0.0025" gravity="0 0 -9.81" >
     </option>
 
     <default>

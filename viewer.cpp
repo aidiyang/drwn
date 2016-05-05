@@ -234,7 +234,7 @@ int main(int argc, const char** argv) {
         if (est)
           delete est;
         printf("New UKF initialization\n");
-        est = new UKF(m, d, alpha, beta, kappa, e_noise, debug);
+        est = new UKF(m, d, alpha, beta, kappa, e_noise, debug, num_threads);
 
         est_data = est->get_state();
         save_states(output_file, d, est_data, 0, 0, "w");
@@ -326,7 +326,7 @@ int main(int argc, const char** argv) {
 
     if (est) {
       // render sigma points
-      render(window, est->get_sigmas(), nq, color); // get state updated model / data, mj_steps
+      render(window, est->get_sigmas(), nq+nv, color); // get state updated model / data, mj_steps
     }
     else {
       std::vector<mjData*> a;

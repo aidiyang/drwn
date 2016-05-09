@@ -5,8 +5,6 @@
 
 #include "estimator.h"
 
-#include <cnpy.h>
-
 
 #include <omp.h>
 #include <iostream>

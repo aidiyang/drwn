@@ -6,12 +6,13 @@
 #include <functional>
 
 #include <omp.h>
+#include <math.h>
 
 #ifdef USE_EIGEN_MKL
 #define EIGEN_USE_MKL_ALL
 #endif
 
-#define EIGEN_DONT_PARALLELIZE
+//#define EIGEN_DONT_PARALLELIZE
 
 //#include <Eigen/StdVector>
 #include <vector>
@@ -74,6 +75,7 @@ class UKF : public Estimator {
                 double _alpha, double _beta, double _kappa, double _noise,
                 bool debug = false, int threads = 1) : Estimator(m, d) {
             L = nq + nv; // size of state dimensions
+
             N = 2*L + 1;
 
             alpha = _alpha;
@@ -95,14 +97,13 @@ class UKF : public Estimator {
 
               sigmas[i] = mj_makeData(this->m);
 
-              mju_copy(sigmas[i]->qacc, this->d->qacc, nv);
-              mju_copy(sigmas[i]->qvel, this->d->qvel, nv);
-              mju_copy(sigmas[i]->qpos, this->d->qpos, nq);
-              mju_copy(sigmas[i]->ctrl, this->d->ctrl, nu);
+              //mju_copy(sigmas[i]->qacc, this->d->qacc, nv);
+              //mju_copy(sigmas[i]->qvel, this->d->qvel, nv);
+              //mju_copy(sigmas[i]->qpos, this->d->qpos, nq);
+              //mju_copy(sigmas[i]->ctrl, this->d->ctrl, nu);
+              //mj_forward(m, sigmas[i]);
 
-              mj_forward(m, sigmas[i]);
-
-              mj_copyData(sigmas[i], this->m, this->d);
+              mj_copyData(sigmas[i], this->m, this->d); // data initialization
             }
 
             //raw.resize(N);
@@ -487,6 +488,12 @@ class UKF : public Estimator {
             std::cout << "\ndelta:\n"<< (s-z_k).transpose().format(CleanFmt) << std::endl;
             std::cout << "NEW CORRECTION STEPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP\n";
           }
+
+          std::cout << "\np_t :\n"<< P_t.diagonal().transpose().format(CleanFmt) << std::endl;
+          double a = abs(P_t.determinant());
+          double b = pow(2*3.14159265*exp(1), (double)L);
+          double entropy = 0.5*log(b * a);
+          printf("\n\ne %f\ta: %1.32f\tb: %f\tEntropy: %f\n\n", a*b, a, b, entropy);
         }
 
         void old_predict(double * ctrl, double dt) {
@@ -823,6 +830,9 @@ mj_step(m, sigma_states[i]);
           // set our ideal state to be our calculated estimate
           mju_copy(d->qpos, &(x_t(0)), nq);
           mju_copy(d->qvel, &(x_t(nq)), nv);
+
+
+
         }
 
         mjData* get_state() {

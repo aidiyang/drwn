@@ -82,13 +82,15 @@ class SimDarwin {
 
       *time = d->time;
       if (d->time < sensor_time ) {
+
         //mj_step(m, d); // advanced simulation until we can get new sensor data
         // let render program advance the simulation
         return false;
       }
+      printf("real time %f\nsensor time: %f\n\n", d->time, sensor_time);
 
       // current time + next sensor time + sensor time noise
-      sensor_time = d->time + s_dt + t_noise(gen);
+      sensor_time = d->time + s_dt;// + t_noise(gen);
       
       // get sensor values at this timestep
       mj_forward(m, d);

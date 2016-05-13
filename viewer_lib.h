@@ -23,7 +23,7 @@ char lastfile[1000] = "";
 
 // user state
 bool paused = true;
-bool increment = false;
+int increment = 0;
 bool showoption = false;
 bool showinfo = true;
 bool showdepth = false;
@@ -217,7 +217,7 @@ void keyboard(GLFWwindow * window, int key, int scancode, int act, int mods)
 
 	case GLFW_KEY_RIGHT:	// step forward
 		if (paused)
-			increment = true;
+			increment = 1;
 		//mj_step(m, d);
 		break;
 
@@ -231,8 +231,9 @@ void keyboard(GLFWwindow * window, int key, int scancode, int act, int mods)
 
 	case GLFW_KEY_PAGE_DOWN:	// step forward 100
 		if (paused)
-			for (n = 0; n < 100; n++)
-				mj_step(m, d);
+      increment = 100;
+			//for (n = 0; n < 100; n++)
+			//	mj_step(m, d);
 		break;
 
 	case GLFW_KEY_PAGE_UP:	// step back 100
@@ -519,9 +520,12 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, int num_frame, boo
 		mj_forward(m, d);
 
 		if (increment) {
-			increment = false;
 			printf("Step\n");
-			advance();
+
+      for (int i=0; i<increment; i++) {
+        advance();
+      }
+			increment = false;
 		}
 		// 15 msec delay
 		while (glfwGetTime() - starttm < 0.015) ;

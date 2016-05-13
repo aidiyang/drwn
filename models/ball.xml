@@ -4,12 +4,13 @@
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
     <option	timestep="0.00125" gravity="0 0 0"/>
         <motor ctrlrange='-.4 .4' ctrllimited='true'/>
+        	margin="0.0001" solref=".02 0.08" solimp=".6 .8 .01"/>
    -->
-    <option	timestep="0.00125" gravity="0 0 -9.81"/>
+    <option	timestep="0.00125" iterations="50" solver="PGS" tolerance="1e-6" gravity="0 0 -9.81"/>
 
     <default>
         <geom contype='1' conaffinity='1' condim='1' rgba='0.8 0.6 .4 1'
-        	margin="0.0001" solref=".02 0.08" solimp=".6 .8 .01"/>
+        margin="0.000" solref=".04 0.05" solimp=".08 .08 .1"/>
     </default>
 
     <asset>
@@ -36,19 +37,21 @@
     </worldbody>
 
     <sensor>
+      <sitepos name="mocap"       site="imu" />
       <jointpos joint="rootx" />
       <jointpos joint="rootz" />
-      <!--
-      <jointpos joint="rooty" />
       
       <jointvel joint="rootx" />
-      <jointvel joint="rooty" />
       <jointvel joint="rootz" />
+
+      <!--
+      <jointpos joint="rooty" />
+      <jointvel joint="rooty" />
+
       <gyro name="gyro"           site="imu" />
-      <sitepos name="mocap"       site="imu" />
-      -->
       <accelerometer name="accel" site="imu" />
       <force  name="force"        site="force" />
+      -->
     </sensor>
 
     <actuator>

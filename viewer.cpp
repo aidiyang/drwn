@@ -104,6 +104,7 @@ void print_state(const mjModel* m, const mjData* d) {
   for (int i=0; i<m->nq; i++) {
     printf("%1.4f ", d->qpos[i]);
   }
+  printf(":: ");
   for (int i=0; i<m->nv; i++) {
     printf("%1.4f ", d->qvel[i]);
   }
@@ -146,7 +147,7 @@ int main(int argc, const char** argv) {
 			("beta,b", po::value<double>(&beta)->default_value(2), "Gaussian amount of control noise to corrupt data with.")
 			("kappa,k", po::value<double>(&kappa)->default_value(0), "Gaussian amount of estimator noise to corrupt data with.")
 			//("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
-			("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_threads()), "Number of OpenMP threads to use.")
+			("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
 			//("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
 			//("d_gain,d", po::value<int>(&d_gain)->default_value(0), "D gain of PiD controller, 0-32")
 			;
@@ -204,7 +205,9 @@ int main(int argc, const char** argv) {
 
   // init darwin to walker pose
   Walking * walker = new Walking();
-  walker->Initialize(ctrl);
+  if (nu >= 20) {
+      walker->Initialize(ctrl);
+  }
   robot->set_controls(ctrl, NULL, NULL);
 
   UKF * est = 0;
@@ -257,11 +260,12 @@ int main(int argc, const char** argv) {
 
 
       //////////////////////////////////
-      printf("robot sensor time: %f\n", d->time);
+      printf("robot sensor time: %f, est DT: %f\n", d->time, time-prev_time);
 
       //////////////////////////////////
       double t0 = now_t();
       if (est) est->predict(ctrl, time-prev_time);
+      //if (est) est->predict(ctrl, (time-prev_time)/2.0);
 
 
       printf("true state:\n");
@@ -307,7 +311,9 @@ int main(int argc, const char** argv) {
 
       // we have estimated and logged the data,
       // now get new controls
+      if (nu >= 20) {
       walker->Process(time-prev_time, 0, ctrl);
+      }
       robot->set_controls(ctrl, NULL, NULL);
 
       prev_time = time;

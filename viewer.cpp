@@ -184,7 +184,7 @@ int main(int argc, const char** argv) {
 
   
   double dt = m->opt.timestep;
-  SimDarwin *robot = new SimDarwin(m, d, 2.0*dt, s_noise, s_time_noise, c_noise);
+  SimDarwin *robot = new SimDarwin(m, d, dt, s_noise, s_time_noise, c_noise);
 
   int nq = m->nq;
   int nv = m->nv;

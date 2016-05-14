@@ -119,6 +119,7 @@ class UKF : public Estimator {
           W_s[i] = lambda / ((double) L + lambda);
 
           W_c[i] = W_s[i] + (1-(alpha*alpha)+beta);
+          W_s[i] = 1.0 / N;
           //W_c[i] = W_s[i];
         }
         else {
@@ -127,6 +128,8 @@ class UKF : public Estimator {
 
           W_s[i] = 1.0 / (2.0 * ((double)L + lambda));
           W_c[i] = W_s[i];
+
+          W_s[i] = 1.0 / N;
         }
         x[i] = VectorXd::Zero(L); // point into raw buffer, not mjdata
 
@@ -452,7 +455,7 @@ class UKF : public Estimator {
 
       VectorXd z_k = VectorXd::Zero(m->nsensordata);
       for (int i=0; i<N; i++) {
-        z_k +=W_s[i]*gamma[i];
+        z_k += W_s[i]*gamma[i];
       }
 
       if (NUMBER_CHECK) {
@@ -475,6 +478,7 @@ class UKF : public Estimator {
       }
 
       P_z.setZero();
+      //P_z.setIdentity();
       Pxz.setZero();
       for (int i=0; i<N; i++) {
         VectorXd z(gamma[i] - z_k);
@@ -492,14 +496,25 @@ class UKF : public Estimator {
         }
       }
 
-      P_z.setIdentity();
+      bool inv_Pz = true;
+      if (abs(P_z.determinant()) < 1e-9) {
+        printf("INVERSION NEEDED HALPS :3 \n\n");
+        inv_Pz = false;
+        P_z = P_z + MatrixXd::Identity(m->nsensordata,m->nsensordata);
+      }
+      //P_z.setIdentity();
       //P_t = MatrixXd::Identity(L,L) * 1e-3;
       MatrixXd K = Pxz * P_z.inverse();
 
       VectorXd s = Map<VectorXd>(sensors, m->nsensordata); // map our real z to vector
       std::cout << "\nbefore x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
       x_t = x_t + (K*(s-z_k));
+      if (!inv_Pz) {
+      P_t = P_t - (K * (P_z-MatrixXd::Identity(m->nsensordata,m->nsensordata))* K.transpose());
+    } else {
       P_t = P_t - (K * P_z * K.transpose());
+    }
+      
       std::cout << "\nafter x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
 
       mju_copy(d->qpos, &(x_t(0)), nq); // center point

@@ -272,7 +272,7 @@ class UKF : public Estimator {
           else mju_copy(sigmas[tid]->ctrl,   ctrl, nu); // set controls for this t
 
           //mj_step(m, sigmas[tid]);
-          mj_forward(m, d);
+          mj_forward(m, sigmas[tid]);
           mj_Euler(m, sigmas[tid]);
 
           sigmas[tid]->time = d->time;

@@ -15,12 +15,16 @@ soft:
       <flag contact="disable"/>
    -->
 
-    <option	timestep="0.0025" iterations="50" solver="PGS" gravity="0 0 -9.81" >
+    <option	timestep="0.0025" iterations="50" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
     </option>
 
     <default>
+      <geom solref=".02 1" solimp=".6 .9 .01" material="meshmat" margin='0.001' />
+
+        <!--
       <geom contype='1' conaffinity='1' condim='1' rgba='0.8 0.6 .4 1'
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
+        -->
       <joint limited='true' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
       <position ctrllimited='true' kp='20'/>
     </default>
@@ -232,11 +236,18 @@ soft:
       <jointpos joint="roota" />
       <jointpos joint="rootb" />
 
+      <jointvel joint="rootx" />
+      <jointvel joint="rooty" />
+      <jointvel joint="rootz" />
+      <jointvel joint="rootc" />
+      <jointvel joint="roota" />
+      <jointvel joint="rootb" />
+
       <!--
+      -->
       <sitepos name="mocap"       site="imu" />
       <sitepos name="mocap1"       site="right_ati" />
       <sitepos name="mocap2"       site="left_ati" />
-      -->
 
       <jointpos joint="head_pan" />
       <jointpos joint="head_tilt" />
@@ -290,15 +301,15 @@ soft:
       <jointvel joint="r_ankle_roll" />
 
 
-      <gyro name="gyro"           site="imu" />
       <!--
+      <gyro name="gyro"           site="imu" />
       <accelerometer name="accel" site="imu" />
-
       <force  name="right_f"   site="right_ati" />
       <torque name="right_t"   site="right_ati" />
 
       <force  name="left_f"    site="left_ati" />
       <torque name="left_t"    site="left_ati" />
+
       -->
     </sensor>
 

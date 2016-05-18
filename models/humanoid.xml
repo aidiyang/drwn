@@ -2,14 +2,16 @@
     <compiler inertiafromgeom='true' angle='degree'/>
 
     <default>
-        <joint limited='false' damping='1' armature='0' />
+        <joint limited='true' damping='1' armature='0' />
         <geom contype='1' conaffinity='1' condim='1' rgba='0.8 0.6 .4 1'
         	margin="0.001" solref=".02 1" solimp=".8 .8 .01" material="geom"/>
         <motor ctrlrange='-.4 .4' ctrllimited='false'/>
     </default>
 
-    <option timestep='0.002' iterations="50" solver="PGS" gravity="0 0 0 ">
+    <option timestep='0.002' iterations="50" solver="PGS" gravity="0 0 -9.81">
+        <!--
         <flag energy="enable"/>
+        -->
     </option>
 
     <visual>
@@ -36,6 +38,17 @@
             <light mode='trackcom' directional='false' diffuse='.8 .8 .8' specular='0.3 0.3 0.3' pos='0 0 4.0' dir='0 0 -1'/>
 
             <joint name='root' type='free' pos='0 0 0' limited='false' damping='0' armature='0' stiffness='0'/>
+
+            <!--
+            <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
+            <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
+            <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
+
+            <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
+            <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
+            <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
+            -->
+
             <geom name='torso1' type='capsule' fromto='0 -.07 0 0 .07 0'  size='0.07' />
             <geom name='head' type='sphere' pos='0 0 .19' size='.09' />
             <site name="imu" type='sphere' pos='0 0 .19' size='.09' rgba='1 0 0 1' />
@@ -115,13 +128,14 @@
       <sitepos name="mocap3"       site="rh_imu" />
       <sitepos name="mocap4"       site="lh_imu" />
 
-      <!-- wtf
       <gyro name="imu_h"       site="imu" />
       <gyro name="imu_1"       site="rf_imu" />
       <gyro name="imu_2"       site="lf_imu" />
       <gyro name="imu_3"       site="rh_imu" />
       <gyro name="imu_4"       site="lh_imu" />
-      
+   
+      <!-- wtf
+     
       <accelerometer name="a_h"       site="imu" />
       <accelerometer name="a_1"       site="rf_imu" />
       <accelerometer name="a_2"       site="lf_imu" />

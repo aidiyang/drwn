@@ -6,7 +6,7 @@
         <motor ctrlrange='-.4 .4' ctrllimited='true'/>
         	margin="0.0001" solref=".02 0.08" solimp=".6 .8 .01"/>
    -->
-    <option	timestep="0.00125" iterations="50" solver="PGS" tolerance="1e-6" gravity="0 0 -9.81"/>
+    <option	timestep="0.00125" iterations="50" solver="PGS" tolerance="1e-6" gravity="0 0 0"/>
 
     <default>
         <geom contype='1' conaffinity='1' condim='1' rgba='0.8 0.6 .4 1'
@@ -27,10 +27,10 @@
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" />
         <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" />
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" />
-        -->
 
-        <site name="imu" pos="0 0 0" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
         <site name="force" pos="0 0 0" type="sphere" size="0.05" rgba="1 1 0 0.5" />
+        -->
+        <site name="imu" pos="0 0 0" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
 
         <geom name="ball" type="sphere" size="0.05" rgba="0 0 1 1"/>
       </body>
@@ -38,20 +38,20 @@
 
     <sensor>
       <sitepos name="mocap"       site="imu" />
+      <!--
       <jointpos joint="rootx" />
       <jointpos joint="rootz" />
       
       <jointvel joint="rootx" />
       <jointvel joint="rootz" />
 
-      <!--
       <jointpos joint="rooty" />
       <jointvel joint="rooty" />
 
       <gyro name="gyro"           site="imu" />
-      <accelerometer name="accel" site="imu" />
-      <force  name="force"        site="force" />
+      <force  name="force"        site="imu" />
       -->
+      <accelerometer name="accel" site="imu" />
     </sensor>
 
     <actuator>

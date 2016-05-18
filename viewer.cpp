@@ -31,7 +31,8 @@ double now_t() {
 
 std::ofstream myfile;
 void save_states(std::string filename,
-        mjData * real, mjData * est, double t1, double t2,
+        mjData * real, mjData * est, mjData * stddev,
+        double t1, double t2,
         std::string mode = "w") {
   if (mode=="w") {
     // create file
@@ -54,6 +55,15 @@ void save_states(std::string filename,
       myfile<<"est_c,";
     for (int i=0; i<m->nsensordata; i++) 
       myfile<<"est_s,";
+
+    for (int i=0; i<m->nq; i++) 
+      myfile<<"stddev_p,";
+    for (int i=0; i<m->nv; i++) 
+      myfile<<"stddev_v,";
+    for (int i=0; i<m->nu; i++) 
+      myfile<<"stddev_c,";
+    for (int i=0; i<m->nsensordata; i++) 
+      myfile<<"stddev_s,";
 
     myfile<<"predict,";
     myfile<<"correct,";
@@ -90,6 +100,15 @@ void save_states(std::string filename,
     for (int i=0; i<m->nsensordata; i++) 
       myfile<<est->sensordata[i]<<",";
 
+    for (int i=0; i<m->nq; i++) 
+      myfile<<stddev->qpos[i]<<",";
+    for (int i=0; i<m->nv; i++) 
+      myfile<<stddev->qvel[i]<<",";
+    for (int i=0; i<m->nu; i++) 
+      myfile<<stddev->ctrl[i]<<",";
+    for (int i=0; i<m->nsensordata; i++) 
+      myfile<<stddev->sensordata[i]<<",";
+
     myfile<<t1<<",";
     myfile<<t2<<",";
 
@@ -123,6 +142,7 @@ int main(int argc, const char** argv) {
   double alpha;
   double beta;
   double kappa;
+  double diag;
   double s_time_noise=0.0;
   bool do_correct;
   bool debug;
@@ -135,7 +155,7 @@ int main(int argc, const char** argv) {
 			("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
 			("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
 			("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
-			("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
+			//("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
 			("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
 			//("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
 			("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
@@ -144,6 +164,7 @@ int main(int argc, const char** argv) {
 			("alpha,a", po::value<double>(&alpha)->default_value(10e-3), "Gaussian amount of sensor noise to corrupt data with.")
 			("beta,b", po::value<double>(&beta)->default_value(2), "Gaussian amount of control noise to corrupt data with.")
 			("kappa,k", po::value<double>(&kappa)->default_value(0), "Gaussian amount of estimator noise to corrupt data with.")
+			("diagonal,d", po::value<double>(&diag)->default_value(1), "Gaussian amount of estimator noise to corrupt data with.")
 			//("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 			("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
 			//("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
@@ -175,6 +196,7 @@ int main(int argc, const char** argv) {
   printf("UKF alpha:\t\t%f\n", alpha);
   printf("UKF beta:\t\t%f\n", beta);
   printf("UKF kappa:\t\t%f\n", kappa);
+  printf("UKF diag:\t\t%f\n", diag);
 
   // Start Initializations
   omp_set_num_threads(num_threads);
@@ -184,7 +206,7 @@ int main(int argc, const char** argv) {
 
   
   double dt = m->opt.timestep;
-  SimDarwin *robot = new SimDarwin(m, d, dt, s_noise, s_time_noise, c_noise);
+  SimDarwin *robot = new SimDarwin(m, d, 2*dt, s_noise, s_time_noise, c_noise);
 
   int nq = m->nq;
   int nv = m->nv;
@@ -235,10 +257,10 @@ int main(int argc, const char** argv) {
         if (est)
           delete est;
         printf("New UKF initialization\n");
-        est = new UKF(m, d, alpha, beta, kappa, e_noise, debug, num_threads);
+        est = new UKF(m, d, alpha, beta, kappa, diag, e_noise, debug, num_threads);
 
         est_data = est->get_state();
-        save_states(output_file, d, est_data, 0, 0, "w");
+        save_states(output_file, d, est_data, est->get_stddev(), 0, 0, "w");
         viewer_set_signal(0);
         break;
       default: 
@@ -256,27 +278,27 @@ int main(int argc, const char** argv) {
       //mj_forward(m, d); // to get the sensord data at the current place
       //mj_sensor(m, d);
 
-
       //////////////////////////////////
       printf("robot sensor time: %f, est DT: %f\n", d->time, time-prev_time);
 
       //////////////////////////////////
       double t0 = now_t();
-      if (est) est->predict(ctrl, time-prev_time);
-      //if (est) est->predict(ctrl, (time-prev_time)/2.0);
+      //if (est) est->predict(ctrl, time-prev_time);
 
 
-      printf("true state:\n");
-      print_state(m, d);
-      printf("\nprovided snsr data: ");
-      for (int i=0; i<nsensordata; i++) {
-        printf("%1.6f ", sensors[i]);
-      }
-      printf("\n");
+      //printf("true state:\n");
+      //print_state(m, d);
+      //printf("\nprovided snsr data: ");
+      //for (int i=0; i<nsensordata; i++) {
+      //  printf("%1.6f ", sensors[i]);
+      //}
+      //printf("\n");
 
       //////////////////////////////////
       double t1 = now_t();
-      if (est && do_correct) est->correct(sensors);
+      //if (est && do_correct) est->correct(sensors);
+      if (est) est->predict_correct(ctrl, time-prev_time, sensors);
+
 
       double t2 = now_t();
 
@@ -305,22 +327,23 @@ int main(int argc, const char** argv) {
       printf("\n\n");
 
 
-      if (est) { save_states(output_file, d, est_data, t1-t0, t2-t1, "a"); }
+      if (est) { save_states(output_file, d, est_data, est->get_stddev(), t1-t0, t2-t1, "a"); }
 
       // we have estimated and logged the data,
       // now get new controls
       if (nu >= 20) {
-      walker->Process(time-prev_time, 0, ctrl);
+          walker->Process(time-prev_time, 0, ctrl);
       }
       robot->set_controls(ctrl, NULL, NULL);
 
       prev_time = time;
-      if (estimation_counts > 0) {
+      if (est && estimation_counts > 0) {
         estimation_counts--;
       }
       else if (estimation_counts == 0) {
         shouldCloseViewer();
       }
+
       printf("RENDERING CORRECTED SIGMA POINTS\n");
       color = true;
     }
@@ -342,7 +365,7 @@ int main(int argc, const char** argv) {
 
   end_viz();
   if (est) {
-    save_states(output_file, d, est_data, 0, 0, "c"); // close file
+    save_states(output_file, d, est_data, est->get_stddev(), 0, 0, "c"); // close file
   }
 
   // end_estimator

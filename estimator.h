@@ -72,7 +72,7 @@ class Estimator {
 class UKF : public Estimator {
   public:
     UKF(mjModel *m, mjData * d,
-        double _alpha, double _beta, double _kappa, double _noise,
+        double _alpha, double _beta, double _kappa, double _diag, double _noise,
         bool debug = false, int threads = 1) : Estimator(m, d) {
       L = nq + nv; // size of state dimensions
 
@@ -84,8 +84,9 @@ class UKF : public Estimator {
       alpha = _alpha;
       beta = _beta;
       lambda = (alpha*alpha)*((double)L + _kappa) - (double)L;
+      diag = _diag;
       printf("L size: %d\t N: %d\n", L, N);
-      printf("Alpha %f\nBeta %f\nLambda %f\n", alpha, beta, lambda);
+      printf("Alpha %f\nBeta %f\nLambda %f\nDiag %f", alpha, beta, lambda, diag);
 
       W_s = new double[N];
       W_c = new double[N];
@@ -94,6 +95,8 @@ class UKF : public Estimator {
       sigma_states.resize(N);
 
       sigmas.resize(threads);
+
+      stddev = mj_makeData(this->m);
 
       printf("Setting up %d thread models\n", threads);
       for (int i=0; i<threads; i++) {
@@ -211,6 +214,152 @@ class UKF : public Estimator {
       return nd(rng);
     }
 
+    void predict_correct(double * ctrl, double dt, double* sensors) {
+
+      double t2 = omp_get_wtime()*1000.0;
+
+      m->opt.timestep = dt; // smoother way of doing this?
+
+
+      mju_copy(d->qpos, &(x_t(0)), nq); // previous estimate
+      mju_copy(d->qvel, &(x_t(nq)), nv);
+      if (ctrl_state) mju_copy(&x_t(nq+nv), ctrl, nu); // TODO this line??
+      mju_copy(d->ctrl, ctrl, nu); // set controls for the center point
+
+      x[0] = x_t;
+
+      double t3 = omp_get_wtime()*1000.0;
+
+      LLT<MatrixXd> chol((L+lambda)*(P_t));
+      MatrixXd sqrt = chol.matrixL(); // chol
+
+      double t4 = omp_get_wtime()*1000.0;
+
+#pragma omp parallel
+      {
+        volatile int tid = omp_get_thread_num();
+        int t = omp_get_num_threads();
+        int chunk = (L + t-1) / t;
+        int s = tid * chunk;
+        int e = mjMIN(s+chunk, L);
+
+        //printf("p thread: %d chunk: %d-%d \n", tid, s, e);
+        for (int j=s; j<e; j++) {
+          // step through all the perturbation cols and collect the data
+          int i = j+1;
+
+          x[i+0] = x[0]+sqrt.col(i-1);
+          x[i+L] = x[0]-sqrt.col(i-1);
+
+          // sigma point
+          mju_copy(sigmas[tid]->qpos,   &x[i](0), nq);
+          mju_copy(sigmas[tid]->qvel,   &x[i](nq), nv);
+          //mju_copy(sigmas[tid]->qacc,   d->qacc, nv);
+          if (ctrl_state) mju_copy(sigmas[tid]->ctrl,   &x[i](nq+nv), nu); // set controls for this t
+          else mju_copy(sigmas[tid]->ctrl,   ctrl, nu); // set controls for this t
+
+          //mj_step(m, sigmas[tid]);
+          mj_forward(m, sigmas[tid]);
+          mj_Euler(m, sigmas[tid]);
+          mj_sensor(m, sigmas[tid]);
+
+          sigmas[tid]->time = d->time;
+          mju_copy(&x[i](0),  sigmas[tid]->qpos, nq);
+          mju_copy(&x[i](nq), sigmas[tid]->qvel, nv);
+          if (ctrl_state) mju_copy(&x[i](nq+nv), sigmas[tid]->ctrl, nu);
+          gamma[i] = Map<VectorXd>(sigmas[tid]->sensordata, m->nsensordata);
+
+          mju_copy(sigma_states[i+0]->qpos, sigmas[tid]->qpos, nq);
+          mju_copy(sigma_states[i+0]->qvel, sigmas[tid]->qvel, nv);
+
+          // symmetric point
+          mju_copy(sigmas[tid]->qpos,   &x[i+L](0), nq);
+          mju_copy(sigmas[tid]->qvel,   &x[i+L](nq), nv);
+          //mju_copy(sigmas[tid]->qacc,   d->qacc, nv);
+          if (ctrl_state) mju_copy(sigmas[tid]->ctrl,   &x[i+L](nq+nv), nu); // set controls for this t
+          //else mju_copy(sigmas[tid]->ctrl,   ctrl, nu); //
+
+          //mj_step(m, sigmas[tid]);
+          mj_forward(m, sigmas[tid]);
+          mj_Euler(m, sigmas[tid]);
+          mj_sensor(m, sigmas[tid]);
+
+          mju_copy(&x[i+L](0),  sigmas[tid]->qpos, nq);
+          mju_copy(&x[i+L](nq), sigmas[tid]->qvel, nv);
+          if (ctrl_state) mju_copy(&x[i+L](nq+nv), sigmas[tid]->ctrl, nu);
+          gamma[i+L] = Map<VectorXd>(sigmas[tid]->sensordata, m->nsensordata);
+
+          mju_copy(sigma_states[i+L]->qpos, sigmas[tid]->qpos, nq);
+          mju_copy(sigma_states[i+L]->qvel, sigmas[tid]->qvel, nv);
+        }
+      }
+
+      // step for the central point
+      //mj_step(m, d);
+      mj_forward(m, d);
+      mj_Euler(m, d);
+      mj_sensor(m, d);
+      mju_copy(&x[0](0), d->qpos, nq);
+      mju_copy(&x[0](nq), d->qvel, nv);
+      if (ctrl_state) mju_copy(&x[0](nq+nv), d->ctrl, nu);
+      gamma[0] = Map<VectorXd>(d->sensordata, m->nsensordata);
+
+      mju_copy(sigma_states[0]->qpos, d->qpos, nq);
+      mju_copy(sigma_states[0]->qvel, d->qvel, nv);
+      mju_copy(sigma_states[0]->ctrl, d->ctrl, nu);
+
+      double t5 = omp_get_wtime()*1000.0;
+
+      x_t.setZero();
+      for (int i=0; i<N; i++) {
+        x_t += W_s[i]*x[i];
+      }
+
+      VectorXd z_k = VectorXd::Zero(m->nsensordata);
+      for (int i=0; i<N; i++) {
+        z_k += W_s[i]*gamma[i];
+      }
+
+      P_t.setZero();
+      P_z.setZero();
+      //P_z.setIdentity();
+      Pxz.setZero();
+      for (int i=0; i<N; i++) {
+        VectorXd z(gamma[i] - z_k);
+        VectorXd x_i(x[i] - x_t);
+
+        P_t += W_c[i] * (x_i * x_i.transpose());
+        P_z += W_c[i] * (z * z.transpose());
+        Pxz += W_c[i] * (x_i * z.transpose());
+      }
+
+      // TODO make the identity addition a parameter
+      P_z = P_z + (MatrixXd::Identity(m->nsensordata,m->nsensordata)*diag);
+
+      MatrixXd K = Pxz * P_z.inverse();
+
+      VectorXd s = Map<VectorXd>(sensors, m->nsensordata); // map our real z to vector
+      x_t = x_t + (K*(s-z_k));
+      P_t = P_t - (K * P_z * K.transpose());
+
+      //for (int i=0; i<L; i++) {
+      //  if (P_t.row(i).isZero(1e-9)) {
+      //    P_t.row(i).setZero();
+      //    P_t.col(i).setZero();
+      //    P_t(i,i) = 1.0;
+      //  }
+      //}
+
+      //mju_copy(d->qpos, &(x_t(0)), nq);
+      //mju_copy(d->qvel, &(x_t(nq)), nv);
+
+      double t6 = omp_get_wtime()*1000.0;
+
+      printf("\ncombo init %f, sqrt %f, mjsteps %f, merge %f\n",
+          t3-t2, t4-t3, t5-t4, t6-t5);
+
+    }
+
     void predict(double * ctrl, double dt) {
 
       IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
@@ -220,7 +369,7 @@ class UKF : public Estimator {
       m->opt.timestep = dt; // smoother way of doing this?
 
       mju_copy(d->ctrl, ctrl, nu); // set controls for the center point
-      //if (ctrl_state) mju_copy(&x_t(nq+nv), ctrl, nu); // TODO this line??
+      if (ctrl_state) mju_copy(&x_t(nq+nv), ctrl, nu);
       // qpos and qvel set previously
 
       // d has the previous estimate already set
@@ -257,7 +406,7 @@ class UKF : public Estimator {
         int s = tid * chunk;
         int e = mjMIN(s+chunk, L);
 
-        printf("p thread: %d chunk: %d-%d \n", tid, s, e);
+        //printf("p thread: %d chunk: %d-%d \n", tid, s, e);
         for (int j=s; j<e; j++) {
           // step through all the perturbation cols and collect the data
           int i = j+1;
@@ -313,12 +462,6 @@ class UKF : public Estimator {
         printf("After Step:\n");
         for (int i=0; i<N; i++) {
           printf("%d ", i);
-          /*
-             for (int j=0; j<nq; j++)
-             printf("%1.5f ", sigma_states[i]->qpos[j]);
-             for (int j=0; j<nv; j++)
-             printf("%1.5f ", sigma_states[i]->qvel[j]);
-             */
           std::cout<<x[i].transpose().format(CleanFmt);
           printf("\t:: ");
           for (int j=0; j<nu; j++)
@@ -334,7 +477,6 @@ class UKF : public Estimator {
       double t5 = omp_get_wtime()*1000.0;
 
       x_t.setZero();
-      std::cout << "\n0pred: "<< x_t.transpose() << std::endl;
       for (int i=0; i<N; i++) {
         if (NUMBER_CHECK) {
           std::cout<<W_s[i]<<"  "<<(W_s[i]*x[i]).transpose().format(CleanFmt)<<"\n";
@@ -411,7 +553,7 @@ class UKF : public Estimator {
         int s = tid * chunk;
         int e = mjMIN(s+chunk, L);
 
-        printf("c thread: %d chunk: %d-%d \n", tid, s, e);
+        //printf("c thread: %d chunk: %d-%d \n", tid, s, e);
         for (int j=s; j<e; j++) {
           int i = j+1;
 
@@ -447,7 +589,7 @@ class UKF : public Estimator {
 
           mju_copy(sigma_states[i+L]->qpos, sigmas[tid]->qpos, nq);
           mju_copy(sigma_states[i+L]->qvel, sigmas[tid]->qvel, nv);
-          mju_copy(sigma_states[i+L]->ctrl, sigmas[tid]->ctrl, nu);
+          //mju_copy(sigma_states[i+L]->ctrl, sigmas[tid]->ctrl, nu);
         }
       }
 
@@ -488,34 +630,28 @@ class UKF : public Estimator {
         Pxz += W_c[i] * (x_i * z.transpose());
       }
 
-      for (int i=0; i<m->nsensordata; i++) {
-        if (P_z.row(i).isZero(1e-9)) {
-          P_z.row(i).setZero();
-          P_z.col(i).setZero();
-          P_z(i,i) = 1.0;
-        }
-      }
+      /*
+         for (int i=0; i<m->nsensordata; i++) {
+         if (P_z.row(i).isZero(1e-9)) {
+         P_z.row(i).setZero();
+         P_z.col(i).setZero();
+         P_z(i,i) = 1.0;
+         }
+         }
+         */
+      // TODO make the identity addition a parameter
+      P_z = P_z + (MatrixXd::Identity(m->nsensordata,m->nsensordata)*1e0);
 
-      bool inv_Pz = true;
-      if (abs(P_z.determinant()) < 1e-9) {
-        printf("INVERSION NEEDED HALPS :3 \n\n");
-        inv_Pz = false;
-        P_z = P_z + MatrixXd::Identity(m->nsensordata,m->nsensordata);
-      }
       //P_z.setIdentity();
       //P_t = MatrixXd::Identity(L,L) * 1e-3;
       MatrixXd K = Pxz * P_z.inverse();
 
       VectorXd s = Map<VectorXd>(sensors, m->nsensordata); // map our real z to vector
-      std::cout << "\nbefore x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
+      //std::cout << "\nbefore x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
       x_t = x_t + (K*(s-z_k));
-      if (!inv_Pz) {
-      P_t = P_t - (K * (P_z-MatrixXd::Identity(m->nsensordata,m->nsensordata))* K.transpose());
-    } else {
       P_t = P_t - (K * P_z * K.transpose());
-    }
-      
-      std::cout << "\nafter x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
+
+      //std::cout << "\nafter x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
 
       mju_copy(d->qpos, &(x_t(0)), nq); // center point
       mju_copy(d->qvel, &(x_t(nq)), nv);
@@ -538,13 +674,15 @@ class UKF : public Estimator {
         std::cout << "NEW CORRECTION STEPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP\n";
       }
 
-      std::cout << "\ndelta:\n"<< (s-z_k).transpose().format(CleanFmt) << std::endl;
-      std::cout << "\ncorrection:\n"<< (K*(s-z_k)).transpose().format(CleanFmt) << std::endl;
-      std::cout << "\np_t :\n"<< P_t.diagonal().transpose().format(CleanFmt) << std::endl;
-      double a = abs(P_t.determinant());
-      double b = pow(2*3.14159265*exp(1), (double)L);
-      double entropy = 0.5*log(b * a);
-      printf("\n\ne %f\ta: %1.32f\tb: %f\tEntropy: %f\n\n", a*b, a, b, entropy);
+      /* Entropy Testing?
+         std::cout << "\ndelta:\n"<< (s-z_k).transpose().format(CleanFmt) << std::endl;
+         std::cout << "\ncorrection:\n"<< (K*(s-z_k)).transpose().format(CleanFmt) << std::endl;
+         std::cout << "\np_t :\n"<< P_t.diagonal().transpose().format(CleanFmt) << std::endl;
+         double a = abs(P_t.determinant());
+         double b = pow(2*3.14159265*exp(1), (double)L);
+         double entropy = 0.5*log(b * a);
+         printf("\n\ne %f\ta: %1.32f\tb: %f\tEntropy: %f\n\n", a*b, a, b, entropy);
+         */
     }
 
     void old_predict(double * ctrl, double dt) {
@@ -886,23 +1024,33 @@ mj_step(m, sigma_states[i]);
 
     mjData* get_state() {
       return this->d;
-      //return sigma_states[0];
     }
 
     std::vector<mjData*> get_sigmas() {
-      //mjData** get_sigmas() {
-      //return this->d;
       return sigma_states;
-      //return sigmas;
+    }
+
+    mjData* get_stddev() {
+      VectorXd var = P_t.diagonal();
+      mju_copy(stddev->qpos, &(var(0)), nq);
+      mju_copy(stddev->qvel, &(var(nq)), nv);
+      if (ctrl_state) mju_copy(stddev->ctrl, &(var(nq+nv)), nu);
+      else mju_copy(stddev->ctrl, d->ctrl, nu);
+
+      var = P_z.diagonal();
+      mju_copy(stddev->sensordata, &(var(0)), m->nsensordata);
+
+      return stddev;
     }
 
 
-      private:
+  private:
     int L;
     int N;
     double alpha;
     double beta;
     double lambda;
+    double diag;
     double noise;
     double * W_s;
     double * W_c;
@@ -919,12 +1067,13 @@ mj_step(m, sigma_states[i]);
 
     std::vector<mjData *> sigma_states;
     std::vector<mjData *> sigmas;
+    mjData * stddev;
     //mjData ** sigma_states;
     //mjData ** sigmas;
 
     bool NUMBER_CHECK;
     bool ctrl_state;
-    };
+};
 
 
 

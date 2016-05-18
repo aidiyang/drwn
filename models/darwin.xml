@@ -229,6 +229,7 @@ soft:
     </worldbody>
 
     <sensor>
+      <!--
       <jointpos joint="rootx" />
       <jointpos joint="rooty" />
       <jointpos joint="rootz" />
@@ -243,7 +244,6 @@ soft:
       <jointvel joint="roota" />
       <jointvel joint="rootb" />
 
-      <!--
       -->
       <sitepos name="mocap"       site="imu" />
       <sitepos name="mocap1"       site="right_ati" />
@@ -302,8 +302,8 @@ soft:
 
 
       <!--
-      <gyro name="gyro"           site="imu" />
       <accelerometer name="accel" site="imu" />
+      <gyro name="gyro"           site="imu" />
       <force  name="right_f"   site="right_ati" />
       <torque name="right_t"   site="right_ati" />
 

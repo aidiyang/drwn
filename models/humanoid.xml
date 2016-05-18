@@ -8,7 +8,7 @@
         <motor ctrlrange='-.4 .4' ctrllimited='false'/>
     </default>
 
-    <option timestep='0.002' iterations="50" solver="PGS" gravity="0 0 -9.81">
+    <option timestep='0.002' iterations="50" solver="PGS" tolerance="1e-6" gravity="0 0 -9.81">
         <!--
         <flag energy="enable"/>
         -->
@@ -134,8 +134,8 @@
       <gyro name="imu_3"       site="rh_imu" />
       <gyro name="imu_4"       site="lh_imu" />
    
-      <!-- wtf
      
+      <!-- wtf
       <accelerometer name="a_h"       site="imu" />
       <accelerometer name="a_1"       site="rf_imu" />
       <accelerometer name="a_2"       site="lf_imu" />
@@ -148,6 +148,7 @@
       <torque name="left_t"    site="lh_imu" />
       -->
 
+      <!--
       <jointpos joint='abdomen_y' />
       <jointpos joint='abdomen_z' />
       <jointpos joint='abdomen_x' />
@@ -191,7 +192,6 @@
       <jointvel joint='left_shoulder1' />
       <jointvel joint='left_shoulder2' />
       <jointvel joint='left_elbow' />
-      <!--
       -->
 
       <!--

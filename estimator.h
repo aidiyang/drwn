@@ -72,7 +72,7 @@ class Estimator {
 class UKF : public Estimator {
   public:
     UKF(mjModel *m, mjData * d,
-        double _alpha, double _beta, double _kappa, double _diag, double _noise,
+        double _alpha, double _beta, double _kappa, double _diag, double _Ws0, double _noise,
         bool debug = false, int threads = 1) : Estimator(m, d) {
       L = nq + nv; // size of state dimensions
 
@@ -85,8 +85,9 @@ class UKF : public Estimator {
       beta = _beta;
       lambda = (alpha*alpha)*((double)L + _kappa) - (double)L;
       diag = _diag;
+      Ws0 = _Ws0;
       printf("L size: %d\t N: %d\n", L, N);
-      printf("Alpha %f\nBeta %f\nLambda %f\nDiag %f", alpha, beta, lambda, diag);
+      printf("Alpha %f\nBeta %f\nLambda %f\nDiag %f\nWs0 %f\n", alpha, beta, lambda, diag, Ws0);
 
       W_s = new double[N];
       W_c = new double[N];
@@ -122,17 +123,26 @@ class UKF : public Estimator {
           W_s[i] = lambda / ((double) L + lambda);
 
           W_c[i] = W_s[i] + (1-(alpha*alpha)+beta);
-          W_s[i] = 1.0 / N;
+          if (Ws0 < 0) {
+            W_s[i] = 1.0 / N;
+          }
+          else{
+            W_s[i] = Ws0;
+          }
           //W_c[i] = W_s[i];
         }
         else {
           sigma_states[i] = mj_makeData(this->m);
           mj_copyData(sigma_states[i], this->m, this->d);
 
-          W_s[i] = 1.0 / (2.0 * ((double)L + lambda));
-          W_c[i] = W_s[i];
-
-          W_s[i] = 1.0 / N;
+          W_c[i] = 1.0 / (2.0 * ((double)L + lambda));
+          //W_c[i] = W_s[i];
+          if (Ws0 < 0) {
+            W_s[i] = 1.0 / N;
+          }
+          else{
+            W_s[i] = (1.0 - Ws0) / ((double) 2 * L);
+          }
         }
         x[i] = VectorXd::Zero(L); // point into raw buffer, not mjdata
 
@@ -1051,6 +1061,7 @@ mj_step(m, sigma_states[i]);
     double beta;
     double lambda;
     double diag;
+    double Ws0;
     double noise;
     double * W_s;
     double * W_c;

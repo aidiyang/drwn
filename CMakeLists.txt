@@ -116,7 +116,8 @@ if(USE_EIGEN_MKL)
   target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} darwin_hw mkl_intel_lp64 mkl_core
     mkl_gnu_thread pthread m dl)
 else()
-  target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} darwin_hw )
+  target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} darwin_hw
+    ${DARWIN_INCLUDES} )
 endif()
 #target_include_directories(viewer PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 

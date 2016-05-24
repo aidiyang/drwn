@@ -62,20 +62,32 @@ list(REMOVE_ITEM OTHER_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/atidaq/events.c )
 
 ###################################
-include_directories(
-  "./"
-  "./atidaq/"
-  "./labjack/"
-  "./phasespace/include/"
-  )
+#include_directories(
+#  "./"
+#  "./atidaq/"
+#  "./labjack/"
+#  "./phasespace/include/"
+#  )
 link_directories(
   "${CMAKE_CURRENT_SOURCE_DIR}/phasespace/lib"
 )
 
 set(DARWIN_HW_LIBS phidget21 owlsock labjackusb)
+set(DARWIN_INCLUDES  
+  "${CMAKE_CURRENT_SOURCE_DIR}/"
+  "${CMAKE_CURRENT_SOURCE_DIR}/atidaq/"
+  "${CMAKE_CURRENT_SOURCE_DIR}/labjack/"
+  "${CMAKE_CURRENT_SOURCE_DIR}/phasespace/include/"
+  )
+
+include_directories(
+  ${DARWIN_INCLUDES}
+  )
 
 message(STATUS ${DARWIN_HW_LIBS})
 message(STATUS ${OTHER_SOURCES})
+message(STATUS ${DARWIN_INCLUDES})
+message(STATUS "HELLO AGAIN")
 
 # parallel mujoco option from top-level cmake
 #if(MUJOCO_SIMULATOR_PARALLEL)
@@ -89,6 +101,7 @@ message(STATUS ${OTHER_SOURCES})
 
 #add_library(darwin_hw SHARED ${DARWIN_SOURCES} ${OTHER_SOURCES} ${UJ_SOURCES})
 add_library(darwin_hw SHARED ${DARWIN_SOURCES} ${OTHER_SOURCES})
+target_include_directories(darwin_hw PUBLIC ${DARWIN_INCLUDES} )
 target_link_libraries(darwin_hw ${DARWIN_HW_LIBS})
 
 add_executable(test_darwin "test_darwin.cpp" )

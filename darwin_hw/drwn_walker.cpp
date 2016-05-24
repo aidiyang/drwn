@@ -357,7 +357,7 @@ void Walking::Initialize(double * ctrl)
   //m_Joint.SetAngle(JointData::ID_L_SHOULDER_ROLL,  17.580);
   //m_Joint.SetAngle(JointData::ID_L_ELBOW,         -29.593);
   ctrl[9] = joint2radian(MX28::Angle2Value( 17.580));
-  ctrl[10]  = joint2radian(MX28::Angle2Value( 41.313));
+  ctrl[10] = joint2radian(MX28::Angle2Value( 41.313));
   ctrl[11] = joint2radian(MX28::Angle2Value(-29.593));
 
   //m_Joint.SetAngle(JointData::ID_HEAD_TILT, Kinematics_EYE_TILT_OFFSET_ANGLE);

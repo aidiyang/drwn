@@ -15,7 +15,7 @@ soft:
       <flag contact="disable"/>
    -->
 
-    <option	timestep="0.0025" iterations="50" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
+    <option	timestep="0.0025" iterations="50" tolerance="1e-6" solver="PGS" gravity="0 0 0" >
     </option>
 
     <default>
@@ -26,7 +26,7 @@ soft:
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
       <joint limited='true' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
-      <position ctrllimited='true' kp='20'/>
+      <position ctrllimited='true' kp='12'/>
     </default>
 
     <asset>
@@ -245,9 +245,6 @@ soft:
       <jointvel joint="rootb" />
 
       -->
-      <sitepos name="mocap"       site="imu" />
-      <sitepos name="mocap1"       site="right_ati" />
-      <sitepos name="mocap2"       site="left_ati" />
 
       <jointpos joint="head_pan" />
       <jointpos joint="head_tilt" />
@@ -301,15 +298,19 @@ soft:
       <jointvel joint="r_ankle_roll" />
 
 
-      <!--
       <accelerometer name="accel" site="imu" />
       <gyro name="gyro"           site="imu" />
+
       <force  name="right_f"   site="right_ati" />
       <torque name="right_t"   site="right_ati" />
 
       <force  name="left_f"    site="left_ati" />
       <torque name="left_t"    site="left_ati" />
 
+      <!--
+      <sitepos name="mocap"       site="imu" />
+      <sitepos name="mocap1"       site="right_ati" />
+      <sitepos name="mocap2"       site="left_ati" />
       -->
     </sensor>
 

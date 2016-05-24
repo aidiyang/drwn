@@ -18,10 +18,12 @@
 #include "LinuxCM730.h"
 #endif
 
+#include "robot.h"
 
-using namespace Robot;
 
-class DarwinRobot {
+//using namespace Robot;
+
+class DarwinRobot : public Robot {
   private:
     CM730 *cm730;
     Phasespace * ps;
@@ -30,10 +32,12 @@ class DarwinRobot {
     int * cmd_vec;
     double * i_pose;
 
-    int pgain;
-    int dgain;
+    int *pgain;
+    int *dgain;
 
-    bool darwin_ok;
+    bool use_accel;
+    bool use_gyro;
+    bool use_ati;
 
 #ifdef _WIN32
     std::string BOARD_NAME="\\\\.\\COM3";
@@ -45,6 +49,7 @@ class DarwinRobot {
 
   public:
     DarwinRobot(bool zero_gyro, bool use_rigid, bool use_markers,
+        bool _use_accel, bool _use_gyro, bool _use_ati, int* p_gain, 
         std::string ps_server, double* p) {
       //phasespace: bool use_rigid = true;
       //phasespace: bool use_markers = false;
@@ -56,9 +61,13 @@ class DarwinRobot {
       auto init3 = std::async(std::launch::async, &DarwinRobot::init_imu, this, data_rate, zero_gyro);
       auto init4 = std::async(std::launch::async, &DarwinRobot::init_contacts, this);
 
+      this->use_accel = _use_accel;
+      this->use_gyro = _use_gyro;
+      this->use_ati = _use_ati;
+
       darwin_ok = true;
 
-      init_CM730(2, 0);
+      init_CM730(p_gain, NULL);
       //if (init1.get() == false) {printf("Failed to connect to CM730\n"); darwin_ok = false;}
       //else {printf("CM730 initialized.\n");}
 
@@ -87,7 +96,7 @@ class DarwinRobot {
       return darwin_ok;
     }
 
-    bool init_CM730(int p, int d) {
+    bool init_CM730(int *p, int *d) {
 #ifdef _WIN32
       my_cm730 = new WindowsCM730(BOARD_NAME.c_str());
 #else
@@ -114,23 +123,38 @@ class DarwinRobot {
       // configure command vector to accept gains or just positions
       cmd_vec = new int[JointData::NUMBER_OF_JOINTS * MX28::PARAM_BYTES];
       int n = 0;
-      int current=2048;
+      int mid=2048;
       for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++) {
         // initialize positions to be the same
-        cm730->ReadWord(id, MX28::P_PRESENT_POSITION_L, &current, 0);
+        cm730->ReadWord(id, MX28::P_PRESENT_POSITION_L, &mid, 0);
         cmd_vec[n++] = id;
         cmd_vec[n++] = 0; // d gain
         cmd_vec[n++] = 0; // i gain
         cmd_vec[n++] = 2; // p gain
         cmd_vec[n++] = 0;
-        cmd_vec[n++] = CM730::GetLowByte(current); // move to middle
-        cmd_vec[n++] = CM730::GetHighByte(current);
+        cmd_vec[n++] = CM730::GetLowByte(mid); // move to middle
+        cmd_vec[n++] = CM730::GetHighByte(mid);
       }
 
       int ret = cm730->BulkRead(); // need to do a blank read to init things
 
-      this->pgain = p;
-      this->dgain = d;
+      int joint_num = 0;
+      //int current[JointData::NUMBER_OF_JOINTS];
+      this->pgain = new int[JointData::NUMBER_OF_JOINTS];
+      this->dgain = new int[JointData::NUMBER_OF_JOINTS];
+      for (int joint=0; joint<JointData::ID_R_HIP_ROLL; joint++) {
+        joint_num++;
+        this->pgain[joint_num]=p[joint];
+        this->dgain[joint_num]=0; //d[joint];
+        joint_num++;
+        this->pgain[joint_num]=p[joint+9];
+        this->dgain[joint_num]=0; //d[joint+9];
+      }
+      this->pgain[JointData::ID_HEAD_PAN]=p[JointData::ID_HEAD_PAN];
+      this->pgain[JointData::ID_HEAD_TILT]=p[JointData::ID_HEAD_TILT];
+      this->dgain[JointData::ID_HEAD_PAN]=0; //d[JointData::ID_HEAD_PAN];
+      this->dgain[JointData::ID_HEAD_TILT]=0; //d[JointData::ID_HEAD_TILT];
+
       return true;
     }
 
@@ -173,6 +197,7 @@ class DarwinRobot {
       // and phasespace markers
       // get data from sensors, process into qpos, qvel 
       // converts things to mujoco centric
+      static double init_time = GetCurrentTimeMS();
 
       // try to asynchronously get the data
       if (sensor) {
@@ -187,16 +212,15 @@ class DarwinRobot {
 
         double a[3];
         double g[3];
-        int idx = 40;
+        int idx = 40; // should these be automatic?
         if (imu->getData(a, g)) { // should be in m/s^2 and rad/sec
-          sensor[idx+0]=a[0]; sensor[idx+1]=a[1]; sensor[idx+2]=a[2];
-          sensor[idx+3]=g[0]; sensor[idx+4]=g[1]; sensor[idx+5]=g[2];
+          if (use_accel) { sensor[idx+0]=a[0]; sensor[idx+1]=a[1]; sensor[idx+2]=a[2]; idx += 3; }
+          if (use_gyro) { sensor[idx+3]=g[0]; sensor[idx+4]=g[1]; sensor[idx+5]=g[2]; idx += 3; }
         }
 
         double r[6];
         double l[6];
-        idx = 46;
-        if (ati->getData(r, l)) {
+        if (use_ati && ati->getData(r, l)) {
           for (int id=0; id<6; id++) {
             sensor[idx+id] = r[id];
           }
@@ -235,13 +259,14 @@ class DarwinRobot {
         //  qvel[id+7] = s_vec[id+20];
         //}
 
+        *time = (GetCurrentTimeMS() - init_time) / 1000.0;
       }
       else {
         printf("Initialize sensor buffer\n");
         return false;
       }
 
-      my_cm730->Sleep(10); // some delay between readings seems to be help?
+      //my_cm730->Sleep(10); // some delay between readings seems to be help?
       return true;
     }
 
@@ -263,9 +288,10 @@ class DarwinRobot {
       int n = 0;
       for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++) {
         cmd_vec[n++] = id;
-        cmd_vec[n++] = this->dgain; // d gain
+        //cmd_vec[n++] = this->dgain; // d gain
+        cmd_vec[n++] = 0; // d gain
         cmd_vec[n++] = 0; // i gain
-        cmd_vec[n++] = this->pgain; // p gain
+        cmd_vec[n++] = this->pgain[id-1]; // p gain
         cmd_vec[n++] = 0; // reserved
         cmd_vec[n++] = CM730::GetLowByte(current[id]); // move to middle
         cmd_vec[n++] = CM730::GetHighByte(current[id]);

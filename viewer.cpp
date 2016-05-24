@@ -1,6 +1,7 @@
 
 #include "viewer_lib.h"
 #include "darwin_hw/sim_interface.h"
+#include "darwin_hw/interface.h"
 #include "darwin_hw/drwn_walker.h"
 
 #include "estimator.h"
@@ -146,6 +147,7 @@ int main(int argc, const char** argv) {
   double s_time_noise=0.0;
   bool do_correct;
   bool debug;
+  bool real_robot;
 
 	try {
 		po::options_description desc("Allowed options");
@@ -157,6 +159,7 @@ int main(int argc, const char** argv) {
 			("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
 			//("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
 			("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
+			("real,r", po::value<bool>(&real_robot)->default_value(false), "Use real robot.")
 			//("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
 			("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
 			("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
@@ -203,15 +206,46 @@ int main(int argc, const char** argv) {
   omp_set_dynamic(0);
 
   if (init_viz(model_name)) { return 1; }
-
-  
-  double dt = m->opt.timestep;
-  SimDarwin *robot = new SimDarwin(m, d, 2*dt, s_noise, s_time_noise, c_noise);
-
   int nq = m->nq;
   int nv = m->nv;
   int nu = m->nu;
   int nsensordata = m->nsensordata;
+
+  
+  ////// SIMULATED ROBOT
+  double dt = m->opt.timestep;
+  if (real_robot) {
+  SimDarwin *robot = new SimDarwin(m, d, 2*dt, s_noise, s_time_noise, c_noise);
+  }
+  else {
+    ////// REAL ROBOT
+    bool zero_gyro = true;
+    bool use_rigid = false;
+    bool use_markers = false;
+    std::string ps_server = "128.208.4.128";
+    double *p = NULL; // initial pose
+    bool use_accel = false;
+    bool use_gyro = false;
+    bool use_ati = false;
+    for (int i=0; i<m->nsensor; i++) { // use sensors based on mujoco model
+      if (m->sensor_type[i] == mjSENS_ACCELEROMETER) use_accel = true;
+      if (m->sensor_type[i] == mjSENS_GYRO) use_gyro = true;
+      if (m->sensor_type[i] == mjSENS_FORCE) use_ati = true;
+      //if (m->sensor_type[i] == mjSENS_TORQUE) use_ati = true;
+    }
+    int* p_gain = new int[nu]; 
+    for (int i=0; i<m->nu; i++) { // use sensors based on mujoco model
+      p_gain[i] = (int) m->actuator_gainprm[i*mjNGAIN];
+      printf("%d\n", p_gain[i]);
+    }
+    printf("\n\n");
+    if (use_accel) printf("Using Accelerometer\n");
+    if (use_gyro) printf("Using Gyroscope\n");
+    if (use_ati) printf("Using Force/Torque sensors\n");
+    robot = new DarwinRobot(zero_gyro, use_rigid, use_markers,
+        use_accel, use_gyro, use_ati, p_gain, ps_server, p);
+    delete[] p_gain;
+  }
 
   double time = 0.0;
   double prev_time = 0.0;
@@ -222,6 +256,7 @@ int main(int argc, const char** argv) {
     ctrl[i] = 0.0;
   }
   double *sensors = new double[nsensordata];
+  //double *sensors = new double[nsensordata];
 
   // init darwin to walker pose
   Walking * walker = new Walking();
@@ -244,12 +279,12 @@ int main(int argc, const char** argv) {
         if (walking) {
           walker->Stop();
           walking = false;
-          printf("Starting to walk\n");
+          printf("Stopping walk\n");
         }
         else {
           walker->Start();
           walking = true;
-          printf("Stopping walk\n");
+          printf("Starting to walk\n");
         }
         viewer_set_signal(0);
         break;
@@ -279,7 +314,7 @@ int main(int argc, const char** argv) {
       //mj_sensor(m, d);
 
       //////////////////////////////////
-      printf("robot sensor time: %f, est DT: %f\n", d->time, time-prev_time);
+      printf("robot sensor time: %f, est DT: %f\n", time, time-prev_time);
 
       //////////////////////////////////
       double t0 = now_t();

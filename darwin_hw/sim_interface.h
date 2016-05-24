@@ -1,11 +1,12 @@
 #include "mujoco.h"
 
 #include "Utilities.h"
+#include "robot.h"
 
 #include <string.h>
 #include <random>
 
-class SimDarwin {
+class SimDarwin : public Robot {
   private:
     bool darwin_ok;
 

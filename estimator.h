@@ -12,7 +12,7 @@
 #define EIGEN_USE_MKL_ALL
 #endif
 
-//#define EIGEN_DONT_PARALLELIZE
+#define EIGEN_DONT_PARALLELIZE
 
 //#include <Eigen/StdVector>
 #include <vector>
@@ -20,7 +20,7 @@
 
 //#include <boost/random.hpp>
 //#include <boost/random/normal_distribution.hpp>
-//
+
 using namespace Eigen;
 
 class Estimator {
@@ -122,7 +122,7 @@ class UKF : public Estimator {
           W_s[i] = lambda / ((double) L + lambda);
 
           W_c[i] = W_s[i] + (1-(alpha*alpha)+beta);
-          W_s[i] = 1.0 / N;
+          W_s[i] = 1.0 / N; // = w_s0
           //W_c[i] = W_s[i];
         }
         else {
@@ -132,7 +132,7 @@ class UKF : public Estimator {
           W_s[i] = 1.0 / (2.0 * ((double)L + lambda));
           W_c[i] = W_s[i];
 
-          W_s[i] = 1.0 / N;
+          W_s[i] = 1.0 / N; // TODO LESS TERRIBLE
         }
         x[i] = VectorXd::Zero(L); // point into raw buffer, not mjdata
 
@@ -235,13 +235,19 @@ class UKF : public Estimator {
 
       double t4 = omp_get_wtime()*1000.0;
 
+      // set tolerance to be low, run 50, 100 iterations for mujoco solver
+      // copy qacc for sigma points with some higher tolerance
 #pragma omp parallel
       {
-        volatile int tid = omp_get_thread_num();
+        //double omp1 = omp_get_wtime()*1000.0;
+        int tid = omp_get_thread_num();
         int t = omp_get_num_threads();
-        int chunk = (L + t-1) / t;
-        int s = tid * chunk;
-        int e = mjMIN(s+chunk, L);
+        //int chunk = (L + t-1) / t;
+        //int s = tid * chunk;
+        //int e = mjMIN(s+chunk, L);
+        int s = tid * L / t;
+        int e = (tid + 1 ) * L / t;
+        if (tid == t-1) e = L;
 
         //printf("p thread: %d chunk: %d-%d \n", tid, s, e);
         for (int j=s; j<e; j++) {
@@ -292,13 +298,15 @@ class UKF : public Estimator {
           mju_copy(sigma_states[i+L]->qpos, sigmas[tid]->qpos, nq);
           mju_copy(sigma_states[i+L]->qvel, sigmas[tid]->qvel, nv);
         }
+        //double omp2 = omp_get_wtime()*1000.0;
+        //printf("p thread: %d chunk: %d-%d Time: %f\n", tid, s, e, omp2-omp1);
       }
 
       // step for the central point
       //mj_step(m, d);
-      mj_forward(m, d);
-      mj_Euler(m, d);
-      mj_sensor(m, d);
+      //mj_forward(m, d);
+      //mj_Euler(m, d);
+      //mj_sensor(m, d);
       mju_copy(&x[0](0), d->qpos, nq);
       mju_copy(&x[0](nq), d->qvel, nv);
       if (ctrl_state) mju_copy(&x[0](nq+nv), d->ctrl, nu);

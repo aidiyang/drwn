@@ -2,9 +2,12 @@
 #include "viewer_lib.h"
 #include "darwin_hw/sim_interface.h"
 #include "darwin_hw/interface.h"
+#include "darwin_hw/robot.h"
 #include "darwin_hw/drwn_walker.h"
 
 #include "estimator.h"
+
+
 
 
 #include <omp.h>
@@ -19,6 +22,10 @@ namespace po = boost::program_options;
 extern mjModel* m; // defined in viewer_lib.h to capture perturbations
 extern mjData* d;
 
+double init_qpos[26] = { 0.03, -0.00, -0.06, 0.00, 0.16, 0.00, -0.00, -0.40, 0.72, 0.29, -0.50, -0.84, -0.29, 0.50,
+  -0.00, -0.01, 0.64, -0.94, -0.55, -0.01, 0.00, 0.01, -0.64, 0.94, 0.55, 0.01 };
+double init_qvel[26] = { 0.00, -0.00, -0.01, 0.00, -0.00, 0.00, 0.00, -0.01, 0.01, 0.01, -0.01, -0.01, -0.01, 0.01,
+  0.00, -0.01, 0.00, -0.02, 0.09, -0.03, -0.00, 0.00, -0.00, 0.01, -0.03, 0.04 };
 
 bool walking = false;
 
@@ -31,7 +38,7 @@ double now_t() {
 }
 
 std::ofstream myfile;
-void save_states(std::string filename,
+void save_states(std::string filename, double time,
         mjData * real, mjData * est, mjData * stddev,
         double t1, double t2,
         std::string mode = "w") {
@@ -39,14 +46,17 @@ void save_states(std::string filename,
     // create file
     myfile.open(filename, std::ofstream::out);
     myfile<<"time,";
-    for (int i=0; i<m->nq; i++) 
-      myfile<<"qpos,";
-    for (int i=0; i<m->nv; i++) 
-      myfile<<"qvel,";
-    for (int i=0; i<m->nu; i++) 
-      myfile<<"ctrl,";
-    for (int i=0; i<m->nsensordata; i++) 
-      myfile<<"snsr,";
+
+    if (real) {
+      for (int i=0; i<m->nq; i++) 
+        myfile<<"qpos,";
+      for (int i=0; i<m->nv; i++) 
+        myfile<<"qvel,";
+      for (int i=0; i<m->nu; i++) 
+        myfile<<"ctrl,";
+      for (int i=0; i<m->nsensordata; i++) 
+        myfile<<"snsr,";
+    }
 
     for (int i=0; i<m->nq; i++) 
       myfile<<"est_p,";
@@ -82,15 +92,17 @@ void save_states(std::string filename,
       myfile.open(filename, std::ofstream::out | std::ofstream::app );
     }
 
-    myfile<<d->time<<",";
-    for (int i=0; i<m->nq; i++) 
-      myfile<<d->qpos[i]<<",";
-    for (int i=0; i<m->nv; i++) 
-      myfile<<d->qvel[i]<<",";
-    for (int i=0; i<m->nu; i++) 
-      myfile<<d->ctrl[i]<<",";
-    for (int i=0; i<m->nsensordata; i++) 
-      myfile<<d->sensordata[i]<<",";
+    myfile<<time<<",";
+    if (real) {
+      for (int i=0; i<m->nq; i++) 
+        myfile<<real->qpos[i]<<",";
+      for (int i=0; i<m->nv; i++) 
+        myfile<<real->qvel[i]<<",";
+      for (int i=0; i<m->nu; i++) 
+        myfile<<real->ctrl[i]<<",";
+      for (int i=0; i<m->nsensordata; i++) 
+        myfile<<real->sensordata[i]<<",";
+    }
 
     for (int i=0; i<m->nq; i++) 
       myfile<<est->qpos[i]<<",";
@@ -134,7 +146,7 @@ int main(int argc, const char** argv) {
 
   int num_threads;
   int estimation_counts;
-	bool engage; // for real robot?
+	//bool engage; // for real robot?
   std::string model_name;// = new std::string();
   std::string output_file;// = new std::string();
   double s_noise;
@@ -145,7 +157,7 @@ int main(int argc, const char** argv) {
   double kappa;
   double diag;
   double s_time_noise=0.0;
-  bool do_correct;
+  //bool do_correct;
   bool debug;
   bool real_robot;
 
@@ -214,10 +226,8 @@ int main(int argc, const char** argv) {
   
   ////// SIMULATED ROBOT
   double dt = m->opt.timestep;
+  MyRobot *robot;
   if (real_robot) {
-  SimDarwin *robot = new SimDarwin(m, d, 2*dt, s_noise, s_time_noise, c_noise);
-  }
-  else {
     ////// REAL ROBOT
     bool zero_gyro = true;
     bool use_rigid = false;
@@ -236,15 +246,19 @@ int main(int argc, const char** argv) {
     int* p_gain = new int[nu]; 
     for (int i=0; i<m->nu; i++) { // use sensors based on mujoco model
       p_gain[i] = (int) m->actuator_gainprm[i*mjNGAIN];
-      printf("%d\n", p_gain[i]);
+      //printf("%d\n", p_gain[i]);
     }
     printf("\n\n");
     if (use_accel) printf("Using Accelerometer\n");
     if (use_gyro) printf("Using Gyroscope\n");
     if (use_ati) printf("Using Force/Torque sensors\n");
+
     robot = new DarwinRobot(zero_gyro, use_rigid, use_markers,
         use_accel, use_gyro, use_ati, p_gain, ps_server, p);
     delete[] p_gain;
+  }
+  else {
+    robot = new SimDarwin(m, d, 2*dt, s_noise, s_time_noise, c_noise);
   }
 
   double time = 0.0;
@@ -292,10 +306,18 @@ int main(int argc, const char** argv) {
         if (est)
           delete est;
         printf("New UKF initialization\n");
+        if (real_robot) {
+          int c=25;
+          for (int i=(nq-1); i>(nq-20); i--) d->qpos[i] = init_qpos[c--];
+          c=25;
+          for (int i=(nv-1); i>(nv-20); i--) d->qvel[i] = init_qvel[c--];
+        }
+
         est = new UKF(m, d, alpha, beta, kappa, diag, e_noise, debug, num_threads);
 
         est_data = est->get_state();
-        save_states(output_file, d, est_data, est->get_stddev(), 0, 0, "w");
+        if (real_robot) save_states(output_file, 0.0, NULL, est_data, est->get_stddev(), 0, 0, "w");
+        else save_states(output_file, 0.0, d, est_data, est->get_stddev(), 0, 0, "w");
         viewer_set_signal(0);
         break;
       default: 
@@ -320,18 +342,9 @@ int main(int argc, const char** argv) {
       double t0 = now_t();
       //if (est) est->predict(ctrl, time-prev_time);
 
-
-      //printf("true state:\n");
-      //print_state(m, d);
-      //printf("\nprovided snsr data: ");
-      //for (int i=0; i<nsensordata; i++) {
-      //  printf("%1.6f ", sensors[i]);
-      //}
-      //printf("\n");
-
       //////////////////////////////////
       double t1 = now_t();
-      //if (est && do_correct) est->correct(sensors);
+      //if (est) est->correct(sensors);
       if (est) est->predict_correct(ctrl, time-prev_time, sensors);
 
 
@@ -351,10 +364,22 @@ int main(int argc, const char** argv) {
         for (int i=0; i<nq; i++) {
           printf("%1.6f ", est_data->qpos[i]);
         }
-      }printf("\nsnsr: ");
-      for (int i=0; i<nsensordata; i++) {
-        printf("%1.4f ", d->sensordata[i]);
       }
+      printf("\nraw snsr: ");
+      for (int i=0; i<nsensordata; i++) {
+        if (real_robot) printf("%1.4f ", sensors[i]);
+        else printf("%1.4f ", d->sensordata[i]);
+      }
+      if (est) {
+        printf("\n\nSensor Compare:\nreal, est\n");
+        for (int i=40; i<nsensordata; i++) {
+          if (real_robot) printf("%1.4f ", sensors[i]);
+          else printf("%1.4f ", d->sensordata[i]);
+          printf("%1.4f\n", est_data->sensordata[i]);
+        }
+      }
+      printf("\n");
+
       printf("\nctrl: ");
       for (int i=0; i<nu; i++) {
         printf("%1.4f ", ctrl[i]);
@@ -362,7 +387,10 @@ int main(int argc, const char** argv) {
       printf("\n\n");
 
 
-      if (est) { save_states(output_file, d, est_data, est->get_stddev(), t1-t0, t2-t1, "a"); }
+      if (est) {
+        if (real_robot) save_states(output_file, time, NULL, est_data, est->get_stddev(), t1-t0, t2-t1, "a");
+        else save_states(output_file, time, d, est_data, est->get_stddev(), t1-t0, t2-t1, "a");
+      }
 
       // we have estimated and logged the data,
       // now get new controls
@@ -400,7 +428,9 @@ int main(int argc, const char** argv) {
 
   end_viz();
   if (est) {
-    save_states(output_file, d, est_data, est->get_stddev(), 0, 0, "c"); // close file
+    if (real_robot) save_states(output_file, time, NULL, est_data, est->get_stddev(), 0, 0, "c");
+    else save_states(output_file, time, d, est_data, est->get_stddev(), 0, 0, "c");
+    // close file
   }
 
   // end_estimator

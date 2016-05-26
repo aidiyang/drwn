@@ -6,9 +6,9 @@
 #include <string.h>
 #include <random>
 
-class SimDarwin : public Robot {
+class SimDarwin : public MyRobot {
   private:
-    bool darwin_ok;
+    //bool darwin_ok;
 
     mjModel *m;
     mjData *d;
@@ -59,10 +59,6 @@ class SimDarwin : public Robot {
       //mj_deleteData(d);
       //mj_deleteModel(m);
       //delete[] this->i_pose;
-    }
-
-    bool is_running() {
-      return darwin_ok;
     }
 
     //void init_pose(double *p) { // supposed to be for phasespace stuff

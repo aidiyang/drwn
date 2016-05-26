@@ -38,11 +38,11 @@
 
     <sensor>
       <sitepos name="mocap"       site="imu" />
+
       <!--
       <accelerometer name="accel" site="imu" />
       <jointpos joint="rootx" />
       <jointpos joint="rootz" />
-      
       <jointvel joint="rootx" />
       <jointvel joint="rootz" />
 

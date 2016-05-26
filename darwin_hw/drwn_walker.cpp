@@ -347,19 +347,20 @@ void Walking::Initialize(double * ctrl)
   update_param_move();
 
   //m_Joint.SetAngle(JointData::ID_R_SHOULDER_PITCH, -48.345);
-  //m_Joint.SetAngle(JointData::ID_R_SHOULDER_ROLL, -17.873);
-  //m_Joint.SetAngle(JointData::ID_R_ELBOW, 29.300);
-  ctrl[0] = joint2radian(MX28::Angle2Value(-17.873));
-  ctrl[1] = joint2radian(MX28::Angle2Value(-48.345));
-  ctrl[2] = joint2radian(MX28::Angle2Value(-29.300));
+  //m_Joint.SetAngle(JointData::ID_L_SHOULDER_PITCH,  41.313);
+  //m_Joint.SetAngle(JointData::ID_R_SHOULDER_ROLL,  -17.873);
+  //m_Joint.SetAngle(JointData::ID_L_SHOULDER_ROLL,   17.580);
+  //m_Joint.SetAngle(JointData::ID_R_ELBOW,           29.300);
+  //m_Joint.SetAngle(JointData::ID_L_ELBOW,          -29.593);
 
-  //m_Joint.SetAngle(JointData::ID_L_SHOULDER_PITCH, 41.313);
-  //m_Joint.SetAngle(JointData::ID_L_SHOULDER_ROLL,  17.580);
-  //m_Joint.SetAngle(JointData::ID_L_ELBOW,         -29.593);
-  ctrl[9] = joint2radian(MX28::Angle2Value( 17.580));
-  ctrl[10] = joint2radian(MX28::Angle2Value( 41.313));
-  ctrl[11] = joint2radian(MX28::Angle2Value(-29.593));
+  ctrl[0] = joint2radian(MX28::Angle2Value(-45)); // ID_R_SHOULDER_PITCH, -48.345
+  ctrl[1] = joint2radian(MX28::Angle2Value( 45)); // ID_L_SHOULDER_PITCH,  41.313
+  ctrl[2] = joint2radian(MX28::Angle2Value(-17)); // ID_R_SHOULDER_ROLL,  -17.873
+  ctrl[3] = joint2radian(MX28::Angle2Value( 17)); // ID_L_SHOULDER_ROLL,   17.580
+  ctrl[4] = joint2radian(MX28::Angle2Value( 29)); // ID_R_ELBOW,           29.300
+  ctrl[5] = joint2radian(MX28::Angle2Value(-29)); // ID_L_ELBOW,          -29.593
 
+  ctrl[18] = joint2radian(2048);
   //m_Joint.SetAngle(JointData::ID_HEAD_TILT, Kinematics_EYE_TILT_OFFSET_ANGLE);
   ctrl[19] = joint2radian(MX28::Angle2Value(-1.0*Kinematics_EYE_TILT_OFFSET_ANGLE));
 
@@ -632,11 +633,31 @@ void Walking::Process(double dt, double * gyro, double* ctrl)
   //m_Joint.SetValue(JointData::ID_R_KNEE, outValue[3]);
   //m_Joint.SetValue(JointData::ID_R_ANKLE_PITCH, outValue[4]);
   //m_Joint.SetValue(JointData::ID_R_ANKLE_ROLL, outValue[5]);
-  // make ctrl output
-  int idx = 3;
+  
+  // make ctrl output NEW ORDERING
   ctrl[0] = joint2radian(outValue[12]); // R_shoulder_pitch
+  ctrl[1] = joint2radian(outValue[13]); // L_shoulder_pitch
+
+  /*
+  ctrl[JointData::ID_R_HIP_YAW -1] = joint2radian(outValue[0]);
+  ctrl[JointData::ID_R_HIP_ROLL -1] = joint2radian(outValue[1]);
+  ctrl[JointData::ID_R_HIP_PITCH -1] = joint2radian(outValue[2]);
+  ctrl[JointData::ID_R_KNEE -1] = joint2radian(outValue[3]);
+  ctrl[JointData::ID_R_ANKLE_PITCH -1] = joint2radian(outValue[4]);
+  ctrl[JointData::ID_R_ANKLE_ROLL -1] = joint2radian(outValue[5]);
+
+  ctrl[JointData::ID_L_HIP_YAW -1] = joint2radian(outValue[6]);
+  ctrl[JointData::ID_L_HIP_ROLL -1] = joint2radian(outValue[7]);
+  ctrl[JointData::ID_L_HIP_PITCH -1] = joint2radian(outValue[8]);
+  ctrl[JointData::ID_L_KNEE -1] = joint2radian(outValue[9]);
+  ctrl[JointData::ID_L_ANKLE_PITCH -1] = joint2radian(outValue[10]);
+  ctrl[JointData::ID_L_ANKLE_ROLL -1] = joint2radian(outValue[11]);
+  */
+
+  int idx = JointData::ID_R_HIP_YAW - 1; 
   for (int i=0; i<6; i++ ) {
     ctrl[idx++] = joint2radian(outValue[i]);
+    ctrl[idx++] = joint2radian(outValue[i+6]);
   }
 
   //m_Joint.SetValue(JointData::ID_L_HIP_YAW, outValue[6]);
@@ -645,12 +666,19 @@ void Walking::Process(double dt, double * gyro, double* ctrl)
   //m_Joint.SetValue(JointData::ID_L_KNEE, outValue[9]);
   //m_Joint.SetValue(JointData::ID_L_ANKLE_PITCH, outValue[10]);
   //m_Joint.SetValue(JointData::ID_L_ANKLE_ROLL, outValue[11]);
-
+  
+  /*
+  int idx = 3;
+  ctrl[9] = joint2radian(outValue[13]); // L_shoulder_pitch
+  for (int i=0; i<6; i++ ) {
+    ctrl[idx++] = joint2radian(outValue[i]);
+  }
   idx = 12;
-  ctrl[9] = joint2radian(outValue[13]); // R_shoulder_pitch
+  ctrl[9] = joint2radian(outValue[13]); // L_shoulder_pitch
   for (int i=6; i<12; i++ ) {
     ctrl[idx++] = joint2radian(outValue[i]);
   }
+  */
 
   //m_Joint.SetValue(JointData::ID_R_SHOULDER_PITCH, outValue[12]);
   //m_Joint.SetValue(JointData::ID_L_SHOULDER_PITCH, outValue[13]);

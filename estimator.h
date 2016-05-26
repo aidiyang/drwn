@@ -242,12 +242,11 @@ class UKF : public Estimator {
         //double omp1 = omp_get_wtime()*1000.0;
         int tid = omp_get_thread_num();
         int t = omp_get_num_threads();
-        //int chunk = (L + t-1) / t;
-        //int s = tid * chunk;
-        //int e = mjMIN(s+chunk, L);
         int s = tid * L / t;
         int e = (tid + 1 ) * L / t;
         if (tid == t-1) e = L;
+
+        mjData *t_d = sigmas[tid];
 
         //printf("p thread: %d chunk: %d-%d \n", tid, s, e);
         for (int j=s; j<e; j++) {
@@ -258,45 +257,49 @@ class UKF : public Estimator {
           x[i+L] = x[0]-sqrt.col(i-1);
 
           // sigma point
-          mju_copy(sigmas[tid]->qpos,   &x[i](0), nq);
-          mju_copy(sigmas[tid]->qvel,   &x[i](nq), nv);
-          //mju_copy(sigmas[tid]->qacc,   d->qacc, nv);
-          if (ctrl_state) mju_copy(sigmas[tid]->ctrl,   &x[i](nq+nv), nu); // set controls for this t
-          else mju_copy(sigmas[tid]->ctrl,   ctrl, nu); // set controls for this t
+          mju_copy(t_d->qpos,   &x[i](0), nq);
+          mju_copy(t_d->qvel,   &x[i](nq), nv);
+          //mju_copy(t_d->qacc,   d->qacc, nv);
+          if (ctrl_state) mju_copy(t_d->ctrl,   &x[i](nq+nv), nu); // set controls for this t
+          else mju_copy(t_d->ctrl,   ctrl, nu); // set controls for this t
 
-          //mj_step(m, sigmas[tid]);
-          mj_forward(m, sigmas[tid]);
-          mj_Euler(m, sigmas[tid]);
-          mj_sensor(m, sigmas[tid]);
+          //mj_step(m, t_d);
+          mj_forward(m, t_d);
+          mj_Euler(m, t_d);
 
-          sigmas[tid]->time = d->time;
-          mju_copy(&x[i](0),  sigmas[tid]->qpos, nq);
-          mju_copy(&x[i](nq), sigmas[tid]->qvel, nv);
-          if (ctrl_state) mju_copy(&x[i](nq+nv), sigmas[tid]->ctrl, nu);
-          gamma[i] = Map<VectorXd>(sigmas[tid]->sensordata, m->nsensordata);
+          mju_copy(&x[i](0),  t_d->qpos, nq);
+          mju_copy(&x[i](nq), t_d->qvel, nv);
+          if (ctrl_state) mju_copy(&x[i](nq+nv), t_d->ctrl, nu);
 
-          mju_copy(sigma_states[i+0]->qpos, sigmas[tid]->qpos, nq);
-          mju_copy(sigma_states[i+0]->qvel, sigmas[tid]->qvel, nv);
+          mj_forward(m, t_d);
+          mj_sensor(m, t_d);
+          gamma[i] = Map<VectorXd>(t_d->sensordata, m->nsensordata);
+
+          mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
+          mju_copy(sigma_states[i+0]->qvel, t_d->qvel, nv);
 
           // symmetric point
-          mju_copy(sigmas[tid]->qpos,   &x[i+L](0), nq);
-          mju_copy(sigmas[tid]->qvel,   &x[i+L](nq), nv);
-          //mju_copy(sigmas[tid]->qacc,   d->qacc, nv);
-          if (ctrl_state) mju_copy(sigmas[tid]->ctrl,   &x[i+L](nq+nv), nu); // set controls for this t
-          //else mju_copy(sigmas[tid]->ctrl,   ctrl, nu); //
+          t_d->time = d->time;
+          mju_copy(t_d->qpos,   &x[i+L](0), nq);
+          mju_copy(t_d->qvel,   &x[i+L](nq), nv);
+          //mju_copy(t_d->qacc,   d->qacc, nv);
+          if (ctrl_state) mju_copy(t_d->ctrl,   &x[i+L](nq+nv), nu); // set controls for this t
+          //else mju_copy(t_d->ctrl,   ctrl, nu); //
 
-          //mj_step(m, sigmas[tid]);
-          mj_forward(m, sigmas[tid]);
-          mj_Euler(m, sigmas[tid]);
-          mj_sensor(m, sigmas[tid]);
+          //mj_step(m, t_d);
+          mj_forward(m, t_d);
+          mj_Euler(m, t_d);
 
-          mju_copy(&x[i+L](0),  sigmas[tid]->qpos, nq);
-          mju_copy(&x[i+L](nq), sigmas[tid]->qvel, nv);
-          if (ctrl_state) mju_copy(&x[i+L](nq+nv), sigmas[tid]->ctrl, nu);
-          gamma[i+L] = Map<VectorXd>(sigmas[tid]->sensordata, m->nsensordata);
+          mju_copy(&x[i+L](0),  t_d->qpos, nq);
+          mju_copy(&x[i+L](nq), t_d->qvel, nv);
+          if (ctrl_state) mju_copy(&x[i+L](nq+nv), t_d->ctrl, nu);
 
-          mju_copy(sigma_states[i+L]->qpos, sigmas[tid]->qpos, nq);
-          mju_copy(sigma_states[i+L]->qvel, sigmas[tid]->qvel, nv);
+          mj_forward(m, t_d);
+          mj_sensor(m, t_d);
+          gamma[i+L] = Map<VectorXd>(t_d->sensordata, m->nsensordata);
+
+          mju_copy(sigma_states[i+L]->qpos, t_d->qpos, nq);
+          mju_copy(sigma_states[i+L]->qvel, t_d->qvel, nv);
         }
         //double omp2 = omp_get_wtime()*1000.0;
         //printf("p thread: %d chunk: %d-%d Time: %f\n", tid, s, e, omp2-omp1);
@@ -304,12 +307,15 @@ class UKF : public Estimator {
 
       // step for the central point
       //mj_step(m, d);
-      //mj_forward(m, d);
-      //mj_Euler(m, d);
-      //mj_sensor(m, d);
+      mj_forward(m, d);
+      mj_Euler(m, d); // step
+
       mju_copy(&x[0](0), d->qpos, nq);
       mju_copy(&x[0](nq), d->qvel, nv);
       if (ctrl_state) mju_copy(&x[0](nq+nv), d->ctrl, nu);
+
+      mj_forward(m, d);
+      mj_sensor(m, d); // sensor values at new positions
       gamma[0] = Map<VectorXd>(d->sensordata, m->nsensordata);
 
       mju_copy(sigma_states[0]->qpos, d->qpos, nq);
@@ -328,6 +334,26 @@ class UKF : public Estimator {
         z_k += W_s[i]*gamma[i];
       }
 
+      if (NUMBER_CHECK) {
+        IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
+        printf("Correct: After Step time %f\n", sigma_states[0]->time);
+        for (int i=0; i<N; i++) {
+          printf("%d\t", i);
+          for (int j=0; j<nq; j++)
+            printf("%1.5f ", sigma_states[i]->qpos[j]);
+          for (int j=0; j<nv; j++)
+            printf("%1.5f ", sigma_states[i]->qvel[j]);
+          printf("\t:: ");
+          for (int j=0; j<nu; j++)
+            printf("%1.5f ", sigma_states[i]->ctrl[j]);
+          printf("\t:: ");
+          for (int j=0; j<m->nsensordata; j++)
+            printf("%f ", sigma_states[i]->sensordata[j]);
+          printf("\n");
+        }
+        std::cout << "\nz_k hat:\n"<< (z_k).transpose().format(CleanFmt) << std::endl;
+      }
+
       P_t.setZero();
       P_z.setZero();
       //P_z.setIdentity();
@@ -339,6 +365,20 @@ class UKF : public Estimator {
         P_t += W_c[i] * (x_i * x_i.transpose());
         P_z += W_c[i] * (z * z.transpose());
         Pxz += W_c[i] * (x_i * z.transpose());
+      }
+
+      for (int i=0; i<L; i++) {
+        if (P_t.row(i).isZero(1e-9)) {
+          P_t.row(i).setZero();
+          P_t.col(i).setZero();
+          P_t(i,i) = 1e-1; // TODO diag??
+        }
+      }
+
+      if (NUMBER_CHECK) {
+        IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
+        std::cout << "Prediction output:\nx_t\n"<< x_t.transpose().format(CleanFmt) << std::endl;
+        std::cout << "Prediction output:\nP_t\n"<< P_t.format(CleanFmt) << std::endl;
       }
 
       // TODO make the identity addition a parameter
@@ -366,6 +406,19 @@ class UKF : public Estimator {
       printf("\ncombo init %f, sqrt %f, mjsteps %f, merge %f\n",
           t3-t2, t4-t3, t5-t4, t6-t5);
 
+      if (NUMBER_CHECK) {
+        IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
+        std::cout << "Kalman Gain:\n"<< K.format(CleanFmt) << std::endl;
+        std::cout << "\nPz  :\n"<< P_z.format(CleanFmt) << std::endl;
+        std::cout << "\nPz^-1:\n"<< P_z.inverse().format(CleanFmt) << std::endl;
+        std::cout << "\nPxz :\n"<< Pxz.format(CleanFmt) << std::endl;
+        std::cout << "\ncorrect p_t :\n"<< P_t.format(CleanFmt) << std::endl;
+        std::cout << "\ncorrect x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
+        std::cout << "\nraw sensors:\n"<< (s).transpose().format(CleanFmt) << std::endl;
+        std::cout << "\nz_k hat:\n"<< (z_k).transpose().format(CleanFmt) << std::endl;
+        std::cout << "\ndelta:\n"<< (s-z_k).transpose().format(CleanFmt) << std::endl;
+        std::cout << "Predict and Correct COMBO\n";
+      }
     }
 
     void predict(double * ctrl, double dt) {
@@ -638,17 +691,8 @@ class UKF : public Estimator {
         Pxz += W_c[i] * (x_i * z.transpose());
       }
 
-      /*
-         for (int i=0; i<m->nsensordata; i++) {
-         if (P_z.row(i).isZero(1e-9)) {
-         P_z.row(i).setZero();
-         P_z.col(i).setZero();
-         P_z(i,i) = 1.0;
-         }
-         }
-         */
       // TODO make the identity addition a parameter
-      P_z = P_z + (MatrixXd::Identity(m->nsensordata,m->nsensordata)*1e0);
+      P_z = P_z + (MatrixXd::Identity(m->nsensordata,m->nsensordata)*diag);
 
       //P_z.setIdentity();
       //P_t = MatrixXd::Identity(L,L) * 1e-3;
@@ -1040,6 +1084,12 @@ mj_step(m, sigma_states[i]);
 
     mjData* get_stddev() {
       VectorXd var = P_t.diagonal();
+      if (NUMBER_CHECK) {
+        std::cout<<"P_T diag:\n";
+        std::cout<< var.transpose() << std::endl;
+        std::cout<<"\nP_z diag:\n";
+        std::cout<< P_z.diagonal().transpose() << std::endl;
+      }
       mju_copy(stddev->qpos, &(var(0)), nq);
       mju_copy(stddev->qvel, &(var(nq)), nv);
       if (ctrl_state) mju_copy(stddev->ctrl, &(var(nq+nv)), nu);

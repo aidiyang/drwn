@@ -10,6 +10,8 @@
 #include <iostream>
 #include <fstream>
 
+#include <math.h>
+
 std::ofstream myfile;
 void save_states(std::string filename,
     int nu, int nsensordata, 
@@ -55,8 +57,8 @@ int main (int argc, char* argv[]) {
   bool use_rigid = false;
   bool use_markers = false;
   bool use_accel = true;
-  bool use_gyro = true;
-  bool use_ati = true;
+  bool use_gyro  = true;
+  bool use_ati   = true;
   std::string ps_server = "128.208.4.128";
 
   double *p = NULL; // initial pose
@@ -86,6 +88,7 @@ int main (int argc, char* argv[]) {
 
   int count = 1000;
   double t1=0.0, t2=0.0;
+  double * avg = new double[count];
   printf("\n");
   for (int i = 0; i < count; i++) {
     
@@ -110,7 +113,20 @@ int main (int argc, char* argv[]) {
     // Do stuff with data
     save_states("raw.csv", nu, nsensordata, time, ctrl, sensors, "a");
 
+    avg[i] = (t2-t1);
   }
+  double mean=0.0;
+  double stddev=0.0;
+  for (int i = 0; i < count; i++) {
+    mean += avg[i];
+  }
+  mean = mean / (double) count;
+  for (int i = 0; i < count; i++) {
+    double diff = avg[i] - mean;
+    stddev += diff * diff;
+  }
+  stddev = sqrt(stddev / count);
+  printf("Average Timing: %f; Standard Deviation: %f\n", mean, stddev);
 
 
   delete[] qpos;

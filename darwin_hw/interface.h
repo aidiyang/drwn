@@ -21,9 +21,9 @@
 #include "robot.h"
 
 
-//using namespace Robot;
+using namespace Robot;
 
-class DarwinRobot : public Robot {
+class DarwinRobot : public MyRobot {
   private:
     CM730 *cm730;
     Phasespace * ps;
@@ -34,6 +34,7 @@ class DarwinRobot : public Robot {
 
     int *pgain;
     int *dgain;
+
 
     bool use_accel;
     bool use_gyro;
@@ -92,9 +93,6 @@ class DarwinRobot : public Robot {
       delete[] this->i_pose;
     }
 
-    bool is_running() {
-      return darwin_ok;
-    }
 
     bool init_CM730(int *p, int *d) {
 #ifdef _WIN32
@@ -106,6 +104,7 @@ class DarwinRobot : public Robot {
       cm730 = new CM730(my_cm730); // our packet
       //CM730 cm730(&linux_cm730, false);
       if(cm730->Connect() == false) {
+        cmd_vec = 0;
         printf("Fail to initializeCM-730\n");
         return false;
       }
@@ -180,15 +179,16 @@ class DarwinRobot : public Robot {
     }
 
     void init_pose(double *p) {
-      if (!i_pose) {
+      //if (!i_pose) {
         i_pose = new double[7];
-      }
+      //}
 
       if (p) {
         memcpy(i_pose, p, sizeof(double)*7);
       }
       else {
-        memset(i_pose, 0, sizeof(double)*7);
+        for (int i=0; i<7; i++) i_pose[i] = 0;
+        //memset(i_pose, 0, sizeof(double)*7);
       }
     }
 
@@ -215,7 +215,7 @@ class DarwinRobot : public Robot {
         int idx = 40; // should these be automatic?
         if (imu->getData(a, g)) { // should be in m/s^2 and rad/sec
           if (use_accel) { sensor[idx+0]=a[0]; sensor[idx+1]=a[1]; sensor[idx+2]=a[2]; idx += 3; }
-          if (use_gyro) { sensor[idx+3]=g[0]; sensor[idx+4]=g[1]; sensor[idx+5]=g[2]; idx += 3; }
+          if (use_gyro) { sensor[idx+0]=g[0]; sensor[idx+1]=g[1]; sensor[idx+2]=g[2]; idx += 3; }
         }
 
         double r[6];
@@ -224,6 +224,7 @@ class DarwinRobot : public Robot {
           for (int id=0; id<6; id++) {
             sensor[idx+id] = r[id];
           }
+          idx += 6;
           for (int id=0; id<6; id++) {
             sensor[idx+id] = l[id];
           }
@@ -234,8 +235,14 @@ class DarwinRobot : public Robot {
         }
         else {
           // raw values collected, convert to mujoco
-          int i = 0;
           // positions
+          for(int id = 1; id <= 20; id++) {
+            int i = id-1;
+            sensor[i] = joint2radian(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_POSITION_L));
+            sensor[i+20] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
+          }
+
+          /*
           double *s_vec = sensor;
           for(int id = 1; id <= 17; id+=2) // Right Joints
             s_vec[i++] = joint2radian(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_POSITION_L));
@@ -251,6 +258,7 @@ class DarwinRobot : public Robot {
             s_vec[i++] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
           for(int id = 19; id <= 20; id++) // Head Joints
             s_vec[i++] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
+            */
         }
 
         // TODO generate root positions and velocities
@@ -275,6 +283,11 @@ class DarwinRobot : public Robot {
       // converts controls to darwin positions
       int joint_num = 0;
       int current[JointData::NUMBER_OF_JOINTS];
+      for (int joint=0; joint<20; joint++) {
+        current[joint+1]=radian2joint(u[joint]);
+      }
+
+      /* OLD ctrl order that matches qpos
       for (int joint=0; joint<JointData::ID_R_HIP_ROLL; joint++) {
         joint_num++;
         current[joint_num]=radian2joint(u[joint]);
@@ -283,21 +296,27 @@ class DarwinRobot : public Robot {
       }
       current[JointData::ID_HEAD_PAN]=radian2joint(u[JointData::ID_HEAD_PAN]);
       current[JointData::ID_HEAD_TILT]=radian2joint(u[JointData::ID_HEAD_TILT]);
+      */
 
       // TODO setting pgain and dgain not configured yet
-      int n = 0;
-      for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++) {
-        cmd_vec[n++] = id;
-        //cmd_vec[n++] = this->dgain; // d gain
-        cmd_vec[n++] = 0; // d gain
-        cmd_vec[n++] = 0; // i gain
-        cmd_vec[n++] = this->pgain[id-1]; // p gain
-        cmd_vec[n++] = 0; // reserved
-        cmd_vec[n++] = CM730::GetLowByte(current[id]); // move to middle
-        cmd_vec[n++] = CM730::GetHighByte(current[id]);
-      }
-      cm730->SyncWrite(MX28::P_D_GAIN, MX28::PARAM_BYTES, 20, cmd_vec);
+      if (darwin_ok) {
+        int n = 0;
+        for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++) {
+          cmd_vec[n++] = id;
+          //cmd_vec[n++] = this->dgain; // d gain
+          cmd_vec[n++] = 0; // d gain
+          cmd_vec[n++] = 0; // i gain
+          cmd_vec[n++] = this->pgain[id-1]; // p gain
+          cmd_vec[n++] = 0; // reserved
+          cmd_vec[n++] = CM730::GetLowByte(current[id]); // move to middle
+          cmd_vec[n++] = CM730::GetHighByte(current[id]);
+        }
+        cm730->SyncWrite(MX28::P_D_GAIN, MX28::PARAM_BYTES, 20, cmd_vec);
       return true;
+      }
+      else {
+        return false;
+      }
     }
 
 };

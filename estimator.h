@@ -421,7 +421,41 @@ class UKF : public Estimator {
       }
 
       // TODO make the identity addition a parameter
-      P_z = P_z + (MatrixXd::Identity(m->nsensordata,m->nsensordata)*diag);
+      MatrixXd PzAdd = MatrixXd::Identity(m->nsensordata, m->nsensordata);
+      for (int i = 0; i < m->nsensordata; i++) {
+        int type = m->sensor_type[i];
+        if(type == 1) {    //Accelerometer
+          PzAdd(i, i) = 1e-5;
+        }else if(type == 2) {    //Gyro
+          PzAdd(i, i) = 1e-5;
+        }else if(type == 3) {    //Force
+          PzAdd(i, i) = 1e-2;
+        }else if(type == 4) {    //Torque
+          PzAdd(i, i) = 1e-2;
+        }else if(type == 5) {    //JointPos
+          PzAdd(i, i) = 1e-4;
+        }else if(type == 6) {    //JointVel
+          PzAdd(i, i) = 1e-5;
+        }else if(type == 7) {    //TendonPos
+          PzAdd(i, i) = 1e-4;
+        }else if(type == 8) {    //TendonVel
+          PzAdd(i, i) = 1e-5;
+        }else if(type == 9) {    //ActuatorPos
+          PzAdd(i, i) = 1e-4;
+        }else if(type == 10) {    //ActuatorVel
+          PzAdd(i, i) = 1e-5;
+        }else if(type == 11) {    //ActuatorFrc
+          PzAdd(i, i) = 1e-3;
+        }else if(type == 12) {    //SitePos
+          PzAdd(i, i) = 1e-4;
+        }else if(type == 13) {    //SiteQuat
+          PzAdd(i, i) = 1e-4;
+        }else { //(type == 14) {    //Magnetometer (WTF?)
+          PzAdd(i, i) = 1e-5;
+        }
+      }
+      
+      P_z = P_z + PzAdd;
 
       MatrixXd K = Pxz * P_z.inverse();
 

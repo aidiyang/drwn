@@ -98,8 +98,8 @@ class Phasespace {
           if (track->use_markers) {
             for (int i = 0; i < MARKER_COUNT; i++) {
               marker_d[4 * i + 0] = markers[i].x / 1000.0;
-              marker_d[4 * i + 1] = markers[i].x / 1000.0;
-              marker_d[4 * i + 2] = markers[i].x / 1000.0;
+              marker_d[4 * i + 1] = markers[i].y / 1000.0;
+              marker_d[4 * i + 2] = markers[i].z / 1000.0;
               marker_d[4 * i + 3] = markers[i].cond;
             }
           }

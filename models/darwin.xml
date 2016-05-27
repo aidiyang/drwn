@@ -171,8 +171,21 @@ soft:
                     <geom material="meshmat" mesh="ankle_coll" pos="-0.033 0 0"   euler="0 1.5708 1.5708" type="mesh"/>
                     <body name="toes_l" pos="-0.015 0 0" quat="1.0 0 0 0">
                       <site name="left_ati" pos="-0.0287 0 0.0" euler="0 1.5708 0" type="cylinder" size="0.0125 0.0108" rgba="1 0 0 1" />
+                      <!--
+                      <geom type = "sphere" size = ".03" pos = "-0.04 0.0 0" euler="3.14159 0 1.5708"/>
+                      -->
+                      
                       <geom material="meshmat" mesh="foot_left" pos="-0.040 -0.01 0"    euler="0 0 -1.5708" type="mesh"/>
                       <geom material="meshmat" mesh="foot_bracket" pos="0.23 0.037 0.0" euler="0 0 -1.5708" type="mesh"/>
+                      <!--Left Side -->
+                    
+                      <geom type = "sphere" size = ".01" pos = "-0.041 -0.028 -0.037" euler="3.14159 0 1.5708"/>
+                      <geom type = "sphere" size = ".012" pos = "-0.041 -0.028 0.037" euler="3.14159 0 1.5708"/>
+                      <!--Right Side -->
+                      
+                      <geom type = "sphere" size = ".012" pos = "-0.041 0.007 0.037" euler="3.14159 0 1.5708"/>
+                      <geom type = "sphere" size = ".01" pos = "-0.041 0.007 -0.037" euler="3.14159 0 1.5708"/>
+                    
                     </body>
                   </body>
                 </body>
@@ -216,8 +229,20 @@ soft:
                     <geom material="meshmat" mesh="ankle_coll" pos="0.033 0 0"   euler="0 -1.5708 -1.5708" type="mesh"/>
                     <body name="toes_r" pos="0.015 0 0" quat="1.0 0 0 0">
                       <site name="right_ati" pos="0.0287 0 0.0" euler="0 1.5708 0" type="cylinder" size="0.0125 0.0108" rgba="1 0 0 1" />
+                      <!--
+                      <geom type = "sphere" size = ".03" pos = "0.04 0.0 0" euler="3.14159 0 1.5708"/>
+                      -->
                       <geom material="meshmat" mesh="foot_right" pos="0.04 -0.01 0"    euler="3.14159 0 1.5708" type="mesh"/>
                       <geom material="meshmat" mesh="foot_bracket" pos="-0.23 0.037 0.0" euler="3.14159 0 1.5708" type="mesh"/>
+                      <!--Left Side-->
+                      
+                      <geom type = "sphere" size = ".01" pos = "0.041 -0.028 -0.037" euler="3.14159 0 1.5708"/>
+                      <geom type = "sphere" size = ".012" pos = "0.041 -0.028 0.037" euler="3.14159 0 1.5708"/>
+                      <!--Right Side-->
+                      
+                      <geom type = "sphere" size = ".012" pos = "0.041 0.007 0.037" euler="3.14159 0 1.5708"/>
+                      <geom type = "sphere" size = ".01" pos = "0.041 0.007 -0.037" euler="3.14159 0 1.5708"/>
+                    
                     </body>
                   </body>
                 </body>

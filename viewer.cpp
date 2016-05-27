@@ -143,6 +143,7 @@ int main(int argc, const char** argv) {
   double beta;
   double kappa;
   double diag;
+  double Ws0;
   double s_time_noise=0.0;
   bool do_correct;
   bool debug;
@@ -165,6 +166,7 @@ int main(int argc, const char** argv) {
 			("beta,b", po::value<double>(&beta)->default_value(2), "Gaussian amount of control noise to corrupt data with.")
 			("kappa,k", po::value<double>(&kappa)->default_value(0), "Gaussian amount of estimator noise to corrupt data with.")
 			("diagonal,d", po::value<double>(&diag)->default_value(1), "Gaussian amount of estimator noise to corrupt data with.")
+      ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
 			//("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 			("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
 			//("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
@@ -188,6 +190,13 @@ int main(int argc, const char** argv) {
 		return 0;
 	}
 
+
+  if(Ws0 > 1) {
+    Ws0 = 1;
+    printf("Inputted weight was larger than 1, Ws0 has been clamped to 1\n\n");
+  }
+
+
   printf("Model:\t\t%s\n", model_name.c_str());
   printf("OMP threads:\t\t%d\n", num_threads);
   printf("Timesteps:\t\t%d\n", estimation_counts);
@@ -197,6 +206,7 @@ int main(int argc, const char** argv) {
   printf("UKF beta:\t\t%f\n", beta);
   printf("UKF kappa:\t\t%f\n", kappa);
   printf("UKF diag:\t\t%f\n", diag);
+  printf("UKF Ws0:\t\t%f\n", Ws0);
 
   // Start Initializations
   omp_set_num_threads(num_threads);
@@ -257,7 +267,13 @@ int main(int argc, const char** argv) {
         if (est)
           delete est;
         printf("New UKF initialization\n");
-        est = new UKF(m, d, alpha, beta, kappa, diag, e_noise, debug, num_threads);
+        /*
+        for (int i = 1; i <= nsensordata; i++) {
+          printf("Sensor type: %i\n", m->sensor_type[i]);
+        }
+        */
+        //printf("sensor type: %s \n", m->sensor_type);
+        est = new UKF(m, d, alpha, beta, kappa, diag, Ws0, e_noise, debug, num_threads);
 
         est_data = est->get_state();
         save_states(output_file, d, est_data, est->get_stddev(), 0, 0, "w");

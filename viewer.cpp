@@ -313,7 +313,7 @@ int main(int argc, const char** argv) {
           for (int i=(nv-1); i>(nv-20); i--) d->qvel[i] = init_qvel[c--];
         }
 
-        est = new UKF(m, d, alpha, beta, kappa, diag, e_noise, debug, num_threads);
+        est = new UKF(m, d, alpha, beta, kappa, diag, -1.0, e_noise, debug, num_threads);
 
         est_data = est->get_state();
         if (real_robot) save_states(output_file, 0.0, NULL, est_data, est->get_stddev(), 0, 0, "w");

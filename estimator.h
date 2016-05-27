@@ -1,5 +1,4 @@
 #include "mujoco.h"
-
 #include <string.h>
 #include <iostream>
 #include <random>
@@ -40,6 +39,7 @@ class Estimator {
       mj_deleteModel(m);
     }
 
+    /*
     void get_state(mjData * d, double * state) {
       mju_copy(state, d->qpos, nq);
       mju_copy(state+nq, d->qvel, nv);
@@ -48,6 +48,7 @@ class Estimator {
       mju_copy(d->qpos, state, nq);
       mju_copy(d->qvel, state+nq, nv);
     }
+    */
     //virtual void init();
     virtual void predict(double * ctrl, double dt) {};
     virtual void correct(double* sensors) {};
@@ -72,7 +73,7 @@ class Estimator {
 class UKF : public Estimator {
   public:
     UKF(mjModel *m, mjData * d,
-        double _alpha, double _beta, double _kappa, double _diag, double _noise,
+        double _alpha, double _beta, double _kappa, double _diag, double _Ws0, double _noise,
         bool debug = false, int threads = 1) : Estimator(m, d) {
       L = nq + nv; // size of state dimensions
 
@@ -85,8 +86,9 @@ class UKF : public Estimator {
       beta = _beta;
       lambda = (alpha*alpha)*((double)L + _kappa) - (double)L;
       diag = _diag;
+      Ws0 = _Ws0;
       printf("L size: %d\t N: %d\n", L, N);
-      printf("Alpha %f\nBeta %f\nLambda %f\nDiag %f", alpha, beta, lambda, diag);
+      printf("Alpha %f\nBeta %f\nLambda %f\nDiag %f\nWs0 %f\n", alpha, beta, lambda, diag, Ws0);
 
       W_s = new double[N];
       W_c = new double[N];
@@ -122,17 +124,26 @@ class UKF : public Estimator {
           W_s[i] = lambda / ((double) L + lambda);
 
           W_c[i] = W_s[i] + (1-(alpha*alpha)+beta);
-          W_s[i] = 1.0 / N; // = w_s0
+          if (Ws0 < 0) {
+            W_s[i] = 1.0 / N;
+          }
+          else{
+            W_s[i] = Ws0;
+          }
           //W_c[i] = W_s[i];
         }
         else {
           sigma_states[i] = mj_makeData(this->m);
           mj_copyData(sigma_states[i], this->m, this->d);
 
-          W_s[i] = 1.0 / (2.0 * ((double)L + lambda));
-          W_c[i] = W_s[i];
-
-          W_s[i] = 1.0 / N; // TODO LESS TERRIBLE
+          W_c[i] = 1.0 / (2.0 * ((double)L + lambda));
+          //W_c[i] = W_s[i];
+          if (Ws0 < 0) {
+            W_s[i] = 1.0 / N;
+          }
+          else{
+            W_s[i] = (1.0 - Ws0) / ((double) 2 * L);
+          }
         }
         x[i] = VectorXd::Zero(L); // point into raw buffer, not mjdata
 
@@ -214,16 +225,39 @@ class UKF : public Estimator {
       return nd(rng);
     }
 
+    void set_data(mjData* data, VectorXd x) {
+      mju_copy(data->qpos,   &x(0), nq);
+      mju_copy(data->qvel,   &x(nq), nv);
+      if (ctrl_state) mju_copy(data->ctrl,   &x(nq+nv), nu); // set controls for this t
+    }
+
+    void get_state(mjData* data, VectorXd x) {
+      mju_copy(&x(0),  data->qpos, nq);
+      mju_copy(&x(nq), data->qvel, nv);
+      if (ctrl_state) mju_copy(&x(nq+nv), data->ctrl, nu);
+    }
+
+    void copy_state(mjData * dst, mjData * src) {
+      mju_copy(dst->qpos, src->qpos, nq);
+      mju_copy(dst->qvel, src->qvel, nv);
+      if (ctrl_state) mju_copy(dst->ctrl, src->ctrl, nu);
+    }
+
+    void fast_forward(mjData * t_d, int index) {
+      //if (ctrl_state && index >= (nq+nv)) mj_forwardSkip(m, t_d, 2); // just ctrl calcs
+      //else if (index >= nq) mj_forwardSkip(m, t_d, 1); // velocity cals
+      //else mj_forward(m, t_d); // all calculations
+      mj_forward(m, t_d); // all calculations
+    }
+
     void predict_correct(double * ctrl, double dt, double* sensors) {
 
       double t2 = omp_get_wtime()*1000.0;
 
-      m->opt.timestep = dt; // smoother way of doing this?
-
-
-      mju_copy(d->qpos, &(x_t(0)), nq); // previous estimate
-      mju_copy(d->qvel, &(x_t(nq)), nv);
-      if (ctrl_state) mju_copy(&x_t(nq+nv), ctrl, nu); // TODO this line??
+      set_data(d, x_t);
+      //mju_copy(d->qpos, &(x_t(0)), nq); // previous estimate
+      //mju_copy(d->qvel, &(x_t(nq)), nv);
+      //if (ctrl_state) mju_copy(&x_t(nq+nv), ctrl, nu); // TODO this line??
       mju_copy(d->ctrl, ctrl, nu); // set controls for the center point
 
       x[0] = x_t;
@@ -234,6 +268,16 @@ class UKF : public Estimator {
       MatrixXd sqrt = chol.matrixL(); // chol
 
       double t4 = omp_get_wtime()*1000.0;
+
+      // Simulation options
+      m->opt.timestep = dt;
+      m->opt.iterations = 100; 
+      m->opt.tolerance = 1e-6; 
+
+      mj_forward(m, d); // solve for center point accurately
+
+      m->opt.iterations = 5; 
+      m->opt.tolerance = 0; 
 
       // set tolerance to be low, run 50, 100 iterations for mujoco solver
       // copy qacc for sigma points with some higher tolerance
@@ -257,69 +301,64 @@ class UKF : public Estimator {
           x[i+L] = x[0]-sqrt.col(i-1);
 
           // sigma point
-          mju_copy(t_d->qpos,   &x[i](0), nq);
-          mju_copy(t_d->qvel,   &x[i](nq), nv);
-          //mju_copy(t_d->qacc,   d->qacc, nv);
-          if (ctrl_state) mju_copy(t_d->ctrl,   &x[i](nq+nv), nu); // set controls for this t
-          else mju_copy(t_d->ctrl,   ctrl, nu); // set controls for this t
+          set_data(t_d, x[i+0]);
+          mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
+          if (!ctrl_state) mju_copy(t_d->ctrl, ctrl, nu); // set controls for this t
 
           //mj_step(m, t_d);
-          mj_forward(m, t_d);
+          fast_forward(t_d, j);
           mj_Euler(m, t_d);
 
-          mju_copy(&x[i](0),  t_d->qpos, nq);
-          mju_copy(&x[i](nq), t_d->qvel, nv);
-          if (ctrl_state) mju_copy(&x[i](nq+nv), t_d->ctrl, nu);
+          get_state(t_d, x[i+0]);
 
-          mj_forward(m, t_d);
+          //mj_forward(m, t_d); // at new position
+          fast_forward(t_d, j);
+
           mj_sensor(m, t_d);
           gamma[i] = Map<VectorXd>(t_d->sensordata, m->nsensordata);
 
           mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
           mju_copy(sigma_states[i+0]->qvel, t_d->qvel, nv);
 
-          // symmetric point
+          ////////////////////// symmetric point
           t_d->time = d->time;
-          mju_copy(t_d->qpos,   &x[i+L](0), nq);
-          mju_copy(t_d->qvel,   &x[i+L](nq), nv);
-          //mju_copy(t_d->qacc,   d->qacc, nv);
-          if (ctrl_state) mju_copy(t_d->ctrl,   &x[i+L](nq+nv), nu); // set controls for this t
-          //else mju_copy(t_d->ctrl,   ctrl, nu); //
+          set_data(t_d, x[i+L]);
+          mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
 
           //mj_step(m, t_d);
-          mj_forward(m, t_d);
+          //mj_forward(m, t_d);
+          fast_forward(t_d, j);
+
           mj_Euler(m, t_d);
 
-          mju_copy(&x[i+L](0),  t_d->qpos, nq);
-          mju_copy(&x[i+L](nq), t_d->qvel, nv);
-          if (ctrl_state) mju_copy(&x[i+L](nq+nv), t_d->ctrl, nu);
+          get_state(t_d, x[i+L]);
 
-          mj_forward(m, t_d);
+          //mj_forward(m, t_d); // at new position
+
+          fast_forward(t_d, j);
           mj_sensor(m, t_d);
           gamma[i+L] = Map<VectorXd>(t_d->sensordata, m->nsensordata);
 
-          mju_copy(sigma_states[i+L]->qpos, t_d->qpos, nq);
-          mju_copy(sigma_states[i+L]->qvel, t_d->qvel, nv);
+          copy_state(sigma_states[i+L], t_d); // for visualizations
         }
         //double omp2 = omp_get_wtime()*1000.0;
         //printf("p thread: %d chunk: %d-%d Time: %f\n", tid, s, e, omp2-omp1);
       }
 
       // step for the central point
-      //mj_step(m, d);
-      mj_forward(m, d);
+      //mj_forward(m, d);
       mj_Euler(m, d); // step
 
-      mju_copy(&x[0](0), d->qpos, nq);
-      mju_copy(&x[0](nq), d->qvel, nv);
-      if (ctrl_state) mju_copy(&x[0](nq+nv), d->ctrl, nu);
+      get_state(d, x[0]);
+      //mju_copy(&x[0](0), d->qpos, nq);
+      //mju_copy(&x[0](nq), d->qvel, nv);
+      //if (ctrl_state) mju_copy(&x[0](nq+nv), d->ctrl, nu);
 
       mj_forward(m, d);
       mj_sensor(m, d); // sensor values at new positions
       gamma[0] = Map<VectorXd>(d->sensordata, m->nsensordata);
 
-      mju_copy(sigma_states[0]->qpos, d->qpos, nq);
-      mju_copy(sigma_states[0]->qvel, d->qvel, nv);
+      copy_state(sigma_states[0], d); // for visualizations
       mju_copy(sigma_states[0]->ctrl, d->ctrl, nu);
 
       double t5 = omp_get_wtime()*1000.0;
@@ -1109,6 +1148,7 @@ mj_step(m, sigma_states[i]);
     double beta;
     double lambda;
     double diag;
+    double Ws0;
     double noise;
     double * W_s;
     double * W_c;

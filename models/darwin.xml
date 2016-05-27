@@ -11,10 +11,10 @@
       <flag constraint="disable"/>
 soft:
         margin="0.001" solref="1 1" solimp=".001 .001 .01" material="meshmat"/>
+      <flag contact="disable"/>
    -->
 
     <option	timestep="0.0025" iterations="50" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
-      <flag contact="disable"/>
     </option>
 
     <default>

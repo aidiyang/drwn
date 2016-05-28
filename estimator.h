@@ -129,12 +129,12 @@ class UKF : public Estimator {
           W_s[i] = lambda / ((double) L + lambda);
 
           W_c[i] = W_s[i] + (1-(alpha*alpha)+beta);
-          //if (Ws0 < 0) {
-          //  W_s[i] = 1.0 / N;
-          //}
-          //else{
-          //  W_s[i] = Ws0;
-          //}
+          if (Ws0 < 0) {
+            W_s[i] = 1.0 / N;
+          }
+          else{
+            W_s[i] = Ws0;
+          }
           //W_c[i] = W_s[i];
         }
         else {
@@ -144,12 +144,12 @@ class UKF : public Estimator {
           W_s[i] = 1.0 / (2.0 * ((double)L + lambda));
           W_c[i] = W_s[i];
 
-          //if (Ws0 < 0) {
-          //  W_s[i] = 1.0 / N;
-          //}
-          //else{
-          //  W_s[i] = (1.0 - Ws0) / ((double) 2 * L);
-          //}
+          if (Ws0 < 0) {
+            W_s[i] = 1.0 / N;
+          }
+          else{
+            W_s[i] = (1.0 - Ws0) / ((double) 2 * L);
+          }
         }
         x[i] = VectorXd::Zero(L); // point into raw buffer, not mjdata
 
@@ -347,9 +347,6 @@ class UKF : public Estimator {
 
         mjData *t_d = sigmas[tid];
 
-        //set_data(t_d, &(x[0])); // set centroid data
-        //mj_forward(m, t_d); // solve for center point at the sigma point too
-
         //printf("p thread: %d chunk: %d-%d \n", tid, s, e);
         for (int j=s; j<e; j++) {
           // step through all the perturbation cols and collect the data
@@ -363,15 +360,12 @@ class UKF : public Estimator {
           mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
           if (!ctrl_state) mju_copy(t_d->ctrl, ctrl, nu); // set controls for this t
 
-          //mj_step(m, t_d);
           fast_forward(t_d, j);
           mj_Euler(m, t_d);
 
           get_state(t_d, &(x[i+0]));
 
           mj_forward(m, t_d); // at new position; can't assume we didn't move
-          //fast_forward(t_d, j);
-
           mj_sensor(m, t_d);
           mju_copy(&(gamma[i](0)), t_d->sensordata, m->nsensordata);
 
@@ -379,25 +373,37 @@ class UKF : public Estimator {
             mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
           }
 
+          mj_inverse(m, t_d);
+          printf("inverse: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qfrc_inverse[i]);
+          printf("   qacc: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qacc[i]);
+          printf("\n");
+
           ///////////////////////////////////////////////////// symmetric point
           t_d->time = d->time;
           set_data(t_d, &(x[i+L]));
           mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
 
-          //mj_step(m, t_d);
           fast_forward(t_d, j);
           mj_Euler(m, t_d);
 
           get_state(t_d, &(x[i+L]));
 
           mj_forward(m, t_d); // at new position; can't assume we didn't move
-          //fast_forward(t_d, j);
           mj_sensor(m, t_d);
           mju_copy(&(gamma[i+L](0)), t_d->sensordata, m->nsensordata);
 
           if (j < nq) { // only copy position perturbed
             mju_copy(sigma_states[i+nq]->qpos, t_d->qpos, nq);
           }
+
+          mj_inverse(m, t_d);
+          printf("inverse: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qfrc_inverse[i]);
+          printf("   qacc: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qacc[i]);
+          printf("\n");
         }
         //double omp2 = omp_get_wtime()*1000.0;
         //printf("p thread: %d chunk: %d-%d Time: %f\n", tid, s, e, omp2-omp1);
@@ -424,30 +430,18 @@ class UKF : public Estimator {
       double t5 = omp_get_wtime()*1000.0;
 
       x_t.setZero();
+      //for (int i=0; i<N; i++) { x_t += W_s[i]*x[i]; }
       for (int i=1; i<N; i++) { x_t += x[i]; }
       x_t = W_s[0]*x[0] + (W_s[1])*x_t;
 
       VectorXd z_k = VectorXd::Zero(m->nsensordata);
+      //for (int i=0; i<N; i++) { z_k += W_s[i]*gamma[i]; }
       for (int i=1; i<N; i++) { z_k += gamma[i]; }
       z_k = W_s[0]*gamma[0] + (W_s[1])*z_k;
 
       if (NUMBER_CHECK) {
         IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
         printf("Correct: After Step time %f\n", sigma_states[0]->time);
-        //for (int i=0; i<N; i++) {
-        //  printf("%d\t", i);
-        //  for (int j=0; j<nq; j++)
-        //    printf("%1.5f ", sigma_states[i]->qpos[j]);
-        //  for (int j=0; j<nv; j++)
-        //    printf("%1.5f ", sigma_states[i]->qvel[j]);
-        //  printf("\t:: ");
-        //  for (int j=0; j<nu; j++)
-        //    printf("%1.5f ", sigma_states[i]->ctrl[j]);
-        //  printf("\t:: ");
-        //  for (int j=0; j<m->nsensordata; j++)
-        //    printf("%f ", sigma_states[i]->sensordata[j]);
-        //  printf("\n");
-        //}
         std::cout << "\nz_k hat:\n"<< (z_k).transpose().format(CleanFmt) << std::endl;
       }
 

@@ -25,7 +25,7 @@ soft:
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
       <joint limited='true' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
-      <position ctrllimited='true' kp='2'/>
+      <position ctrllimited='true' kp='12'/>
     </default>
 
     <asset>
@@ -78,15 +78,15 @@ soft:
       <body name="torso" pos="0 0 0.4">
         <inertial diaginertia="6.53693 6.39822 1.88344" mass="0.975599" pos="-0.003053 -0.038651 -0.019268" quat="-0.00879356 0.867004 0.0524199 0.495458"/>
 
-        <!--
         <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
 
+        <!--
+        -->
         <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
-        -->
         <!--
 
         <joint type="free" limited='false' />
@@ -336,9 +336,9 @@ soft:
       <jointvel joint="head_pan" />
       <jointvel joint="head_tilt" />
 
-      <!--
       <accelerometer name="accel" site="imu" />
       <gyro name="gyro"           site="imu" />
+      <!--
 
       <force  name="right_f"   site="right_ati" />
       <torque name="right_t"   site="right_ati" />
@@ -346,10 +346,10 @@ soft:
       <force  name="left_f"    site="left_ati" />
       <torque name="left_t"    site="left_ati" />
 
+      -->
       <sitepos name="mocap"       site="imu" />
       <sitepos name="mocap1"       site="right_ati" />
       <sitepos name="mocap2"       site="left_ati" />
-      -->
     </sensor>
 
     <actuator>

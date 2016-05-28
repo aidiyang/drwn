@@ -180,6 +180,36 @@ class UKF : public Estimator {
 
       this->NUMBER_CHECK = debug;
 
+      PzAdd = MatrixXd::Identity(m->nsensordata, m->nsensordata);
+      int my_sensordata=0;
+      for (int i = 0; i < m->nsensor; i++) {
+        int type = m->sensor_type[i];
+        double var = 0;
+        switch (type) {
+          case 1: var = 1e-5; break;   //Accelerometer
+          case 2: var = 1e-5; break;   //Gyro
+          case 3: var = 1e-2; break;   //Force
+          case 4: var = 1e-2; break;   //Torque
+          case 5: var = 1e-4; break;   //JointPos
+          case 6: var = 1e-5; break;   //JointVel
+          case 7: var = 1e-4; break;   //TendonPos
+          case 8: var = 1e-5; break;   //TendonVel
+          case 9: var = 1e-4; break;   //ActuatorPos
+          case 10: var = 1e-5; break;  //ActuatorVel
+          case 11: var = 1e-3; break;  //ActuatorFrc
+          case 12: var = 1e-6; break;  //SitePos
+          case 13: var = 1e-4; break;  //SiteQuat
+          case 14: var = 1e-5; break;  //Magnetometer (WTF?)
+          default: var = 1e-2; break;
+
+        }
+        for (int j=my_sensordata; j<(m->sensor_dim[i]+my_sensordata); j++) {
+          // different sensors have different number of fields
+          PzAdd(j, j) = var;
+        }
+        my_sensordata += m->sensor_dim[i];
+      }
+      printf("Filled PzAdd: %d %d\n", my_sensordata, m->nsensordata);
       /*
          for (int i=0; i<nq; i++)
          sigma_states[0]->qpos[i] = (double) i;
@@ -225,16 +255,16 @@ class UKF : public Estimator {
       return nd(rng);
     }
 
-    void set_data(mjData* data, VectorXd x) {
-      mju_copy(data->qpos,   &x(0), nq);
-      mju_copy(data->qvel,   &x(nq), nv);
-      if (ctrl_state) mju_copy(data->ctrl,   &x(nq+nv), nu); // set controls for this t
+    void set_data(mjData* data, VectorXd *x) {
+      mju_copy(data->qpos,   &x[0](0), nq);
+      mju_copy(data->qvel,   &x[0](nq), nv);
+      if (ctrl_state) mju_copy(data->ctrl,   &x[0](nq+nv), nu); // set controls for this t
     }
 
-    void get_state(mjData* data, VectorXd x) {
-      mju_copy(&x(0),  data->qpos, nq);
-      mju_copy(&x(nq), data->qvel, nv);
-      if (ctrl_state) mju_copy(&x(nq+nv), data->ctrl, nu);
+    void get_state(mjData* data, VectorXd *x) {
+      mju_copy(&x[0](0),  data->qpos, nq);
+      mju_copy(&x[0](nq), data->qvel, nv);
+      if (ctrl_state) mju_copy(&x[0](nq+nv), data->ctrl, nu);
     }
 
     void copy_state(mjData * dst, mjData * src) {
@@ -254,7 +284,7 @@ class UKF : public Estimator {
 
       double t2 = omp_get_wtime()*1000.0;
 
-      set_data(d, x_t);
+      set_data(d, &(x_t));
       //mju_copy(d->qpos, &(x_t(0)), nq); // previous estimate
       //mju_copy(d->qvel, &(x_t(nq)), nv);
       //if (ctrl_state) mju_copy(&x_t(nq+nv), ctrl, nu); // TODO this line??
@@ -271,13 +301,12 @@ class UKF : public Estimator {
 
       // Simulation options
       m->opt.timestep = dt;
-      m->opt.iterations = 100; 
-      m->opt.tolerance = 1e-6; 
+      //m->opt.iterations = 100; 
+      //m->opt.tolerance = 1e-6; 
 
-      mj_forward(m, d); // solve for center point accurately
 
-      m->opt.iterations = 5; 
-      m->opt.tolerance = 0; 
+      //m->opt.iterations = 5; 
+      //m->opt.tolerance = 0; 
 
       // set tolerance to be low, run 50, 100 iterations for mujoco solver
       // copy qacc for sigma points with some higher tolerance
@@ -301,7 +330,7 @@ class UKF : public Estimator {
           x[i+L] = x[0]-sqrt.col(i-1);
 
           // sigma point
-          set_data(t_d, x[i+0]);
+          set_data(t_d, &(x[i+0]));
           mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
           if (!ctrl_state) mju_copy(t_d->ctrl, ctrl, nu); // set controls for this t
 
@@ -309,11 +338,10 @@ class UKF : public Estimator {
           fast_forward(t_d, j);
           mj_Euler(m, t_d);
 
-          get_state(t_d, x[i+0]);
+          get_state(t_d, &(x[i+0]));
 
           //mj_forward(m, t_d); // at new position
           fast_forward(t_d, j);
-
           mj_sensor(m, t_d);
           gamma[i] = Map<VectorXd>(t_d->sensordata, m->nsensordata);
 
@@ -322,18 +350,14 @@ class UKF : public Estimator {
 
           ////////////////////// symmetric point
           t_d->time = d->time;
-          set_data(t_d, x[i+L]);
+          set_data(t_d, &(x[i+L]));
           mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
 
           //mj_step(m, t_d);
-          //mj_forward(m, t_d);
           fast_forward(t_d, j);
-
           mj_Euler(m, t_d);
 
-          get_state(t_d, x[i+L]);
-
-          //mj_forward(m, t_d); // at new position
+          get_state(t_d, &(x[i+L]));
 
           fast_forward(t_d, j);
           mj_sensor(m, t_d);
@@ -347,9 +371,10 @@ class UKF : public Estimator {
 
       // step for the central point
       //mj_forward(m, d);
+      mj_forward(m, d); // solve for center point accurately
       mj_Euler(m, d); // step
 
-      get_state(d, x[0]);
+      get_state(d, &(x[0]));
       //mju_copy(&x[0](0), d->qpos, nq);
       //mju_copy(&x[0](nq), d->qvel, nv);
       //if (ctrl_state) mju_copy(&x[0](nq+nv), d->ctrl, nu);
@@ -406,13 +431,17 @@ class UKF : public Estimator {
         Pxz += W_c[i] * (x_i * z.transpose());
       }
 
+      /*
       for (int i=0; i<L; i++) {
-        if (P_t.row(i).isZero(1e-9)) {
+        double val = 1e-6;
+        if (P_t.row(i).isZero(val)) {
           P_t.row(i).setZero();
           P_t.col(i).setZero();
-          P_t(i,i) = 1e-1; // TODO diag??
+          P_t(i,i) = val; // TODO diag??
         }
       }
+      */
+      P_t = P_t +MatrixXd::Identity(m->nsensordata, m->nsensordata)*diag; 
 
       if (NUMBER_CHECK) {
         IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
@@ -421,40 +450,9 @@ class UKF : public Estimator {
       }
 
       // TODO make the identity addition a parameter
-      MatrixXd PzAdd = MatrixXd::Identity(m->nsensordata, m->nsensordata);
-      for (int i = 0; i < m->nsensordata; i++) {
-        int type = m->sensor_type[i];
-        if(type == 1) {    //Accelerometer
-          PzAdd(i, i) = 1e-5;
-        }else if(type == 2) {    //Gyro
-          PzAdd(i, i) = 1e-5;
-        }else if(type == 3) {    //Force
-          PzAdd(i, i) = 1e-2;
-        }else if(type == 4) {    //Torque
-          PzAdd(i, i) = 1e-2;
-        }else if(type == 5) {    //JointPos
-          PzAdd(i, i) = 1e-4;
-        }else if(type == 6) {    //JointVel
-          PzAdd(i, i) = 1e-5;
-        }else if(type == 7) {    //TendonPos
-          PzAdd(i, i) = 1e-4;
-        }else if(type == 8) {    //TendonVel
-          PzAdd(i, i) = 1e-5;
-        }else if(type == 9) {    //ActuatorPos
-          PzAdd(i, i) = 1e-4;
-        }else if(type == 10) {    //ActuatorVel
-          PzAdd(i, i) = 1e-5;
-        }else if(type == 11) {    //ActuatorFrc
-          PzAdd(i, i) = 1e-3;
-        }else if(type == 12) {    //SitePos
-          PzAdd(i, i) = 1e-4;
-        }else if(type == 13) {    //SiteQuat
-          PzAdd(i, i) = 1e-4;
-        }else { //(type == 14) {    //Magnetometer (WTF?)
-          PzAdd(i, i) = 1e-5;
-        }
-      }
       
+      
+      //PzAdd = MatrixXd::Identity(m->nsensordata, m->nsensordata)*diag;
       P_z = P_z + PzAdd;
 
       MatrixXd K = Pxz * P_z.inverse();
@@ -1196,6 +1194,7 @@ mj_step(m, sigma_states[i]);
     MatrixXd P_t;
     MatrixXd P_z;
     MatrixXd Pxz;
+    MatrixXd PzAdd;
 
     std::vector<mjData *> sigma_states;
     std::vector<mjData *> sigmas;

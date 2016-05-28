@@ -69,19 +69,21 @@ axs[0].set_title('ctrl')
 #            est_ctrl[:,col]-std_ctrl[:,col], edgecolor='none', alpha=0.1)
 
 s_mean = np.mean(snsr, axis=0)
+vel = np.diff(snsr[:, 20:40])
 s_var = np.var(snsr, axis=0)
 print ns
 print np.shape(s_mean)
 print "snsr mean", s_mean
 print "snsr var position", s_var[0:20]
 print "snsr var velocity", s_var[20:40]
-print "snsr var acclrtin", s_var[40:43]
+print "snsr var velocity manual diff", np.var(vel, axis=0) 
+print "snsr var acclratn", s_var[40:43]
 print "snsr var gyroscps", s_var[43:46]
 print "snsr var r frctrq", s_var[46:52]
 print "snsr var l frctrq", s_var[52:58]
 
 if snsr.any():
-    axs[1].plot(t, snsr[:,0:20], lw=my_lw, alpha=my_alpha)
+    axs[1].plot(t, snsr[:,20:40], lw=my_lw, alpha=my_alpha)
 plt.gca().set_color_cycle(None)
 #Jaxs[1,1].plot(t, est_snsr, ls=my_ls, alpha=1.0)
 #axs[1,0].fill_between(t, est_snsr+std_snsr, est_snsr-std_snsr, ls=my_ls, alpha=1.0)

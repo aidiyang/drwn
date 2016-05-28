@@ -338,7 +338,6 @@ soft:
 
       <accelerometer name="accel" site="imu" />
       <gyro name="gyro"           site="imu" />
-      <!--
 
       <force  name="right_f"   site="right_ati" />
       <torque name="right_t"   site="right_ati" />
@@ -346,10 +345,11 @@ soft:
       <force  name="left_f"    site="left_ati" />
       <torque name="left_t"    site="left_ati" />
 
-      -->
       <sitepos name="mocap"       site="imu" />
       <sitepos name="mocap1"       site="right_ati" />
       <sitepos name="mocap2"       site="left_ati" />
+      <!--
+      -->
     </sensor>
 
     <actuator>

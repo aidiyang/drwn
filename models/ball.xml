@@ -1,4 +1,4 @@
-<mujoco model="darwin">
+<mujoco model="bouncyball">
   <compiler angle="radian" coordinate="local" inertiafromgeom="true" meshdir="meshes/"/>
   <!--
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
@@ -39,8 +39,8 @@
     <sensor>
       <sitepos name="mocap"       site="imu" />
 
-      <!--
       <accelerometer name="accel" site="imu" />
+      <!--
       <jointpos joint="rootx" />
       <jointpos joint="rootz" />
       <jointvel joint="rootx" />
@@ -50,8 +50,8 @@
       <jointvel joint="rooty" />
 
       <gyro name="gyro"           site="imu" />
-      <force  name="force"        site="imu" />
       -->
+      <force  name="force"        site="imu" />
     </sensor>
 
     <actuator>

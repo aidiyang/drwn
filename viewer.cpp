@@ -364,28 +364,31 @@ int main(int argc, const char** argv) {
       printf("\n\t\t estimator predict %f ms, correct %f ms, total %f ms\n\n",
           t1-t0, t2-t1, t2-t0);
 
-      printf("qpos at t: ");
-      for (int i=0; i<nq; i++) {
-        printf("%1.6f ", d->qpos[i]);
-      }
+      //printf("qpos at t: ");
+      //for (int i=0; i<nq; i++) {
+      //  printf("%1.6f ", d->qpos[i]);
+      //}
+      //if (est) {
+      //  est_data = est->get_state();
+      //  printf("\n est at t: ");
+      //  for (int i=0; i<nq; i++) {
+      //    printf("%1.6f ", est_data->qpos[i]);
+      //  }
+      //}
+      //printf("\nraw snsr: ");
+      //for (int i=0; i<nsensordata; i++) {
+      //  if (real_robot) printf("%1.4f ", sensors[i]);
+      //  else printf("%1.4f ", d->sensordata[i]);
+      //}
       if (est) {
-        est_data = est->get_state();
-        printf("\n est at t: ");
-        for (int i=0; i<nq; i++) {
-          printf("%1.6f ", est_data->qpos[i]);
-        }
-      }
-      printf("\nraw snsr: ");
-      for (int i=0; i<nsensordata; i++) {
-        if (real_robot) printf("%1.4f ", sensors[i]);
-        else printf("%1.4f ", d->sensordata[i]);
-      }
-      if (est) {
-        printf("\n\nSensor Compare:\nreal, est\n");
+        printf("\n\nSensor Compare:\nreal: ");
         for (int i=40; i<nsensordata; i++) {
           if (real_robot) printf("%1.4f ", sensors[i]);
           else printf("%1.4f ", d->sensordata[i]);
-          printf("%1.4f\n", est_data->sensordata[i]);
+        }
+        printf("\n est: ");
+        for (int i=40; i<nsensordata; i++) {
+          printf("%1.4f ", est_data->sensordata[i]);
         }
       }
       printf("\n");
@@ -426,11 +429,11 @@ int main(int argc, const char** argv) {
 
     if (est) {
       // render sigma points
-      render(window, est->get_sigmas(), nq+nv, color); // get state updated model / data, mj_steps
+      render(window, est->get_sigmas(), color); // get state updated model / data, mj_steps
     }
     else {
       std::vector<mjData*> a;
-      render(window, a, 0, false);
+      render(window, a, false);
     }
 
     finalize();

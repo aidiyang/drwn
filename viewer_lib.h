@@ -489,7 +489,7 @@ void advance(void)
 }
 
 // render
-void render(GLFWwindow * window, std::vector<mjData *> frame, int num_frame, bool step)
+void render(GLFWwindow * window, std::vector<mjData *> frame, bool step)
 {
 	// past data for FPS calculation
 	static double lastrendertm = 0;

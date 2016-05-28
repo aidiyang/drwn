@@ -4,9 +4,10 @@ import sys
 
 import matplotlib.pyplot as plt
 
-assert len(sys.argv) > 1
+f = 'out.csv'
+if len(sys.argv) > 1:
+    f = sys.argv[1]
 
-f = sys.argv[1]
 df = pd.read_csv(f, sep=',')
 
 t = df['time']

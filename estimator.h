@@ -285,12 +285,9 @@ class UKF : public Estimator {
       double t2 = omp_get_wtime()*1000.0;
 
       set_data(d, &(x_t));
-      //mju_copy(d->qpos, &(x_t(0)), nq); // previous estimate
-      //mju_copy(d->qvel, &(x_t(nq)), nv);
-      //if (ctrl_state) mju_copy(&x_t(nq+nv), ctrl, nu); // TODO this line??
       mju_copy(d->ctrl, ctrl, nu); // set controls for the center point
 
-      x[0] = x_t;
+      get_state(d, &(x[0])); //x[0] = x_t;
 
       double t3 = omp_get_wtime()*1000.0;
 
@@ -301,11 +298,15 @@ class UKF : public Estimator {
 
       // Simulation options
       m->opt.timestep = dt;
+
       //m->opt.iterations = 100; 
       //m->opt.tolerance = 1e-6; 
 
+      // OPTimiaztion note:
+      // when trying to do the fancy central point first scheme,
+      // there are instabilities when using more than one thread
 
-      //m->opt.iterations = 5; 
+      //m->opt.iterations = 15; 
       //m->opt.tolerance = 0; 
 
       // set tolerance to be low, run 50, 100 iterations for mujoco solver
@@ -331,7 +332,7 @@ class UKF : public Estimator {
 
           // sigma point
           set_data(t_d, &(x[i+0]));
-          mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
+          //mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
           if (!ctrl_state) mju_copy(t_d->ctrl, ctrl, nu); // set controls for this t
 
           //mj_step(m, t_d);
@@ -343,7 +344,8 @@ class UKF : public Estimator {
           //mj_forward(m, t_d); // at new position
           fast_forward(t_d, j);
           mj_sensor(m, t_d);
-          gamma[i] = Map<VectorXd>(t_d->sensordata, m->nsensordata);
+          //gamma[i] = Map<VectorXd>(t_d->sensordata, m->nsensordata);
+          mju_copy(&(gamma[i](0)), t_d->sensordata, m->nsensordata);
 
           mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
           mju_copy(sigma_states[i+0]->qvel, t_d->qvel, nv);
@@ -351,7 +353,7 @@ class UKF : public Estimator {
           ////////////////////// symmetric point
           t_d->time = d->time;
           set_data(t_d, &(x[i+L]));
-          mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
+          //mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
 
           //mj_step(m, t_d);
           fast_forward(t_d, j);
@@ -361,7 +363,8 @@ class UKF : public Estimator {
 
           fast_forward(t_d, j);
           mj_sensor(m, t_d);
-          gamma[i+L] = Map<VectorXd>(t_d->sensordata, m->nsensordata);
+          //gamma[i+L] = Map<VectorXd>(t_d->sensordata, m->nsensordata);
+          mju_copy(&(gamma[i+L](0)), t_d->sensordata, m->nsensordata);
 
           copy_state(sigma_states[i+L], t_d); // for visualizations
         }
@@ -381,7 +384,8 @@ class UKF : public Estimator {
 
       mj_forward(m, d);
       mj_sensor(m, d); // sensor values at new positions
-      gamma[0] = Map<VectorXd>(d->sensordata, m->nsensordata);
+      //gamma[0] = Map<VectorXd>(d->sensordata, m->nsensordata);
+      mju_copy(&(gamma[0](0)), d->sensordata, m->nsensordata);
 
       copy_state(sigma_states[0], d); // for visualizations
       mju_copy(sigma_states[0]->ctrl, d->ctrl, nu);
@@ -441,7 +445,6 @@ class UKF : public Estimator {
         }
       }
       */
-      P_t = P_t +MatrixXd::Identity(m->nsensordata, m->nsensordata)*diag; 
 
       if (NUMBER_CHECK) {
         IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
@@ -461,13 +464,8 @@ class UKF : public Estimator {
       x_t = x_t + (K*(s-z_k));
       P_t = P_t - (K * P_z * K.transpose());
 
-      //for (int i=0; i<L; i++) {
-      //  if (P_t.row(i).isZero(1e-9)) {
-      //    P_t.row(i).setZero();
-      //    P_t.col(i).setZero();
-      //    P_t(i,i) = 1.0;
-      //  }
-      //}
+      P_t = P_t + MatrixXd::Identity(L, L)*diag; 
+
 
       //mju_copy(d->qpos, &(x_t(0)), nq);
       //mju_copy(d->qvel, &(x_t(nq)), nv);

@@ -282,7 +282,7 @@ class UKF : public Estimator {
     void fast_forward(mjData * t_d, int index) {
       // NOTE: the mj_forwardSkip doesn't seem to be thread save
 
-#if 1
+#if 0
       if (ctrl_state && index >= (nq+nv)) mj_forwardSkip(m, t_d, 2); // just ctrl calcs
       else if (index >= nq) mj_forwardSkip(m, t_d, 1); // velocity cals
       else mj_forward(m, t_d); // all calculations
@@ -309,14 +309,15 @@ class UKF : public Estimator {
 
       if (NUMBER_CHECK) {
         IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
-        std::cout << "sqrt output:\nx_t\n"<< sqrt.format(CleanFmt) << std::endl;
+        std::cout << "p_t start:\n"<< P_t.format(CleanFmt) << std::endl;
+        std::cout << "sqrt output:\n"<< sqrt.format(CleanFmt) << std::endl;
         for (int j=0; j<L; j++) {
           if (j >= (nq+nv))
-            std::cout<<"skip p&v:\n"<<j<<" "<<sqrt.col(j).transpose().format(CleanFmt) << std::endl;
+            std::cout<<"skip p&v:\t"<<j<<" "<<sqrt.col(j).transpose().format(CleanFmt) << std::endl;
           else if (j >= nq ) 
-            std::cout<<"skip pos:\n"<<j<<" "<<sqrt.col(j).transpose().format(CleanFmt) << std::endl;
+            std::cout<<"skip pos:\t"<<j<<" "<<sqrt.col(j).transpose().format(CleanFmt) << std::endl;
           else
-            std::cout<<"no skips:\n"<<j<<" "<<sqrt.col(j).transpose().format(CleanFmt) << std::endl;
+            std::cout<<"no skips:\t"<<j<<" "<<sqrt.col(j).transpose().format(CleanFmt) << std::endl;
         }
       }
 
@@ -333,6 +334,9 @@ class UKF : public Estimator {
 
       //m->opt.iterations = 15; 
       //m->opt.tolerance = 0; 
+      double scale[N]; 
+      for (int i=1; i<N; i++) { scale[i] = 1.0; }
+      
 
       // set tolerance to be low, run 50, 100 iterations for mujoco solver
       // copy qacc for sigma points with some higher tolerance
@@ -351,59 +355,135 @@ class UKF : public Estimator {
         for (int j=s; j<e; j++) {
           // step through all the perturbation cols and collect the data
           int i = j+1;
+          bool violation = false;
+          double tol = 500; // TODO make this input var
+          double scale = 10.0;
+          double div = scale;
 
-          x[i+0] = x[0]+sqrt.col(i-1);
-          x[i+L] = x[0]-sqrt.col(i-1);
 
-          // sigma point
-          set_data(t_d, &(x[i+0]));
-          mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
+          ///////////////////////////////////////////////////// sigma point
+          x[i+0] = x[0]+sqrt.col(i-1); // scale this with inverse dynamcis?
+
+          //set_data(t_d, &(x[i+0]));
+          //mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
           if (!ctrl_state) mju_copy(t_d->ctrl, ctrl, nu); // set controls for this t
 
-          fast_forward(t_d, j);
+          printf("%d: ", i);
+          printf("   b-state: ");
+          for (int i=0; i<nq; i++) printf("%1.4f ", t_d->qpos[i]);
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qvel[i]);
+          printf("\tb-qacc: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qacc[i]);
+
+          printf("\tinv: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qfrc_constraint[i]);
+          printf("\ta-qacc: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qacc[i]);
+
+          //fast_forward(t_d, j);
+          // if constraint is violated beyond some threshold, scale sigma
+          //for (int i=0; i<nv; i++) if (t_d->qfrc_constraint[i] > tol) { violation = true; break; }
+          //if (violation) {
+          for (int c=0; c<12; c++) { // limit the line-search
+            scale = scale / div;
+            x[i+0] = x[0]+(scale*sqrt.col(i-1));
+            set_data(t_d, &(x[i+0]));
+            mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
+            fast_forward(t_d, j);
+            violation = false;
+            for (int i=0; i<nv; i++) if (t_d->qfrc_constraint[i] > tol) { violation = true; break; }
+            if (!violation) {
+              break;
+            }
+          }
+          printf(" s: %f ", scale);
+          scale = 10.0;
+          //}
+
           mj_Euler(m, t_d);
+
+          printf("\tinv: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qfrc_constraint[i]);
+
 
           get_state(t_d, &(x[i+0]));
 
           mj_forward(m, t_d); // at new position; can't assume we didn't move
           mj_sensor(m, t_d);
+
+          printf("\n");
+
+          
           mju_copy(&(gamma[i](0)), t_d->sensordata, m->nsensordata);
 
           if (j < nq) { // only copy position perturbed
             mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
           }
 
-          mj_inverse(m, t_d);
-          printf("inverse: ");
-          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qfrc_inverse[i]);
-          printf("   qacc: ");
-          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qacc[i]);
-          printf("\n");
-
+          
           ///////////////////////////////////////////////////// symmetric point
-          t_d->time = d->time;
-          set_data(t_d, &(x[i+L]));
-          mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
+          x[i+L] = x[0]-sqrt.col(i-1);
 
-          fast_forward(t_d, j);
+          t_d->time = d->time;
+          //set_data(t_d, &(x[i+L]));
+          //mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
+
+          printf("%d: ", i+L);
+          printf("   b-state: ");
+          for (int i=0; i<nq; i++) printf("%1.4f ", t_d->qpos[i]);
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qvel[i]);
+          printf("\tb-qacc: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qacc[i]);
+
+          printf("\tinv: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qfrc_constraint[i]);
+          printf("\ta-qacc: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qacc[i]);
+
+          //fast_forward(t_d, j);
+          // if constraint is violated beyond some threshold, scale sigma
+          //for (int i=0; i<nv; i++) if (t_d->qfrc_constraint[i] > tol) { violation = true; break; }
+          //if (violation) {
+          for (int c=0; c<12; c++) { // limit the line-search
+            scale = scale / div;
+            //x[i+0] = x[0]+(scale*sqrt.col(i-1));
+            x[i+L] = x[0]-(scale*sqrt.col(i-1));
+
+            set_data(t_d, &(x[i+L]));
+            mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
+            fast_forward(t_d, j);
+            violation = false;
+            for (int i=0; i<nv; i++) if (t_d->qfrc_constraint[i] > tol) { violation = true; break; }
+            if (!violation) {
+              break;
+            }
+          }
+          printf(" s: %f ", scale);
+          //}
+
           mj_Euler(m, t_d);
+
+          printf("\tinv: ");
+          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qfrc_constraint[i]);
 
           get_state(t_d, &(x[i+L]));
 
           mj_forward(m, t_d); // at new position; can't assume we didn't move
           mj_sensor(m, t_d);
+
+          printf("\n");
+
           mju_copy(&(gamma[i+L](0)), t_d->sensordata, m->nsensordata);
 
-          if (j < nq) { // only copy position perturbed
+          if (j < nq) { // only copy position perturbed states
             mju_copy(sigma_states[i+nq]->qpos, t_d->qpos, nq);
           }
+          
+          ///////////////////////////////////////////////////// symmetric point
+          t_d->time = d->time;
+          set_data(t_d, &(x[i+L]));
+          mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
 
-          mj_inverse(m, t_d);
-          printf("inverse: ");
-          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qfrc_inverse[i]);
-          printf("   qacc: ");
-          for (int i=0; i<nv; i++) printf("%1.4f ", t_d->qacc[i]);
-          printf("\n");
         }
         //double omp2 = omp_get_wtime()*1000.0;
         //printf("p thread: %d chunk: %d-%d Time: %f\n", tid, s, e, omp2-omp1);
@@ -429,6 +509,7 @@ class UKF : public Estimator {
 
       double t5 = omp_get_wtime()*1000.0;
 
+      // aprior mean
       x_t.setZero();
       //for (int i=0; i<N; i++) { x_t += W_s[i]*x[i]; }
       for (int i=1; i<N; i++) { x_t += x[i]; }
@@ -453,7 +534,7 @@ class UKF : public Estimator {
         VectorXd z(gamma[i] - z_k);
         VectorXd x_i(x[i] - x_t);
 
-        P_t += W_c[i] * (x_i * x_i.transpose());
+        P_t += W_c[i] * (x_i * x_i.transpose()); // aprior covarian
         P_z += W_c[i] * (z * z.transpose());
         Pxz += W_c[i] * (x_i * z.transpose());
       }

@@ -18,15 +18,35 @@ soft:
     </option>
 
     <default>
-      <geom solref=".02 1" solimp=".6 .9 .01" material="meshmat" margin='0.001' />
 
         <!--
+      <geom solref=".02 1" solimp=".6 .9 .01" material="meshmat" margin='0.001' />
       <geom contype='1' conaffinity='1' condim='1' rgba='0.8 0.6 .4 1'
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
-      <joint limited='true' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
+      <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
       <position ctrllimited='true' kp='12'/>
+    
+      <default class='box'>
+        <geom contype='1' conaffinity='0' rgba='.79 .52 .43 1'/>
+      </default>
+      <default class='left leg'>
+        <geom contype='2' conaffinity='0' rgba='.69 .72 .43 1'/>
+      </default>
+      <default class='right leg'>
+        <geom contype='4' conaffinity='0' rgba='.29 .72 .43 1'/>
+      </default>
+      <default class='forearm'>
+        <geom contype='8' conaffinity='0' rgba='.49 .22 .43 1'/>
+      </default>
+      <default class='visual'>
+        <geom contype='0' conaffinity='0' rgba='.49 .22 .43 1'/>
+      </default>
+      <default class='uppers'>
+        <geom contype='0' conaffinity='2' rgba='.9 .22 .43 1'/>
+      </default>
     </default>
+
 
     <asset>
       <mesh file="body_coll.stl"/>
@@ -58,140 +78,163 @@ soft:
       <material name="meshmat" rgba="0.5 0.5 0.5 1" shininess="0.1" specular="1"/>
       <material name="boring" reflectance="0.00005" rgba="0.7 0.6 0.6 1" shininess="1" specular=".1"/>
       <material name="boxmat" rgba=".9 0 0 1"/>
+      <texture type="skybox" builtin="gradient" width="100" height="100" rgb1=".4 .6 .8" rgb2="0 0 0"/>  
     </asset>
 
     <contact>       
       <exclude body1="head" body2="torso"/>
+
+    <!--
       <exclude body1="foot_l" body2="tibia_l"/>
       <exclude body1="foot_r" body2="tibia_r"/>
+    -->
+
+      <exclude body1="ankle1_r" body2="tibia_r"/>
+      <exclude body1="tibia_r" body2="thigh2_r"/>
+
+      <exclude body1="ankle1_l" body2="tibia_l"/>
+      <exclude body1="tibia_l" body2="thigh2_l"/>
+
+      <!--
+      <pair geom1="thigh2_l" geom2="torso"/>
+      <pair geom1="thigh2_r" geom2="torso"/>
+      <pair geom1="thigh2_l" geom2="torso"/>
+      <pair geom1="thigh2_r" geom2="torso"/>
+      -->
+
+      <exclude body1="arm_high_r" body2="arm_high_l"/>
     </contact>
 
 
     <worldbody>
-      <geom material="boring" pos="0 0 0" size=".5 .5 .5" type="plane"/>
+      <geom material="boring" pos="0 0 0" size=".5 .5 .5" type="plane" contype='0' conaffinity='15'/>
       <!--
       <body pos="0.5 0 0">
-        <light attenuation="1 1 1" castshadow="true" cutoff="40" diffuse="1 1 1" dir="-1 0 0.8" directional="false" exponent="10" pos="0 0 0.04" specular="1 1 1.25"/>
         <geom material="meshmat" size=".02 .02 .03" type="box"/>
       </body>
       -->
       <body name="torso" pos="0 0 0.4">
         <inertial diaginertia="6.53693 6.39822 1.88344" mass="0.975599" pos="-0.003053 -0.038651 -0.019268" quat="-0.00879356 0.867004 0.0524199 0.495458"/>
 
+        <!--
         <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
 
-        <!--
-        -->
         <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
+        -->
         <!--
 
         <joint type="free" limited='false' />
 
         -->
 
-        <geom material="meshmat" mesh="body_coll" type="mesh"/>
+        <geom name="torso" material="meshmat" contype="2" conaffinity="0" mesh="body_coll" type="mesh" class='box'/>
         <site name="imu" pos="0.0 0 -0.04" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
+
+        <site name="ps_t1" pos="0.035 -0.018 -0.018" euler="0 1.31 1.571" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+        <site name="ps_t2" pos="0.035  0.018 -0.018" euler="0 1.31 1.571" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+        <site name="ps_t3" pos="0.004 -0.045 0.0215" euler="0 0.1 1.571" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+        <site name="ps_t4" pos="0.004  0.045 0.0215" euler="0 0.1 1.571" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+        <site name="ps_t5" pos="-0.044 -0.056 0.026" euler=" 0.65 0 0" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+        <site name="ps_t6" pos="-0.044  0.056 0.026" euler="-0.65 0 0" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+        <site name="ps_t7" pos="-0.075 -0.054 -0.043" euler="1.571 -1.1 1.571" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+        <site name="ps_t8" pos="-0.075  0.054 -0.043" euler="1.571  1.1 1.571" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+        
         <body name="neck" pos="0 0 0.0235" quat="0.707107 0 0 0.707107">
           <inertial diaginertia="0.00482356 0.00482356 0.00482356" mass="0.0243577" pos="0.001424 -0.016567 -0.007128" quat="0.640564 0.00150549 0.00338323 0.767896"/>
-          <joint axis="0 0 1" limited="true" name="head_pan" pos="0 0 0" range="-3.141592 3.141592" type="hinge"/>
-          <geom material="meshmat" mesh="neck_coll" type="mesh" contype='0' conaffinity='0'/>
+          <joint axis="0 0 1" name="head_pan" pos="0 0 0" range="-3.141592 3.141592" type="hinge"/>
+          <geom class="visual" material="meshmat" mesh="neck_coll" type="mesh" />
           <body name="head" pos="0 0 0.02715" quat="0.5 -0.5 -0.5 0.5">
             <inertial diaginertia="0.158397 0.123969 0.1178" mass="0.158042" pos="6.4e-005 -0.018565 -0.007667" quat="0.504401 0.495706 -0.489128 0.510499"/>
-            <joint axis="0 0 1" limited="true" name="head_tilt" pos="0 0 0" range="-.4363323 .959931089" type="hinge"/>
+            <joint axis="0 0 1" name="head_tilt" pos="0 0 0" range="-.4363323 .959931089" type="hinge"/>
             <geom material="meshmat" mesh="head_coll" type="mesh"/>
           </body>
         </body>
+
         <body name="shoulder_l" pos="0 0.06035 0"  euler='-1.571 0 -1.571'>
           <inertial diaginertia="0.0118742 0.00851644 0.00537304" mass="0.013" pos="-0.0135226 0.0102641 0.00139357" quat="0.89853 0.0814684 0.0409894 0.429332"/>
-          <joint axis="0 0 1" limited="true" name="l_shoulder_pitch" pos="0 0 0" range="-2.61799 2.61799" type="hinge"/>
-          <geom material="meshmat" mesh="shoulder_l_coll" type="mesh" contype='0' conaffinity='0'/>
+          <joint axis="0 0 1" name="l_shoulder_pitch" pos="0 0 0" range="-2.61799 2.61799" type="hinge"/>
+          <geom class="visual" material="meshmat" mesh="shoulder_l_coll" type="mesh"/>
 
           <body name="arm_high_l" pos="-0.016 0 0.025" quat="0.5 0.5 0.5 -0.5">
             <inertial diaginertia="0.122178 0.113353 0.0379938" mass="0.17837715" pos="-0.036239 0.000734 0.00066" quat="0.713991 0.698029 0.0283632 -0.0465622"/>
-            <joint axis="0 0 1" limited="true" name="l_shoulder_roll" pos="0 0 0" range="-1.308997 2.356194" type="hinge"/>
-            <geom material="meshmat" mesh="arm_high_l_coll" type="mesh"/>
+            <joint axis="0 0 1" name="l_shoulder_roll" pos="0 0 0" range="-1.308997 2.356194" type="hinge"/>
+            <geom class="uppers" material="meshmat" mesh="arm_high_l_coll" type="mesh"/>
 
             <body name="arm_low_l" pos="-.06 0 -.016" quat="0 0 0.707107 0.707107">
               <inertial diaginertia="0.0875091 0.0872503 0.0201335" mass="0.037" pos=".013 -.015 0" quat=".707107 0 0 .315"/>
-              <joint axis="0 0 1" limited="true" name="l_elbow" pos="0 0 0" range="-1.3 1.57" type="hinge"/>
+              <joint axis="0 0 1" name="l_elbow" pos="0 0 0" range="-1.3 1.57" type="hinge"/>
               <geom material="meshmat" mesh="shoulder_l_coll" pos='.016 -.025 0' euler='-1.571 0 0' type="mesh"/>
               <geom material="meshmat" mesh="arm_metal_lowres" pos='.021 0.0055 -0.081' euler='0 -1.57 0' type="mesh"/>
+
+              <site name="ps1" pos="0.017 -0.08 0.0171" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+              <site name="ps2" pos="-0.0021 -0.055 0.009" euler="1.571 1.571 0" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
             </body>
           </body>
         </body>
         <body name="shoulder_r" pos="0 -0.06035 0" euler='1.571 0 1.571'>
           <inertial diaginertia="0.0118742 0.00851644 0.00537304" mass="0.013" pos="-0.013523 0.010264 0.001394" quat="0.89853 0.0814684 0.0409894 0.429332"/>
-          <joint axis="0 0 1" limited="true" name="r_shoulder_pitch" pos="0 0 0" range="-2.61799 2.61799" type="hinge"/>
-          <geom material="meshmat" mesh="shoulder_r_coll" type="mesh" contype='0' conaffinity='0'/>
+          <joint axis="0 0 1" name="r_shoulder_pitch" pos="0 0 0" range="-2.61799 2.61799" type="hinge"/>
+          <geom class="visual" material="meshmat" mesh="shoulder_r_coll" type="mesh"/>
 
           <body name="arm_high_r" pos="-0.017 0 0.02478" quat='.5 -.5 .5 .5' >
             <inertial diaginertia="0.122178 0.113353 0.0379938" mass="0.168377" pos="-0.036239 0.000734 -0.00066" quat="0.713991 0.698029 0.0283632 -0.0465622"/>
-            <joint axis="0 0 1" limited="true" name="r_shoulder_roll" pos="0 0 0" range="-2.356194 1.308997" type="hinge"/>
-            <geom material="meshmat" mesh="arm_high_r_coll" type="mesh"/>
+            <joint axis="0 0 1" name="r_shoulder_roll" pos="0 0 0" range="-2.356194 1.308997" type="hinge"/>
+            <geom class="uppers" material="meshmat" mesh="arm_high_r_coll" type="mesh"/>
 
-            <!--
-            <body name="arm_low_r" pos="-0.06 0 0.016" quat="9.38186e-007 -9.38186e-007 0.707107 0.707107">
-            -->
             <body name="arm_low_r" pos="-0.06 0 -0.016" euler="1.571 3.14 0" >
               <inertial diaginertia="0.0875091 0.0872503 0.0201335" mass="0.037" pos="0 0 0" quat="0.362962 0.448533 -0.589325 0.565485"/>
-              <joint axis="0 0 -1" limited="true" name="r_elbow" pos="0 0 0" range="-1.57 1.3" type="hinge"/>
+              <joint axis="0 0 -1" name="r_elbow" pos="0 0 0" range="-1.57 1.3" type="hinge"/>
               <geom material="meshmat" mesh="shoulder_l_coll" pos='.016 -.025 0' euler='-1.571 0 0' type="mesh"/>
               <geom material="meshmat" mesh="arm_metal_lowres" pos='.012 0.0055 0.081' euler='0 1.57 0' type="mesh"/>
+              <site name="ps3" pos="0.017 -0.08 -0.0171" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+              <site name="ps4" pos="-0.0021 -0.055 -0.009" euler="1.571 1.571 0" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
             </body>
           </body>
         </body>
+
         <body name="pelvis_l" pos="-0.005 0.037 -0.09355" quat="0 0.707107 0.707107 0">
           <inertial diaginertia="0.122641 0.11137 0.0411301" mass="0.027069" pos="0 0.00048 0.018437" quat="0.998273 -0.0514899 -0.00396715 0.0279885"/>
-          <joint axis="0 0 1" limited="true" name="l_hip_yaw" pos="0 0 0" range="-.9250245036 2.14675498" type="hinge"/>
-          <geom material="meshmat" mesh="pelvis_l_coll" type="mesh" contype='0' conaffinity='0'/>
+          <joint axis="0 0 1" name="l_hip_yaw" pos="0 0 0" range="-.9250245036 2.14675498" type="hinge"/>
+          <geom class="visual" material="meshmat" mesh="pelvis_l_coll" type="mesh"/>
           <body name="thigh1_l" pos="0 0 0.028652" quat="0.707107 0.707107 0 0">
             <inertial diaginertia="0.114985 0.0979692 0.0327798" mass="0.167107" pos="7.9e-005 0.018242 0.013873" quat="0.485806 0.506867 -0.504884 0.502165"/>
-            <joint axis="0 0 1" limited="true" name="l_hip_roll" pos="0 0 0" range="-1.0297442587 .7853981634" type="hinge"/>
+            <joint axis="0 0 1" name="l_hip_roll" pos="0 0 0" range="-1.0297442587 .7853981634" type="hinge"/>
             <geom material="meshmat" mesh="thigh1_l_coll" type="mesh"/>
             <body name="thigh2_l" pos="0 0 0" quat="0.5 0.5 -0.5 -0.5">
               <inertial diaginertia="0.114985 0.0979692 0.0327798" mass="0.119043" pos="-0.062965 -0.000323 0.000692" quat="0.485806 0.506867 -0.504884 0.502165"/>
-              <joint axis="0 0 1" limited="true" name="l_hip_pitch" pos="0 0 0" range="-.5061454831 1.745329252" type="hinge"/>
-              <geom material="meshmat" mesh="thigh2_l_coll" type="mesh"/>
+              <joint axis="0 0 1" name="l_hip_pitch" pos="0 0 0" range="-.5061454831 1.745329252" type="hinge"/>
+              <geom class="uppers" material="meshmat" mesh="thigh2_l_coll" type="mesh"/>
 
               <body name="tibia_l" pos="-0.093 0 0">
                 <inertial diaginertia="0.115891 0.0933882 0.043901" mass="0.0703098" pos="-0.053955 0.006548 -0.000592" quat="0.456916 0.538297 -0.548699 0.447654"/>
-                <joint axis="0 0 1" limited="true" name="l_knee" pos="0 0 0" range="-2.2689280276  .1047197551" type="hinge"/>
+                <joint axis="0 0 1" name="l_knee" pos="0 0 0" range="-2.2689280276  .1047197551" type="hinge"/>
                 <geom material="meshmat" mesh="tibia_naked" pos='0.145 0 0.037' euler='1.57 0 -1.57' type="mesh"/>
 
                 <body name="ankle1_l" pos="-0.093 0 0" quat="0 1 0 0">
                   <inertial diaginertia="0.120855 0.109532 0.0411304" mass="0.167108" pos="-0.000214 -0.018536 0.013873" quat="0.997965 0.0519065 0.00385358 -0.0368208"/>
-                  <joint axis="0 0 1" limited="true" name="l_ankle_pitch" pos="0 0 0" range="-1.3962634016 1.2566370614" type="hinge"/>
+                  <joint axis="0 0 1" name="l_ankle_pitch" pos="0 0 0" range="-1.3962634016 1.2566370614" type="hinge"/>
                   <geom material="meshmat" mesh="ankle1_l_coll" type="mesh"/>
 
                   <body name="foot_l" pos="0 0 0" quat="0.707107 -0.707107 0 0">
                     <inertial diaginertia="0.120855 0.109532 0.0411304" mass="0.0794462" pos="-0.025995 -0.009506 -0.000503" quat="0.997965 0.0519065 0.00385358 -0.0368208"/>
-                    <joint axis="0 0 1" limited="true" name="l_ankle_roll" pos="0 0 0" range="-1.0995574288 .7679448709" type="hinge"/>
-                    <!--
-                    <geom material="meshmat" mesh="ankle2_l_coll" type="mesh"/>
-                    <geom material="meshmat" mesh="foot_bracket" pos="-0.05 0.3 0.0" euler="0 0 1.5708" type="mesh"/>
-                    -->
-                    <geom material="meshmat" mesh="ankle_coll" pos="-0.033 0 0"   euler="0 1.5708 1.5708" type="mesh"/>
+                    <joint axis="0 0 1" name="l_ankle_roll" pos="0 0 0" range="-1.0995574288 .7679448709" type="hinge"/>
+                    <geom class="visual" material="meshmat" mesh="ankle_coll" pos="-0.033 0 0"   euler="0 1.5708 1.5708" type="mesh"/>
                     <body name="toes_l" pos="-0.015 0 0" quat="1.0 0 0 0">
                       <site name="left_ati" pos="-0.0287 0 0.0" euler="0 1.5708 0" type="cylinder" size="0.0125 0.0108" rgba="1 0 0 1" />
                       <!--
-                      <geom type = "sphere" size = ".03" pos = "-0.04 0.0 0" euler="3.14159 0 1.5708"/>
+                      <geom class='left leg' type='box' group='1' size='.001 .033 .052' pos='-.043 -.0105 0' />
                       -->
-                      
-                      <geom material="meshmat" mesh="foot_left" pos="-0.040 -0.01 0"    euler="0 0 -1.5708" type="mesh"/>
-                      <geom material="meshmat" mesh="foot_bracket" pos="0.23 0.037 0.0" euler="0 0 -1.5708" type="mesh"/>
-                      <!--Left Side -->
-                    
-                      <geom type = "sphere" size = ".01" pos = "-0.041 -0.028 -0.037" euler="3.14159 0 1.5708"/>
-                      <geom type = "sphere" size = ".012" pos = "-0.041 -0.028 0.037" euler="3.14159 0 1.5708"/>
-                      <!--Right Side -->
-                      
-                      <geom type = "sphere" size = ".012" pos = "-0.041 0.007 0.037" euler="3.14159 0 1.5708"/>
-                      <geom type = "sphere" size = ".01" pos = "-0.041 0.007 -0.037" euler="3.14159 0 1.5708"/>
-                    
+                      <geom class='left leg' type='box' group='1' size='.0075 .033 .045' pos='-.0355 -.0105 0' />
+                      <geom class='left leg' type='box' group='1' size='.0075 .021 .052' pos='-.0355 -.0105 0' />
+                     
+                      <geom class="visual" material="meshmat" mesh="foot_left" pos="-0.040 -0.01 0"    euler="0 0 -1.5708" type="mesh"/>
+                      <geom class="visual" material="meshmat" mesh="foot_bracket" pos="0.23 0.037 0.0" euler="0 0 -1.5708" type="mesh"/>
+                      <site name="ps5" pos="-0.0265 -0.035 -0.044" euler="0 1.571 0" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5  1 1" />
+                      <site name="ps6" pos="-0.031 -0.035 0.044" euler="1.571 1.571 0" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
                     </body>
                   </body>
                 </body>
@@ -201,54 +244,45 @@ soft:
         </body>
         <body name="pelvis_r" pos="-0.005 -0.037 -0.09355" quat="0 -0.707107 0.707107 0">
           <inertial diaginertia="0.122641 0.11137 0.0411301" mass="0.027069" pos="0 0.00048 0.018437" quat="0.998273 -0.0514899 -0.00396715 0.0279885"/>
-          <joint axis="0 0 1" limited="true" name="r_hip_yaw" pos="0 0 0" range="-2.14675498 .9250245036" type="hinge"/>
-          <geom material="meshmat" mesh="pelvis_r_coll" type="mesh" contype='0' conaffinity='0'/>
+          <joint axis="0 0 1" name="r_hip_yaw" pos="0 0 0" range="-2.14675498 .9250245036" type="hinge"/>
+          <geom class="visual" material="meshmat" mesh="pelvis_r_coll" type="mesh"/>
 
           <body name="thigh1_r" pos="0 0 0.028652" quat="0.707107 -0.707107 0 0">
             <inertial diaginertia="0.114985 0.0979692 0.0327798" mass="0.167107" pos="7.9e-005 -0.018242 0.0138735" quat="0.485806 0.506867 -0.504884 0.502165"/>
-            <joint axis="0 0 1" limited="true" name="r_hip_roll" pos="0 0 0" range="-.7853981634 1.0297442587" type="hinge"/>
+            <joint axis="0 0 1" name="r_hip_roll" pos="0 0 0" range="-.7853981634 1.0297442587" type="hinge"/>
             <geom material="meshmat" mesh="thigh1_r_coll" type="mesh"/>
 
             <body name="thigh2_r" pos="0 0 0" quat="0.5 0.5 -0.5 -0.5">
               <inertial diaginertia="0.114985 0.0979692 0.0327798" mass="0.119043" pos="0.062965 -0.000323 0.000692" quat="0.485806 0.506867 -0.504884 0.502165"/>
-              <joint axis="0 0 1" limited="true" name="r_hip_pitch" pos="0 0 0" range="-1.745329252 .5061454831" type="hinge"/>
-              <geom material="meshmat" mesh="thigh2_r_coll" type="mesh"/>
+              <joint axis="0 0 1" name="r_hip_pitch" pos="0 0 0" range="-1.745329252 .5061454831" type="hinge"/>
+              <geom class="uppers" material="meshmat" mesh="thigh2_r_coll" type="mesh"/>
 
               <body name="tibia_r" pos="0.093 0 0">
                 <inertial diaginertia="0.115891 0.0933882 0.043901" mass="0.0703098" pos="0.053955 0.006548 -0.000592" quat="0.456916 0.538297 -0.548699 0.447654"/>
-                <joint axis="0 0 1" limited="true" name="r_knee" pos="0 0 0" range="-.1047197551  2.2689280276" type="hinge"/>
+                <joint axis="0 0 1" name="r_knee" pos="0 0 0" range="-.1047197551  2.2689280276" type="hinge"/>
                 <geom material="meshmat" mesh="tibia_naked" pos='-0.145 0 -0.037' euler='1.57 0 1.57' type="mesh"/>
 
                 <body name="ankle1_r" pos="0.093 0 0" quat="0 1 0 0">
                   <inertial diaginertia="0.120855 0.109532 0.0411304" mass="0.167108" pos="-0.000214 -0.018536 -0.013873" quat="0.997965 0.0519065 0.00385358 -0.0368208"/>
-                  <joint axis="0 0 1" limited="true" name="r_ankle_pitch" pos="0 0 0" range="-1.2566370614 1.3962634016" type="hinge"/>
+                  <joint axis="0 0 1" name="r_ankle_pitch" pos="0 0 0" range="-1.2566370614 1.3962634016" type="hinge"/>
                   <geom material="meshmat" mesh="ankle1_r_coll" type="mesh" />
 
                   <body name="foot_r" pos="0 0 0" quat="0.707107 -0.707107 0 0">
                     <inertial diaginertia="0.120855 0.109532 0.0411304" mass="0.0794462" pos="0.025995 -0.009506 -0.000503" quat="0.997965 0.0519065 0.00385358 -0.0368208"/>
-                    <joint axis="0 0 1" limited="true" name="r_ankle_roll" pos="0 0 0" range="-.7679448709 1.0995574288" type="hinge"/>
-                    <!--
-                    <geom material="meshmat" mesh="ankle2_r_coll" type="mesh"/>
-                      <geom material="meshmat" mesh="foot_right" pos="0.040 0.01 0"    euler="0 0 1.5708" type="mesh"/>
-                      <geom material="meshmat" mesh="foot_bracket" pos="-0.23 -0.037 0.0" euler="0 0 1.5708" type="mesh"/>
-                    -->
-                    <geom material="meshmat" mesh="ankle_coll" pos="0.033 0 0"   euler="0 -1.5708 -1.5708" type="mesh"/>
+                    <joint axis="0 0 1" name="r_ankle_roll" pos="0 0 0" range="-.7679448709 1.0995574288" type="hinge"/>
+                    
+                    <geom class="visual" material="meshmat" mesh="ankle_coll" pos="0.033 0 0" euler="0 -1.5708 -1.5708" type="mesh"/>
                     <body name="toes_r" pos="0.015 0 0" quat="1.0 0 0 0">
                       <site name="right_ati" pos="0.0287 0 0.0" euler="0 1.5708 0" type="cylinder" size="0.0125 0.0108" rgba="1 0 0 1" />
                       <!--
-                      <geom type = "sphere" size = ".03" pos = "0.04 0.0 0" euler="3.14159 0 1.5708"/>
+                      <geom class='right leg' type='box' group='1' size='.001 .033 .052' pos='.043 -.0105 0' />
                       -->
-                      <geom material="meshmat" mesh="foot_right" pos="0.04 -0.01 0"    euler="3.14159 0 1.5708" type="mesh"/>
-                      <geom material="meshmat" mesh="foot_bracket" pos="-0.23 0.037 0.0" euler="3.14159 0 1.5708" type="mesh"/>
-                      <!--Left Side-->
-                      
-                      <geom type = "sphere" size = ".01" pos = "0.041 -0.028 -0.037" euler="3.14159 0 1.5708"/>
-                      <geom type = "sphere" size = ".012" pos = "0.041 -0.028 0.037" euler="3.14159 0 1.5708"/>
-                      <!--Right Side-->
-                      
-                      <geom type = "sphere" size = ".012" pos = "0.041 0.007 0.037" euler="3.14159 0 1.5708"/>
-                      <geom type = "sphere" size = ".01" pos = "0.041 0.007 -0.037" euler="3.14159 0 1.5708"/>
-                    
+                      <geom class='right leg' type='box' group='1' size='.0075 .033 .045' pos='.0355 -.0105 0' />
+                      <geom class='right leg' type='box' group='1' size='.0075 .021 .052' pos='.0355 -.0105 0' />
+                      <geom class="visual" material="meshmat" mesh="foot_right" pos="0.04 -0.01 0"    euler="3.14159 0 1.5708" type="mesh"/>
+                      <geom class="visual" material="meshmat" mesh="foot_bracket" pos="-0.23 0.037 0.0" euler="3.14159 0 1.5708" type="mesh"/>
+                      <site name="ps7" pos="0.0265 -0.035 -0.044" euler="0 1.571 0" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+                      <site name="ps8" pos="0.031 -0.035 0.044" euler="1.571 1.571 0" type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
                     </body>
                   </body>
                 </body>
@@ -346,13 +380,15 @@ soft:
       <torque name="left_t"    site="left_ati" />
 
       <sitepos name="mocap"       site="imu" />
+      <!--
+      <sitepos name="mocap"       site="imu" />
       <sitepos name="mocap1"       site="right_ati" />
       <sitepos name="mocap2"       site="left_ati" />
-      <!--
       -->
     </sensor>
 
     <actuator>
+      <!--
       <position name='0_r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
       <position name='1_l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5 1.5' />
       <position name='2_r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.25'  	/>
@@ -374,7 +410,6 @@ soft:
                        
       <position name='18_head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
       <position name='19_head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
-      <!--
       -->
 
 
@@ -406,7 +441,6 @@ soft:
       -->
 
 
-      <!--
       <motor name='r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
       <motor name='r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.3'  	/>
       <motor name='r_elbow'          	joint='r_elbow'             ctrlrange='-1.55 1.25'	/>
@@ -431,6 +465,7 @@ soft:
 
       <motor name='head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
       <motor name='head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
+      <!--
       -->
 
     </actuator>

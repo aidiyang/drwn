@@ -6,11 +6,12 @@
         <motor ctrlrange='-.4 .4' ctrllimited='true'/>
         	margin="0.0001" solref=".02 0.08" solimp=".6 .8 .01"/>
    -->
-    <option	timestep="0.00125" iterations="50" solver="PGS" tolerance="1e-6" gravity="0 0 -9.81"/>
+    <option	timestep="0.00125" iterations="50" solver="PGS" tolerance="1e-6" gravity="0 0 -9.81">
+    </option>
 
     <default>
         <geom contype='1' conaffinity='1' condim='1' rgba='0.8 0.6 .4 1'
-        margin="0.000" solref=".04 0.05" solimp=".08 .08 .1"/>
+        margin="0.0" solref=".04 0.05" solimp=".8 .8 .1"/>
     </default>
 
     <asset>
@@ -20,8 +21,8 @@
     <worldbody>
       <geom material="boring" pos="0 0 -0.5" size=".5 .5 .5" type="plane"/>
       <body pos="0 0 0">
-        <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="true" range="-1 1" />
-        <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="true" range="-1 1" />
+        <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" range="-1 1" />
+        <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" range="-1 1" />
         <!--
         <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="true" range="-1 1" />
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" />
@@ -55,7 +56,7 @@
     </sensor>
 
     <actuator>
-      <position name='right_movement' 	joint='rootx' kp='1'/>
+      <position name='right_movement' 	joint='rootz' kp='4'/>
     </actuator>
 
   </mujoco>

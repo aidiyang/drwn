@@ -138,6 +138,10 @@ void print_state(const mjModel* m, const mjData* d) {
   for (int i=0; i<m->nv; i++) {
     printf("%1.4f ", d->qvel[i]);
   }
+  printf(":: ");
+  for (int i=0; i<m->nv; i++) {
+    printf("%1.4f ", d->qacc[i]);
+  }
   printf("\n");
 }
 
@@ -157,6 +161,7 @@ int main(int argc, const char** argv) {
   double kappa;
   double diag;
   double Ws0;
+  double tol;
   double s_time_noise=0.0;
   //bool do_correct;
   bool debug;
@@ -177,11 +182,12 @@ int main(int argc, const char** argv) {
 			("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
 			("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
 			("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
-			("alpha,a", po::value<double>(&alpha)->default_value(10e-3), "Gaussian amount of sensor noise to corrupt data with.")
-			("beta,b", po::value<double>(&beta)->default_value(2), "Gaussian amount of control noise to corrupt data with.")
-			("kappa,k", po::value<double>(&kappa)->default_value(0), "Gaussian amount of estimator noise to corrupt data with.")
-			("diagonal,d", po::value<double>(&diag)->default_value(1), "Gaussian amount of estimator noise to corrupt data with.")
+			("alpha,a", po::value<double>(&alpha)->default_value(10e-3), "Alpha: UKF param")
+			("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
+			("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
+			("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
       ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
+      ("tol,i", po::value<double>(&tol)->default_value(-1.0), "Set Constraint Tolerance (default NONE).")
 			//("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 			("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
 			//("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
@@ -222,6 +228,7 @@ int main(int argc, const char** argv) {
   printf("UKF kappa:\t\t%f\n", kappa);
   printf("UKF diag:\t\t%f\n", diag);
   printf("UKF Ws0:\t\t%f\n", Ws0);
+  printf("UKF Tol:\t\t%f\n", tol);
 
   // Start Initializations
   omp_set_num_threads(num_threads);
@@ -323,7 +330,7 @@ int main(int argc, const char** argv) {
           for (int i=(nv-1); i>(nv-20); i--) d->qvel[i] = init_qvel[c--];
         }
 
-        est = new UKF(m, d, alpha, beta, kappa, diag, Ws0, e_noise, debug, num_threads);
+        est = new UKF(m, d, alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
 
         est_data = est->get_state();
         if (real_robot) save_states(output_file, 0.0, NULL, est_data, est->get_stddev(), 0, 0, "w");

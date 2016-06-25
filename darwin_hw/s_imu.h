@@ -14,7 +14,6 @@ class PhidgetIMU {
 	std::array<double, 3> accel;
 	std::array<double, 3> gyro;
 	std::array<double, 3> gravi;
-	//Vector3d accel, gyro, gravi;
 
 	CPhidgetSpatialHandle imu;
 
@@ -22,35 +21,22 @@ class PhidgetIMU {
 		CPhidgetSpatial_SpatialEventDataHandle *data, int count) {
 
 	  PhidgetIMU* imu = (PhidgetIMU*) userptr;
+    // TODO for all counts 
 	  if (count > 0) { // gets last data point
 
-		imu->gravi[1] = -1.0*data[count-1]->acceleration[0]; // just get g's in case
-		imu->accel[1] = -1.0*9.81*data[count-1]->acceleration[0]; // convert g's to m/ss
+      imu->gravi[1] = -1.0*data[count-1]->acceleration[0]; // just get g's in case
+      imu->accel[1] = -1.0*9.81*data[count-1]->acceleration[0]; // convert g's to m/ss
 
-		imu->gravi[0] = -1.0*data[count-1]->acceleration[1]; // just get g's in case
-		imu->accel[0] = -1.0*9.81*data[count-1]->acceleration[1]; // convert g's to m/ss
+      imu->gravi[0] = -1.0*data[count-1]->acceleration[1]; // just get g's in case
+      imu->accel[0] = -1.0*9.81*data[count-1]->acceleration[1]; // convert g's to m/ss
 
-		imu->gravi[2] = data[count-1]->acceleration[2]; // just get g's in case
-		imu->accel[2] = 9.81*data[count-1]->acceleration[2]; // convert g's to m/ss
+      imu->gravi[2] = data[count-1]->acceleration[2]; // just get g's in case
+      imu->accel[2] = 9.81*data[count-1]->acceleration[2]; // convert g's to m/ss
 
-		for (int i = 0; i < 3; i++) {
-		  imu->gyro[i] = 0.0017453*data[count - 1]->angularRate[(i + 1) % 3]; // convert deg/s to rad/s
-		}
+      for (int i = 0; i < 3; i++) {
+        imu->gyro[i] = 0.0017453*data[count - 1]->angularRate[(i + 1) % 3]; // convert deg/s to rad/s
+      }
 
-		/*
-		   imu->gravi(1) = -1.0*data[count - 1]->acceleration[0]; // just get g's in case
-		   imu->accel(1) = -1.0*9.81*data[count - 1]->acceleration[0]; // convert g's to m/ss
-
-		   imu->gravi(0) = -1.0*data[count - 1]->acceleration[1]; // just get g's in case
-		   imu->accel(0) = -1.0*9.81*data[count - 1]->acceleration[1]; // convert g's to m/ss
-
-		   imu->gravi(2) = data[count - 1]->acceleration[2]; // just get g's in case
-		   imu->accel(2) = 9.81*data[count - 1]->acceleration[2]; // convert g's to m/ss
-
-		   for (int i = 0; i < 3; i++) {
-		   imu->gyro(i) = 0.0017453*data[count-1]->angularRate[ (i+1) % 3]; // convert deg/s to rad/s
-		   }
-		   */
 	  }
 	  return 0;
 	}
@@ -64,7 +50,7 @@ class PhidgetIMU {
 
 	  // attach listener
 	  if (delay > 0) {
-		CPhidgetSpatial_set_OnSpatialData_Handler(imu, PhidgetIMU::handler, this);
+      CPhidgetSpatial_set_OnSpatialData_Handler(imu, PhidgetIMU::handler, this);
 	  }
 
 	  // initialize device
@@ -93,7 +79,7 @@ class PhidgetIMU {
 
 	  if (imu_ok && delay > 0) {
         printf("Phidget: Setting Data Rate at %d ms.\n", delay);
-		CPhidgetSpatial_setDataRate(imu, delay);
+        CPhidgetSpatial_setDataRate(imu, delay);
 	  }
 
 	  // create vector structures

@@ -20,6 +20,8 @@ std::mutex gui_mutex;
 mjModel* m = 0;
 mjData* d = 0;
 char lastfile[1000] = "";
+char* b_name_list[1000];
+char* g_name_list[1000];
 
 // user state
 bool paused = false;
@@ -184,6 +186,14 @@ void loadmodel(GLFWwindow* window, const char* filename, const char* xmlstring)
 
     // center and scale view
     autoscale(window);
+
+    // save list of body names
+    for (int i=0; i<m->nbody; i++) {
+      b_name_list[i] = m->names + m->name_bodyadr[i];
+    }
+    for (int i=0; i<m->ngeom; i++) {
+      g_name_list[i] = m->names + m->name_geomadr[i];
+    }
 }
 
 
@@ -638,6 +648,7 @@ void render(GLFWwindow* window)
             {
                 // record selection
                 selbody = m->geom_bodyid[objects.geoms[selgeom].objid];
+                printf("Body Name: %s\n", b_name_list[selbody]);
 
                 // clear if invalid
                 if( selbody<0 || selbody>=m->nbody )

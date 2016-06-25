@@ -68,7 +68,9 @@ for col in range(nv):
 if ctrl.any():
     axs[1,0].plot(t, ctrl, lw=my_lw, alpha=my_alpha)
 plt.gca().set_color_cycle(None)
-axs[1,0].plot(t, est_ctrl, ls=my_ls, alpha=1.0)
+
+if est_ctrl.any():
+    axs[1,0].plot(t, est_ctrl, ls=my_ls, alpha=1.0)
 #axs[1,0].fill_between(t, est_ctrl+std_ctrl, est_ctrl-std_ctrl, ls=my_ls, alpha=1.0)
 axs[1,0].set_title('ctrl')
 #for col in range(nu):

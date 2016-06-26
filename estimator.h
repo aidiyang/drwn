@@ -4,7 +4,9 @@
 #include <random>
 #include <functional>
 
+#ifndef __APPLE__
 #include <omp.h>
+#endif
 #include <math.h>
 
 #ifdef USE_EIGEN_MKL
@@ -24,6 +26,12 @@
 //#include <boost/random/normal_distribution.hpp>
 
 using namespace Eigen;
+
+#ifdef __APPLE__
+double omp_get_wtime() {
+  auto s = std::chrono::high_resolution_clock::now();
+}
+#endif
 
 class Estimator {
   public:

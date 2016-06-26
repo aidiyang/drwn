@@ -87,17 +87,6 @@ include_directories(
 message(STATUS ${DARWIN_HW_LIBS})
 message(STATUS ${OTHER_SOURCES})
 message(STATUS ${DARWIN_INCLUDES})
-message(STATUS "HELLO AGAIN")
-
-# parallel mujoco option from top-level cmake
-#if(MUJOCO_SIMULATOR_PARALLEL)
-#  find_package(OpenMP REQUIRED)
-#  if (OPENMP_FOUND)
-#	add_definitions(-DMUJOCO_SIMULATOR_PARALLEL)
-#	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-#	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-#  endif()
-#endif(MUJOCO_SIMULATOR_PARALLEL)
 
 #add_library(darwin_hw SHARED ${DARWIN_SOURCES} ${OTHER_SOURCES} ${UJ_SOURCES})
 add_library(darwin_hw SHARED ${DARWIN_SOURCES} ${OTHER_SOURCES})

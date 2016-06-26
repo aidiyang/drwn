@@ -27,7 +27,7 @@ int increment = 0;
 bool showoption = false;
 bool showinfo = true;
 bool showdepth = false;
-int signal = 0;
+int my_signal = 0;
 int showhelp = 1;		// 0: none; 1: brief; 2: full
 int speedtype = 1;		// 0: slow; 1: normal; 2: max
 
@@ -263,9 +263,9 @@ void keyboard(GLFWwindow * window, int key, int scancode, int act, int mods)
 			else if (key == GLFW_KEY_Q)
 				glfwSetWindowShouldClose(window, GL_TRUE);
 			else if (key == GLFW_KEY_S)
-        signal = 1;
+        my_signal = 1;
 			else if (key == GLFW_KEY_I)
-        signal = 2;
+        my_signal = 2;
 			else if (key == GLFW_KEY_P) {
 				// print state and sensors
 				if (d) {
@@ -714,11 +714,11 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool step)
 int viewer_signal() {
   // 1 for walk
   // 2 for initialize estimator
-  return signal;
+  return my_signal;
 }
 
 void viewer_set_signal(int s) {
-  signal = s;
+  my_signal = s;
 }
 
 bool closeViewer()

@@ -1,7 +1,9 @@
 
 #include "viewer_lib.h"
 #include "darwin_hw/sim_interface.h"
+#ifndef __APPLE__
 #include "darwin_hw/interface.h"
+#endif
 #include "darwin_hw/robot.h"
 #include "darwin_hw/drwn_walker.h"
 
@@ -9,8 +11,10 @@
 
 
 
-
+#ifndef __APPLE__
 #include <omp.h>
+#endif
+
 #include <iostream>
 #include <fstream>
 
@@ -244,6 +248,8 @@ int main(int argc, const char** argv) {
   ////// SIMULATED ROBOT
   double dt = m->opt.timestep;
   MyRobot *robot;
+#ifndef __APPLE__
+  real_robot = false;
   if (real_robot) {
     ////// REAL ROBOT
     bool zero_gyro = true;
@@ -274,9 +280,9 @@ int main(int argc, const char** argv) {
         use_accel, use_gyro, use_ati, p_gain, ps_server, p);
     delete[] p_gain;
   }
-  else {
+  else
+#endif
     robot = new SimDarwin(m, d, 2*dt, s_noise, s_time_noise, c_noise);
-  }
 
   double time = 0.0;
   double prev_time = 0.0;

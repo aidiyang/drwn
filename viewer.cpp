@@ -352,6 +352,7 @@ int main(int argc, const char** argv) {
     if (robot->get_sensors(&time, sensors)) {
 
       printf("robot hw time: %f\n", time);
+      printf("prev time: %f\n", prev_time);
       printf("true state:\n");
       print_state(m, d);
 
@@ -368,6 +369,7 @@ int main(int argc, const char** argv) {
       //////////////////////////////////
       double t1 = now_t();
       //if (est) est->correct(sensors);
+      printf("prev time: %f\n", prev_time);
       if (est) est->predict_correct(ctrl, time-prev_time, sensors);
 
 

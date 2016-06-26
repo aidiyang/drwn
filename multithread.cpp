@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <cstdlib>
 #include <stdio.h>
+#ifndef __APPLE__
 #include <omp.h>
+#endif
 #include <algorithm>
 #include <string.h>
 

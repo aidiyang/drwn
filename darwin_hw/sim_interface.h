@@ -1,6 +1,8 @@
+#pragma once
+
 #include "mujoco.h"
 
-#include "Utilities.h"
+//#include "Utilities.h"
 #include "robot.h"
 
 #include <string.h>

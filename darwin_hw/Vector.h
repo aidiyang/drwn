@@ -1,13 +1,5 @@
-/*
- *   Vector.h
- *
- *   Author: ROBOTIS
- *
- */
 
-#ifndef _VECTOR_H_
-#define _VECTOR_H_
-
+#pragma once
 #include "Point.h"
 
 namespace Robot
@@ -52,4 +44,3 @@ namespace Robot
 	};
 }
 
-#endif

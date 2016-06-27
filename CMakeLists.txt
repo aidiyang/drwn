@@ -44,6 +44,7 @@ include_directories(
 	"./"
 	"/usr/local/include/eigen3"
 	"/opt/local/include/eigen3"
+	"/opt/local/include/"
   "/opt/intel/mkl/include"
 	${MUJOCO_INCLUDE_DIRS}
 )
@@ -127,14 +128,16 @@ if (NOT APPLE)
 
   add_executable(speed_test "multithread.cpp" )
   target_link_libraries(speed_test ${MUJOCO_LIBRARIES} )
+else()
+  add_library(sim_only "darwin_hw/drwn_walker.cpp"
+    "darwin_hw/Vector.cpp" "darwin_hw/Matrix.cpp" "darwin_hw/MX28.cpp"
+    "darwin_hw/Point.cpp" "darwin_hw/JointData.cpp" )
+  add_executable(viewer "viewer.cpp" )
+  target_link_libraries(viewer sim_only ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} )
 endif()
 
 add_executable(mc "mcsim.cpp" )
 target_link_libraries(mc ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} )
-if (APPLE)
-  add_executable(viewer "viewer.cpp" )
-  target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} ${DARWIN_INCLUDES} )
-endif()
 
 add_executable(sim "simulate.cpp" )
 target_link_libraries(sim ${MUJOCO_LIBRARIES} )

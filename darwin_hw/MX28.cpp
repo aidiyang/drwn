@@ -1,9 +1,3 @@
-/*
- *   MX28.cpp
- *
- *  
- *
- */
 #include "MX28.h"
 
 using namespace Robot;

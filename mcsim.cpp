@@ -4,7 +4,9 @@
 #include <functional>
 
 #include "estimator.h"
+#ifndef __APPLE__
 #include <omp.h>
+#endif
 #include <math.h>
 
 #include <iostream>

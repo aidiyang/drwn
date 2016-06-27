@@ -50,10 +50,7 @@ std::map<int, int> MJ_CTRL_MAP = {
   {17, 25} };
   */
 
-
-
-double GetCurrentTimeMS()
-{
+double GetCurrentTimeMS() {
   std::chrono::time_point<std::chrono::high_resolution_clock> t
     = std::chrono::high_resolution_clock::now();
 

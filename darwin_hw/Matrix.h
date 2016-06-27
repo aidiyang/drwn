@@ -1,12 +1,5 @@
-/*
- *   Matrix.h
- *
- *   Author: ROBOTIS
- *
- */
 
-#ifndef _MATRIX_H_
-#define _MATRIX_H_
+#pragma once
 
 #include "Vector.h"
 #include "Point.h"
@@ -64,4 +57,3 @@ namespace Robot
 	};
 }
 
-#endif

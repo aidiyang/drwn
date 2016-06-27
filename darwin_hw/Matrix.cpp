@@ -1,9 +1,3 @@
-/*
- *   Matrix.cpp
- *
- *   Author: ROBOTIS
- *
- */
 
 #include <math.h>
 #include "Matrix.h"

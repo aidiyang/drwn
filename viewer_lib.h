@@ -7,6 +7,7 @@
 #include "glfw3.h"
 #include "stdlib.h"
 #include "string.h"
+#include <string>
 #include <mutex>
 
 #include <vector>

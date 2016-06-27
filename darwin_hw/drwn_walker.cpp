@@ -1,17 +1,4 @@
-/*
- *   Walking.cpp
- *
- *   Author: ROBOTIS
- *
- */
-#include <stdio.h>
-#include <math.h>
-#include "Vector.h"
-#include "Matrix.h"
-#include "MX28.h"
-#include "JointData.h"
 #include "drwn_walker.h"
-
 #include "Utilities.h"
 
 using namespace Robot;

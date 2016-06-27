@@ -15,7 +15,6 @@
 
 #define EIGEN_DONT_PARALLELIZE
 
-//#include <Eigen/StdVector>
 #include <vector>
 #include <Eigen/Dense>
 #ifdef SYMMETRIC_SQUARE_ROOT
@@ -29,8 +28,14 @@ using namespace Eigen;
 
 #ifdef __APPLE__
 double omp_get_wtime() {
-  auto s = std::chrono::high_resolution_clock::now();
+  std::chrono::time_point<std::chrono::high_resolution_clock> t
+    = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double, std::milli> d=t.time_since_epoch();
+  return d.count() / 1000.0 ; // returns milliseconds
 }
+int omp_get_thread_num() { return 0; }
+int omp_get_num_threads() { return 1; }
 #endif
 
 class Estimator {
@@ -45,7 +50,7 @@ class Estimator {
       this->nu = this->m->nu;
     }
 
-    ~Estimator() {
+    virtual ~Estimator() {
       mj_deleteData(d);
       mj_deleteModel(m);
     }

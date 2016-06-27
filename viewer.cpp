@@ -1,27 +1,23 @@
 
 #include "viewer_lib.h"
-#include "darwin_hw/sim_interface.h"
-#ifndef __APPLE__
-#include "darwin_hw/interface.h"
-#endif
-#include "darwin_hw/robot.h"
 #include "darwin_hw/drwn_walker.h"
+#include "darwin_hw/sim_interface.h"
+
+#ifndef __APPLE__
+   #include "darwin_hw/interface.h"
+   #include <omp.h>
+#endif
+
+#include "darwin_hw/robot.h"
 
 #include "estimator.h"
-
-
-
-#ifndef __APPLE__
-#include <omp.h>
-#endif
 
 #include <iostream>
 #include <fstream>
 
-
 #include <boost/program_options.hpp>
-namespace po = boost::program_options;
 
+namespace po = boost::program_options;
 
 extern mjModel* m; // defined in viewer_lib.h to capture perturbations
 extern mjData* d;
@@ -152,7 +148,7 @@ void print_state(const mjModel* m, const mjData* d) {
 
 int main(int argc, const char** argv) {
 
-  int num_threads;
+  int num_threads=1;
   int estimation_counts;
 	//bool engage; // for real robot?
   std::string model_name;// = new std::string();
@@ -193,7 +189,9 @@ int main(int argc, const char** argv) {
       ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
       ("tol,i", po::value<double>(&tol)->default_value(-1.0), "Set Constraint Tolerance (default NONE).")
 			//("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
-			("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
+#ifndef __APPLE__
+      ("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
+#endif
 			//("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
 			//("d_gain,d", po::value<int>(&d_gain)->default_value(0), "D gain of PiD controller, 0-32")
 			;
@@ -235,8 +233,10 @@ int main(int argc, const char** argv) {
   printf("UKF Tol:\t\t%f\n", tol);
 
   // Start Initializations
+#ifndef __APPLE__
   omp_set_num_threads(num_threads);
   omp_set_dynamic(0);
+#endif
 
   if (init_viz(model_name)) { return 1; }
   int nq = m->nq;
@@ -249,7 +249,6 @@ int main(int argc, const char** argv) {
   double dt = m->opt.timestep;
   MyRobot *robot;
 #ifndef __APPLE__
-  real_robot = false;
   if (real_robot) {
     ////// REAL ROBOT
     bool zero_gyro = true;
@@ -372,7 +371,6 @@ int main(int argc, const char** argv) {
       printf("prev time: %f\n", prev_time);
       if (est) est->predict_correct(ctrl, time-prev_time, sensors);
 
-
       double t2 = now_t();
 
 
@@ -414,7 +412,6 @@ int main(int argc, const char** argv) {
       }
       printf("\n\n");
 
-
       if (est) {
         if (real_robot) save_states(output_file, time, NULL, est_data, est->get_stddev(), t1-t0, t2-t1, "a");
         else save_states(output_file, time, d, est_data, est->get_stddev(), t1-t0, t2-t1, "a");
@@ -444,6 +441,7 @@ int main(int argc, const char** argv) {
 
     if (est) {
       // render sigma points
+      // TODO rendering is slow on macs
       render(window, est->get_sigmas(), color); // get state updated model / data, mj_steps
     }
     else {
@@ -472,6 +470,7 @@ int main(int argc, const char** argv) {
   delete[] qvel;
   delete[] ctrl;
   delete[] sensors;
+  delete est;
 
   return 0;
 }

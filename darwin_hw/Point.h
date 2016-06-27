@@ -1,13 +1,5 @@
-/*
- *   Point.h
- *
- *   Author: ROBOTIS
- *
- */
 
-#ifndef _POINT_H_
-#define _POINT_H_
-
+#pragma once
 
 namespace Robot
 {	
@@ -77,4 +69,3 @@ namespace Robot
 	};
 }
 
-#endif

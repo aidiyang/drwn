@@ -5,8 +5,7 @@
  *
  */
 
-#ifndef _MX_28_H_
-#define _MX_28_H_
+#pragma once
 
 #define MX28_PARAM_BYTES 7
 
@@ -107,4 +106,3 @@ namespace Robot
 	};
 }
 
-#endif

@@ -1,15 +1,13 @@
-/* *   Walking.h
- *
- *   Author: ROBOTIS
- *
- */
 
 #pragma once
 
 #include <string.h>
-
-//#include "minIni.h"
-//#include "MotionModule.h"
+#include <stdio.h>
+#include <math.h>
+#include "Vector.h"
+#include "Matrix.h"
+#include "MX28.h"
+#include "JointData.h"
 
 #define WALKING_SECTION "Walking Config"
 #define INVALID_VALUE   -1024.0

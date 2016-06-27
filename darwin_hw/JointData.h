@@ -4,10 +4,7 @@
  *   Author: ROBOTIS
  *
  */
-
-#ifndef _JOINT_DATA_H_
-#define _JOINT_DATA_H_
-
+#pragma once
 
 namespace Robot
 {
@@ -116,4 +113,3 @@ namespace Robot
 	};
 }
 
-#endif

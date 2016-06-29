@@ -96,6 +96,9 @@ target_link_libraries(darwin_hw ${DARWIN_HW_LIBS})
 add_executable(test_darwin "test_darwin.cpp" )
 target_link_libraries(test_darwin darwin_hw )
 
+add_executable(dxl_monitor "dxl_monitor.cpp" "dxl_monitor_process.cpp" )
+target_link_libraries(dxl_monitor darwin_hw )
+
 #target_link_libraries(test_darwin darwin_hw ${PHIDGETS_LIBRARIES} ${PHASESPACE_LIBRARIES})
 #target_include_directories(viewer PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 

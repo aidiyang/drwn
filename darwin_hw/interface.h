@@ -60,7 +60,7 @@ class DarwinRobot : public MyRobot {
       auto init2 = std::async(std::launch::async, &DarwinRobot::init_phasespace, this, ps_server, use_rigid, use_markers);
       int data_rate = -1; // we are not using the imu in streaming mode
       auto init3 = std::async(std::launch::async, &DarwinRobot::init_imu, this, data_rate, zero_gyro);
-      auto init4 = std::async(std::launch::async, &DarwinRobot::init_contacts, this);
+      auto init4 = std::async(std::launch::deferred, &DarwinRobot::init_contacts, this);
 
       this->use_accel = _use_accel;
       this->use_gyro = _use_gyro;
@@ -220,6 +220,7 @@ class DarwinRobot : public MyRobot {
 
         double r[6];
         double l[6];
+        double t1 = GetCurrentTimeMS();
         if (use_ati && ati->getData(r, l)) {
           for (int id=0; id<6; id++) {
             sensor[idx+id] = r[id];
@@ -229,6 +230,8 @@ class DarwinRobot : public MyRobot {
             sensor[idx+id] = l[id];
           }
         }
+        double t2 = GetCurrentTimeMS();
+        printf("ATI Sensor Time: %f ms\n", t2-t1);
 
         if (body_data.get() != CM730::SUCCESS) {
           printf("BAD JOINT READ\n");

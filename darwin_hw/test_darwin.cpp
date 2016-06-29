@@ -53,11 +53,11 @@ void save_states(std::string filename,
 int main (int argc, char* argv[]) {
 
   int nu = 20;
-  bool zero_gyro = true;
+  bool zero_gyro = false;
   bool use_rigid = false;
   bool use_markers = false;
-  bool use_accel = true;
-  bool use_gyro  = true;
+  bool use_accel = false; //true;
+  bool use_gyro  = false; //true;
   bool use_ati   = true;
   std::string ps_server = "128.208.4.128";
 
@@ -84,7 +84,7 @@ int main (int argc, char* argv[]) {
   int nsensordata = 40+IMU_SIZE+CONTACTS_SIZE;
   double *sensors = new double[nsensordata];
 
-  save_states("raw.csv", nu, nsensordata, time, ctrl, sensors, "w");
+  //save_states("raw.csv", nu, nsensordata, time, ctrl, sensors, "w");
 
   int count = 1000;
   double t1=0.0, t2=0.0;
@@ -111,7 +111,7 @@ int main (int argc, char* argv[]) {
     printf("\n");
 
     // Do stuff with data
-    save_states("raw.csv", nu, nsensordata, time, ctrl, sensors, "a");
+    //save_states("raw.csv", nu, nsensordata, time, ctrl, sensors, "a");
 
     avg[i] = (t2-t1);
   }
@@ -134,7 +134,7 @@ int main (int argc, char* argv[]) {
   delete[] ctrl;
   delete[] sensors;
   
-  save_states("raw.csv", nu, nsensordata, 0.0, NULL, NULL, "c");
+  //save_states("raw.csv", nu, nsensordata, 0.0, NULL, NULL, "c");
 
   return 0;
 }

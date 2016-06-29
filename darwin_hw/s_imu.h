@@ -77,10 +77,18 @@ class PhidgetIMU {
 		CPhidgetSpatial_zeroGyro(imu); // takes about 2 seconds
 	  }
 
-	  if (imu_ok && delay > 0) {
+	  if (imu_ok) {
+      if (delay > 0) {
         printf("Phidget: Setting Data Rate at %d ms.\n", delay);
         CPhidgetSpatial_setDataRate(imu, delay);
-	  }
+      }
+      else {
+        int dataRateMax;
+        CPhidgetSpatial_getDataRateMax(imu, &dataRateMax);
+        printf("Phidget: Setting Data Rate Max: %d ms.\n", dataRateMax);
+        CPhidgetSpatial_setDataRate(imu, dataRateMax);
+      }
+    }
 
 	  // create vector structures
 	  /*

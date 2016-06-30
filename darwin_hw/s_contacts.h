@@ -255,11 +255,11 @@ close:
         }
         double t2 = getTickCount();
 
-        printf("\nNumber of scans: %d\n", scanNumber);
-        printf("Total packets read: %d\n", totalPackets);
-        printf("Current PacketCounter: %d\n", ((packetCounter == 0) ? 255 : packetCounter - 1));
-        printf("Current BackLog: %d\n", backLog);
-        printf("Milliseconds per read: %f\n", (t2-t1)/(double)numReadsPerDisplay);
+        //printf("\nNumber of scans: %d\n", scanNumber);
+        //printf("Total packets read: %d\n", totalPackets);
+        //printf("Current PacketCounter: %d\n", ((packetCounter == 0) ? 255 : packetCounter - 1));
+        //printf("Current BackLog: %d\n", backLog);
+        //printf("Milliseconds per read: %f\n", (t2-t1)/(double)numReadsPerDisplay);
 
         for (k = 0; k < NumChannels; k++) {
           //printf("  AI%d: %.4f V %d c\n", k, volts[k]/count[k], count[k]);
@@ -275,7 +275,7 @@ close:
         ConvertToFT(cal_r,raw,FT);
         for (int i = 0; i<6; i++) {
           r[i] = (double)FT[i];
-          printf("  AI%d: %.4f V %d c %f f/t\n", i, volts[i], count[i], r[i]);
+          //printf("  AI%d: %.4f V %d c %f f/t\n", i, volts[i], count[i], r[i]);
         }
 
         for (k = 0; k < NumChannels; k++) {
@@ -286,7 +286,7 @@ close:
         ConvertToFT(cal_l,raw,FT);
         for (int i = 0; i<6; i++) {
           l[i] = (double)FT[i];
-          printf("  AI%d: %.4f V %d c %f f/t\n", i+6, volts[i], count[i], r[i]);
+          //printf("  AI%d: %.4f V %d c %f f/t\n", i+6, volts[i], count[i], r[i]);
         }
         return true;
         
@@ -420,7 +420,7 @@ close:
       //  Bit 3: Internal stream clock frequency = b0: 4 MHz
       //  Bit 1: Divide Clock by 256 = b0
 
-      scanInterval = 1000;
+      scanInterval = 1150;
       sendBuff[12] = (uint8) (scanInterval & (0x00FF));     //scan interval (low byte)
       sendBuff[13] = (uint8) (scanInterval / 256);  //scan interval (high byte)
 

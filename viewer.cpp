@@ -251,10 +251,11 @@ int main(int argc, const char** argv) {
 #ifndef __APPLE__
   if (real_robot) {
     ////// REAL ROBOT
+    bool use_cm730 = true;
     bool zero_gyro = true;
     bool use_rigid = false;
-    bool use_markers = false;
-    std::string ps_server = "128.208.4.128";
+    bool use_markers = true;
+    std::string ps_server = "128.208.4.49";
     double *p = NULL; // initial pose
     bool use_accel = false;
     bool use_gyro = false;
@@ -274,8 +275,9 @@ int main(int argc, const char** argv) {
     if (use_accel) printf("Using Accelerometer\n");
     if (use_gyro) printf("Using Gyroscope\n");
     if (use_ati) printf("Using Force/Torque sensors\n");
+    if (use_rigid || use_markers) printf("Using Phasespace Tracking\n");
 
-    robot = new DarwinRobot(zero_gyro, use_rigid, use_markers,
+    robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers,
         use_accel, use_gyro, use_ati, p_gain, ps_server, p);
     delete[] p_gain;
   }

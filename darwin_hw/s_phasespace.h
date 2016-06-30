@@ -7,16 +7,17 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <iostream>
 
-#define MARKER_COUNT 8
-#define PS_SERVER_NAME "128.208.4.127"
+#define MARKER_COUNT 16
+#define PS_SERVER_NAME "128.208.4.49"
 #define INIT_FLAGS 0
 
 #define POSE_SIZE 7
 #define COND_SIZE 1
 
 // use rb_2_c.sh darwin.rb -- to get the formatted outputs
-float RIGID_BODY[MARKER_COUNT][3] = {
+float RIGID_BODY[8][3] = {
   { 0.00, 0.00, 0.00 },
   { 61.43, -3.23, -36.64 },
   { 46.60, -73.71, -76.01 },
@@ -32,7 +33,7 @@ class Phasespace {
 
     void Phasespace_t(Phasespace *track) {
       OWLRigid rigid;
-      OWLMarker markers[32];
+      OWLMarker markers[MARKER_COUNT * 4];
       int tracker;
       if (owlInit((track->server_name).c_str(), INIT_FLAGS) < 0) {
         printf("Couldn't connect to Phase Space\n");
@@ -41,10 +42,15 @@ class Phasespace {
       }
       // create tracker 0
       tracker = 0;
-      owlTrackeri(tracker, OWL_CREATE, OWL_RIGID_TRACKER);
+      if (use_rigid) 
+        owlTrackeri(tracker, OWL_CREATE, OWL_RIGID_TRACKER);
+      else
+        owlTrackeri(tracker, OWL_CREATE, OWL_POINT_TRACKER);
       for (int i = 0; i < MARKER_COUNT; i++) {
         owlMarkeri(MARKER(tracker, i), OWL_SET_LED, i);
-        owlMarkerfv(MARKER(tracker, i), OWL_SET_POSITION, RIGID_BODY[i]);
+        if (track->use_rigid) {
+          owlMarkerfv(MARKER(tracker, i), OWL_SET_POSITION, RIGID_BODY[i]);
+        }
       }
       owlTracker(tracker, OWL_ENABLE);
       if (!owlGetStatus()) {
@@ -61,7 +67,7 @@ class Phasespace {
         int nmarker = 0;
         int nrigid = 0;
         if (track->use_markers) {
-          nmarker = owlGetMarkers(markers, 32);
+          nmarker = owlGetMarkers(markers, MARKER_COUNT*4);
         }
         if (track->use_rigid) {
           nrigid = owlGetRigids(&rigid, 1);
@@ -83,12 +89,6 @@ class Phasespace {
           continue;
         }
 
-        //if (count%100 == 0) {
-        //	std::cout<<"Raw:: "<<rigid.pose[0]<<","<<rigid.pose[1]<<","<<rigid.pose[2]<<","
-        //		<<rigid.pose[3]<<","<<rigid.pose[4]<<","<<rigid.pose[5]<<","
-        //		<<rigid.pose[6]<<std::endl;
-        //}
-
         //	there's potentially stuff we can do with the cond and frame
         //cond[cnt] = rigid.cond;
         //frame[cnt] = rigid.frame;
@@ -106,6 +106,11 @@ class Phasespace {
           if (track->use_rigid) {
             std::memcpy(track->pose, rigid.pose, sizeof(float)*POSE_SIZE);
             track->pose[7] = rigid.cond;
+            if (count%100 == 0) {
+              std::cout<<"Raw:: "<<rigid.pose[0]<<","<<rigid.pose[1]<<","<<rigid.pose[2]<<","
+                <<rigid.pose[3]<<","<<rigid.pose[4]<<","<<rigid.pose[5]<<","
+                <<rigid.pose[6]<<std::endl;
+            }
           }
 
           track->mutex.unlock();
@@ -132,7 +137,6 @@ class Phasespace {
     std::thread m_Thread;
     std::mutex mutex;
     std::string server_name;
-    bool m_Initialized;
     bool m_TrackerRunning;
     bool m_FinishTracking;
     bool use_rigid;
@@ -145,7 +149,6 @@ class Phasespace {
     Phasespace(bool rigid, bool markers, std::string server)  {
 
       std::memset(this->pose, 0, sizeof(float)*POSE_SIZE);
-      this->m_Initialized = false;
       this->m_TrackerRunning = true;
       this->m_FinishTracking = false;
       this->server_name = server;
@@ -155,6 +158,8 @@ class Phasespace {
 
       if (this->use_rigid || this->use_markers) {
         m_Thread = std::thread(&Phasespace::Phasespace_t, this, this);
+        printf("\tPhasespace Thread Created\n");
+        std::this_thread::sleep_for(std::chrono::seconds(2));
       }
       else {
         printf("Not using phasespace\n");
@@ -166,7 +171,7 @@ class Phasespace {
     }
 
     bool getData(double * p, double * m) {
-      if (this->m_TrackerRunning && this->m_Initialized) {
+      if (this->m_TrackerRunning) {
         //std::cout<<"Copying: "<<pose[0]<<","<<pose[1]<<","<<pose[2]<<","
         //	<<pose[3]<<","<<pose[4]<<","<<pose[5]<<","
         //  	<<pose[6]<<std::endl;
@@ -188,11 +193,7 @@ class Phasespace {
     }
 
     bool getMarkers(double *m) {
-      if (this->m_TrackerRunning && this->m_Initialized) {
-        //std::cout<<"Copying: "<<pose[0]<<","<<pose[1]<<","<<pose[2]<<","
-        //	<<pose[3]<<","<<pose[4]<<","<<pose[5]<<","
-        //  	<<pose[6]<<std::endl;
-
+      if (this->m_TrackerRunning) {
         this->mutex.lock(); // not a try; wait for newest
         for (int i = 0; i<(MARKER_COUNT*4); i++) {
           m[i] = (double)marker_d[i];
@@ -201,13 +202,13 @@ class Phasespace {
         return true;
       }
       else {
-        printf("Phasespace not running.\n");
+        printf("Phasespace not running, no Marker Data Returned.\n");
         return false;
       }
     }
 
     bool getRigid(double *p) {
-      if (this->m_TrackerRunning && this->m_Initialized) {
+      if (this->m_TrackerRunning) {
         //std::cout<<"Copying: "<<pose[0]<<","<<pose[1]<<","<<pose[2]<<","
         //	<<pose[3]<<","<<pose[4]<<","<<pose[5]<<","
         //  	<<pose[6]<<std::endl;
@@ -220,7 +221,7 @@ class Phasespace {
         return true;
       }
       else {
-        printf("Phasespace not running.\n");
+        printf("Phasespace not running, no Rigid Data Returned\n");
         return false;
       }
     }
@@ -231,7 +232,6 @@ class Phasespace {
         this->m_FinishTracking = true;
         // wait for the thread to end
         m_Thread.join();
-        this->m_Initialized = false;
         this->m_FinishTracking = false;
         this->m_TrackerRunning = false;
       }

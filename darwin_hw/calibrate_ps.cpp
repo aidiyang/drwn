@@ -53,13 +53,13 @@ void save_states(std::string filename,
 int main (int argc, char* argv[]) {
 
   int nu = 20;
-  bool joints = true;
-  bool zero_gyro = true;
+  bool joints = false;
+  bool zero_gyro = false;
   bool use_rigid = false;
   bool use_markers = true;
-  bool use_accel = true; //true;
-  bool use_gyro  = true; //true;
-  bool use_ati   = true;
+  bool use_accel = false; //true;
+  bool use_gyro  = false; //true;
+  bool use_ati   = false;
   std::string ps_server = "128.208.4.49";
 
   double *p = NULL; // initial pose
@@ -89,7 +89,7 @@ int main (int argc, char* argv[]) {
     use_gyro*G_SIZE+
     use_ati*CONTACTS_SIZE+
     use_markers*MARKER_SIZE;
-
+  printf("Sensor Size: %d\n", nsensordata);
   double *sensors = new double[nsensordata];
 
   //save_states("raw.csv", nu, nsensordata, time, ctrl, sensors, "w");
@@ -102,19 +102,19 @@ int main (int argc, char* argv[]) {
     
     t1 = GetCurrentTimeMS();
     d->get_sensors(&time, sensors);
-    for (int id=0; id<20; id++) {
-      ctrl[id] = sensors[id];
-    }
-    d->set_controls(ctrl, NULL, NULL);
+    //for (int id=0; id<20; id++) {
+    //  ctrl[id] = sensors[id];
+    //}
+    std::this_thread::sleep_for(std::chrono::milliseconds(7));
     t2 = GetCurrentTimeMS();
 
     printf("%f ms\t", t2-t1);
-    for (int id=0; id<10; id++) {
-      printf("%1.2f ", sensors[id]);
-    }
-    printf("\t::\t");
-    for (int id=0; id<6; id++) {
-      printf("%1.6f ", sensors[40+id]);
+    //for (int id=0; id<10; id++) {
+    //  printf("%1.2f ", sensors[id]);
+    //}
+    //printf("\t::\t");
+    for (int id=0; id<16; id++) {
+      printf("%1.3f ", sensors[40+4*id]); // only x position
     }
     printf("\n");
 
@@ -146,4 +146,5 @@ int main (int argc, char* argv[]) {
 
   return 0;
 }
+
 

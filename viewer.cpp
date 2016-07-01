@@ -104,23 +104,27 @@ void save_states(std::string filename, double time,
         myfile<<real->sensordata[i]<<",";
     }
 
-    for (int i=0; i<m->nq; i++) 
-      myfile<<est->qpos[i]<<",";
-    for (int i=0; i<m->nv; i++) 
-      myfile<<est->qvel[i]<<",";
-    for (int i=0; i<m->nu; i++) 
-      myfile<<est->ctrl[i]<<",";
-    for (int i=0; i<m->nsensordata; i++) 
-      myfile<<est->sensordata[i]<<",";
+    if (est) {
+      for (int i=0; i<m->nq; i++) 
+        myfile<<est->qpos[i]<<",";
+      for (int i=0; i<m->nv; i++) 
+        myfile<<est->qvel[i]<<",";
+      for (int i=0; i<m->nu; i++) 
+        myfile<<est->ctrl[i]<<",";
+      for (int i=0; i<m->nsensordata; i++) 
+        myfile<<est->sensordata[i]<<",";
+    }
 
-    for (int i=0; i<m->nq; i++) 
-      myfile<<stddev->qpos[i]<<",";
-    for (int i=0; i<m->nv; i++) 
-      myfile<<stddev->qvel[i]<<",";
-    for (int i=0; i<m->nu; i++) 
-      myfile<<stddev->ctrl[i]<<",";
-    for (int i=0; i<m->nsensordata; i++) 
-      myfile<<stddev->sensordata[i]<<",";
+    if (stddev) {
+      for (int i=0; i<m->nq; i++) 
+        myfile<<stddev->qpos[i]<<",";
+      for (int i=0; i<m->nv; i++) 
+        myfile<<stddev->qvel[i]<<",";
+      for (int i=0; i<m->nu; i++) 
+        myfile<<stddev->ctrl[i]<<",";
+      for (int i=0; i<m->nsensordata; i++) 
+        myfile<<stddev->sensordata[i]<<",";
+    }
 
     myfile<<t1<<",";
     myfile<<t2<<",";
@@ -307,7 +311,7 @@ int main(int argc, const char** argv) {
 
   // init estimator from darwin 'robot'
   printf("DT is set %f\n", dt);
-  mjData * est_data;
+  mjData * est_data = 0;
   bool color = false;
 
   while( !closeViewer() ) {
@@ -414,7 +418,7 @@ int main(int argc, const char** argv) {
       }
       printf("\n\n");
 
-      if (est) {
+      if (est && est_data) {
         if (real_robot) save_states(output_file, time, NULL, est_data, est->get_stddev(), t1-t0, t2-t1, "a");
         else save_states(output_file, time, d, est_data, est->get_stddev(), t1-t0, t2-t1, "a");
       }
@@ -455,7 +459,7 @@ int main(int argc, const char** argv) {
   }
 
   end_viz();
-  if (est) {
+  if (est && est_data) {
     if (real_robot) save_states(output_file, time, NULL, est_data, est->get_stddev(), 0, 0, "c");
     else save_states(output_file, time, d, est_data, est->get_stddev(), 0, 0, "c");
     // close file

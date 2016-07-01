@@ -18,6 +18,8 @@ endif (WIN32)
 
 message(STATUS ${DARWIN_SOURCES})
 
+find_package(Boost 1.55 COMPONENTS program_options random)
+
 ###################################
 # Phidgets include dir and Library
 #find_path(PHIDGETS_INCLUDE_DIR
@@ -96,7 +98,7 @@ target_include_directories(darwin_hw PUBLIC ${DARWIN_INCLUDES} )
 target_link_libraries(darwin_hw ${DARWIN_HW_LIBS})
 
 add_executable(test_darwin "test_darwin.cpp" )
-target_link_libraries(test_darwin darwin_hw )
+target_link_libraries(test_darwin darwin_hw ${Boost_LIBRARIES})
 
 add_executable(dxl_monitor "dxl_monitor.cpp" "dxl_monitor_process.cpp" )
 target_link_libraries(dxl_monitor darwin_hw )

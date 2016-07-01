@@ -23,43 +23,7 @@
 
 using namespace Eigen;
 
-std::ofstream myfile;
-void save_states(std::string filename,
-    int nu, int nsensordata, 
-    double time, double * ctrl, double * sensors, 
-    std::string mode = "w") {
-  if (mode=="w") {
-    // create file
-    myfile.open(filename, std::ofstream::out);
-    myfile<<"time,";
-    for (int i=0; i<nu; i++) 
-      myfile<<"ctrl,";
-    for (int i=0; i<nsensordata; i++) 
-      myfile<<"snsr,";
-
-    myfile<<"\n";
-
-    myfile.close();
-  }
-  else if (mode=="c") {
-    myfile.close();
-    return;
-  }
-  else {
-    if (!myfile.is_open()) {
-      printf("HAD TO OPEN OUTPUT FILE AGAIN!!!!!!\n");
-      myfile.open(filename, std::ofstream::out | std::ofstream::app );
-    }
-
-    myfile<<time<<",";
-    for (int i=0; i<nu; i++) 
-      myfile<<ctrl[i]<<",";
-    for (int i=0; i<nsensordata; i++) 
-      myfile<<sensors[i]<<",";
-
-    myfile<<"\n";
-  }
-}
+int nu = 20;
 
 
 void changemode(int dir)
@@ -93,9 +57,35 @@ int kbhit (void)
 
 }
 
+void zero_position(DarwinRobot *d, double* ctrl, double* sensors) {
+  printf("Moving to initial position");
+  double time;
+  d->get_sensors(&time, sensors);
+  int max_t = 50;
+  for (int i = 0; i < nu; i++) {
+    ctrl[i] = sensors[i];
+  }
+  for (int t=0; t<max_t; t++) { // 25 commands over 5 seconds?
+    for (int i = 0; i < nu; i++) {
+      double diff = 0.0 - sensors[i]; // end - start
+      ctrl[i] += diff / (double)max_t;
+    }
+    d->set_controls(ctrl, NULL, NULL);
+    printf(".");
+    fflush(stdout);
+    // wait for next cmd to interpolate
+    std::chrono::milliseconds interval(3000/max_t);
+    std::this_thread::sleep_for(interval);
+  }
+  for (int i = 0; i < nu; i++) {
+    ctrl[i] = 0.0;
+  }
+  d->set_controls(ctrl, NULL, NULL);
+  printf(" done.\n");
+}
+
 int main (int argc, char* argv[]) {
 
-  int nu = 20;
   bool joints = true;
   bool zero_gyro = false;
   bool use_rigid = false;
@@ -140,26 +130,8 @@ int main (int argc, char* argv[]) {
   //save_states("raw.csv", nu, nsensordata, time, ctrl, sensors, "w");
 
   ////////////////////////////////// move to initial position
-  printf("Moving to initial position");
-  d->get_sensors(&time, sensors);
-  int max_t = 50;
-  for (int i = 0; i < nu; i++) {
-    ctrl[i] = sensors[i];
-  }
-  for (int t=0; t<max_t; t++) { // 25 commands over 5 seconds?
-    for (int i = 0; i < nu; i++) {
-      double diff = 0.0 - sensors[i]; // end - start
-      ctrl[i] += diff / (double)max_t;
-    }
-    d->set_controls(ctrl, NULL, NULL);
-    printf(".");
-    fflush(stdout);
-    // wait for next cmd to interpolate
-    std::chrono::milliseconds interval(3000/max_t);
-    std::this_thread::sleep_for(interval);
-  }
-  printf(" done.\n");
-
+  zero_position(d, ctrl, sensors);
+  
   ////////////////////////////////// get first position of data
   int M_L = 9; // the two markers that should be parallel to the plane
   int M_R = 8;
@@ -270,6 +242,19 @@ int main (int argc, char* argv[]) {
   std::cout<<"Second position Rotated:\n"
     << (rot*l2).transpose() << "\n\n"
     << (rot*r2).transpose() << "\n\n";
+
+  std::ofstream myfile;
+  std::string filename = "rot.csv";
+  myfile.open(filename, std::ofstream::out);
+  myfile<<"rotation\n";
+  myfile<<rot<<"\n";
+  myfile<<"first\n";
+  myfile<<l1<<"\n";
+  myfile<<r1<<"\n";
+  myfile<<"second\n";
+  myfile<<l2<<"\n";
+  myfile<<r2<<"\n";
+  myfile.close();
 
   printf("Press enter to continue...\n");
   getchar();

@@ -7,7 +7,8 @@ list(REMOVE_ITEM DARWIN_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/test_contacts.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_darwin.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/calibrate_ps.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/loop_time.cpp )
+  ${CMAKE_CURRENT_SOURCE_DIR}/loop_time.cpp 
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_eigen.cpp )
 #${CMAKE_CURRENT_SOURCE_DIR}/walker.cpp )
 if (WIN32)
   list(REMOVE_ITEM DARWIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/LinuxCM730.cpp )
@@ -102,6 +103,8 @@ target_link_libraries(dxl_monitor darwin_hw )
 
 add_executable(calibrate_ps "calibrate_ps.cpp" )
 target_link_libraries(calibrate_ps darwin_hw )
+
+add_executable(test_eigen "test_eigen.cpp" )
 
 #target_link_libraries(test_darwin darwin_hw ${PHIDGETS_LIBRARIES} ${PHASESPACE_LIBRARIES})
 #target_include_directories(viewer PUBLIC ${CMAKE_CURRENT_BINARY_DIR})

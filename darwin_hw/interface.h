@@ -162,7 +162,13 @@ class DarwinRobot : public MyRobot {
       }
 
       int ret = cm730->BulkRead(); // need to do a blank read to init things
-
+      if (ret != CM730::SUCCESS) {
+        printf("BAD CM730 READ\n");
+        printf("BAD CM730 READ\n");
+        printf("BAD CM730 READ\n");
+        printf("BAD CM730 READ\n");
+      }
+ 
       int joint_num = 0;
       //int current[JointData::NUMBER_OF_JOINTS];
       this->pgain = new int[JointData::NUMBER_OF_JOINTS];
@@ -231,8 +237,6 @@ class DarwinRobot : public MyRobot {
         if (use_cm730) {
           body_data = std::async(std::launch::async, &CM730::BulkRead, cm730);
         }
-
-        
 
         double a[3];
         double g[3];

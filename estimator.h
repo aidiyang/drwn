@@ -375,7 +375,6 @@ class UKF : public Estimator {
       //m->opt.tolerance = 1e-6; 
       bool INV_CHECK = false;
       printf("Estimation start. t-1 = %f\n", d->time);
-
       // Optimization note:
       // when trying to do the fancy central point first scheme,
       // there are instabilities when using more than one thread

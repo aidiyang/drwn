@@ -1026,7 +1026,8 @@ void CM730::MakeBulkReadPacketMPC()
 
 	if(Ping(CM730::ID_CM, 0) == SUCCESS)
 	{
-		m_BulkReadTxPacket[PARAMETER+3*number+1] = 7; // 30 to get sensors
+        // 7 gets no sensors, 13 gets the gyros, 30 gets all
+		m_BulkReadTxPacket[PARAMETER+3*number+1] = 30;
 		//2 m_BulkReadTxPacket[PARAMETER+3*number+1] = 12; // 2
 		m_BulkReadTxPacket[PARAMETER+3*number+2] = CM730::ID_CM;
 		m_BulkReadTxPacket[PARAMETER+3*number+3] = CM730::P_DXL_POWER; // 1

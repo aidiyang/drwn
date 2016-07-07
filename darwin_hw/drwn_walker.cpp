@@ -38,7 +38,7 @@ Walking::Walking()
   A_MOVE_AMPLITUDE = 0;
   A_MOVE_AIM_ON = false;
   // TODO enable this
-  BALANCE_ENABLE = false;
+  BALANCE_ENABLE = true;
 
   m_Num_Steps = -1;
   m_Steps_Taken = 0;
@@ -600,6 +600,7 @@ void Walking::Process(double dt, double * gyro, double* ctrl)
   if (BALANCE_ENABLE == true && gyro) {
     double rlGyroErr = gyro[0]; //MotionStatus::RL_GYRO;
     double fbGyroErr = gyro[1]; //MotionStatus::FB_GYRO;
+    printf("\n%f %f\n", gyro[0], gyro[1]);
 
     outValue[1] += (int)(dir[1] * rlGyroErr * BALANCE_HIP_ROLL_GAIN * 4);	// R_HIP_ROLL
     outValue[7] += (int)(dir[7] * rlGyroErr * BALANCE_HIP_ROLL_GAIN * 4);	// L_HIP_ROLL

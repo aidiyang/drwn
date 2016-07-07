@@ -67,7 +67,7 @@ void zero_position(DarwinRobot *d, double* ctrl, double* sensors) {
   printf("Moving to initial position");
   double time;
   d->get_sensors(&time, sensors);
-  int max_t = 50;
+  int max_t = 150;
   double init[nu];
   for (int i = 0; i < nu; i++) {
     init[i] = ctrl[i]; // pass in initial goal position with ctrl
@@ -81,14 +81,13 @@ void zero_position(DarwinRobot *d, double* ctrl, double* sensors) {
     d->set_controls(ctrl, NULL, NULL);
     printf(".");
     fflush(stdout);
+
+    d->get_sensors(&time, sensors);
     // wait for next cmd to interpolate
-    std::chrono::milliseconds interval(3000/max_t);
-    std::this_thread::sleep_for(interval);
+    //std::chrono::milliseconds interval(3000/max_t);
+    //std::this_thread::sleep_for(interval);
   }
-  for (int i = 0; i < nu; i++) {
-    ctrl[i] = 0.0;
-  }
-  d->set_controls(ctrl, NULL, NULL);
+  d->set_controls(init, NULL, NULL); // force final position
   printf(" done.\n");
 }
 
@@ -158,17 +157,6 @@ int main (int argc, char* argv[]) {
       ("log,l", po::value<bool>(&log)->default_value(false), "Log sensor data.")
       ("ps_server,p", po::value<std::string>(&ps_server)->default_value("128.208.4.49"), "Where to save logged sensor data to csv.")
 
-      /*
-         ("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
-         ("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
-         ("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
-         ("alpha,a", po::value<double>(&alpha)->default_value(10e-3), "Alpha: UKF param")
-         ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
-         ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
-         ("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
-         ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
-         ("tol,i", po::value<double>(&tol)->default_value(-1.0), "Set Constraint Tolerance (default NONE).")
-         */
       //("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
       ;
 
@@ -188,11 +176,12 @@ int main (int argc, char* argv[]) {
     std::cerr << "Unknown error!\n";
     return 0;
   }
+  use_gyro = zero_gyro;
 
   double *p = NULL; // initial pose
   int* p_gain = new int[nu]; 
   for (int i=0; i<nu; i++) { // use sensors based on mujoco model
-    p_gain[i] = 2;
+    p_gain[i] = 20;
   }
   DarwinRobot *d = new DarwinRobot(joints, zero_gyro, use_rigid, use_markers,
       use_accel, use_gyro, use_ati, p_gain, ps_server, p);
@@ -224,19 +213,29 @@ int main (int argc, char* argv[]) {
   ////////////////////////////////// move to initial position
   walker->Initialize(ctrl); // new goal state
   zero_position(d, ctrl, sensors);
-
-  // make the log file to start
-  if (log) save_states("raw.csv", nu, nsensordata, time, ctrl, sensors, "w");
+  d->set_gyro_offsets();
+  double gyro[2];
 
   int count = 1000;
   double avg[count];
 
+  printf("Press w to walk.\n");
+  printf("Press q to quit.\n");
+  printf("Press enter to begin.\n");
+
+  changemode(1);
+  double init_time;
+  while (!kbhit()) {
+    d->get_sensors(&init_time, sensors);
+  }
+  getchar();
+
+  // make the log file to start
+  if (log) save_states(output_file, nu, nsensordata, time, ctrl, sensors, "w");
+
   double t1=0.0, t2=0.0;
   double prev_time = 0.0;
 
-  printf("Press w to walk.\n");
-  printf("Press q to quit.\n");
-  changemode(1);
   bool exit = false;
   bool walk = false;
   int idx=0;
@@ -250,38 +249,58 @@ int main (int argc, char* argv[]) {
         case 'w':
           if (walk) {
             walker->Stop();
-            printf("Stop walking.\n");
+            printf("\nStop walking.\n");
+            walk = false;
           }
           else {
             walker->Start();
-            printf("Start walking.\n");
+            printf("\nStart walking.\n");
+            walk = true;
           }
-          walk = !walk;
           break;
       }
     }
-    t1 = GetCurrentTimeMS();
     // get this t's sensor data
+    t1 = GetCurrentTimeMS();
     d->get_sensors(&time, sensors);
     t2 = GetCurrentTimeMS();
-    //for (int m=0; m<MARKER_SIZE; m++) {
-    //  ps[m] += sensors[40+m];
-    //}
+    time = time - init_time;
+
     // set this t's ctrl
-    if (walk) {
-      walker->Process(time-prev_time, 0, ctrl);
-    }
-    if (log) save_states("raw.csv", nu, nsensordata, time, ctrl, sensors, "a");
+    //
+    d->get_cm730_gyro(gyro);
+    printf("\ncm730 %f %f\n", gyro[0], gyro[1]);
+    gyro[0] = sensors[40+3+1]*57.2958;
+    gyro[1] = sensors[40+3+2]*57.2958;
+
+    //walker->Process(time-prev_time, gyro, ctrl);
+    walker->Process(time-prev_time, NULL, ctrl);
+    d->set_controls(ctrl, NULL, NULL);
+
+    if (log) save_states(output_file, nu, nsensordata, time, ctrl, sensors, "a");
 
     printf("\r");
-    printf("%f ms\t", t2-t1);
+    printf("%1.3f : %1.3f ms\t", time, t2-t1);
     for (int id=0; id<10; id++) {
       printf("%1.2f ", sensors[id]);
     }
-    printf("\t::\t");
-    for (int id=0; id<6; id++) {
-      printf("%1.6f ", sensors[40+id]);
+    //printf("\t::\t");
+    //for (int id=0; id<6; id++) {
+    //  printf("%1.6f ", sensors[40+id]);
+    //}
+    printf("\n");
+    int i=40;
+    if (use_accel) { printf("Accl: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3; }
+    if (use_gyro) { printf("Gyro: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3; }
+    if (use_ati) {
+        printf("Frce: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
+        printf("Trqe: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
+        printf("Frce: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
+        printf("Trqe: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
     }
+    //if (use_markers) {
+    //    printf("Trqe: %1.4f %1.4f %1.4f\n", sensors[i++], sensors[i++], sensors[i++]);
+    //}
 
     //printf("L: %1.4f %1.4f %1.4f : %1.4f\t\t",
     //    sensors[40+M_L*4+0], sensors[40+M_L*4+1], sensors[40+M_L*4+2], sensors[40+M_L*4+3]);
@@ -292,38 +311,10 @@ int main (int argc, char* argv[]) {
 
     prev_time = time;
   }
-  changemode(0);
   printf("\n\n");
 
-  /*
-     for (int i = 0; i < count; i++) {
 
-     t1 = GetCurrentTimeMS();
-     d->get_sensors(&time, sensors);
-     for (int id=0; id<20; id++) {
-     ctrl[id] = sensors[id];
-     }
-     d->set_controls(ctrl, NULL, NULL);
-     t2 = GetCurrentTimeMS();
-
-     printf("%f ms\t", t2-t1);
-     for (int id=0; id<10; id++) {
-     printf("%1.2f ", sensors[id]);
-     }
-     printf("\t::\t");
-     for (int id=0; id<6; id++) {
-     printf("%1.6f ", sensors[40+id]);
-     }
-     printf("\n");
-
-  // Do stuff with data
-  if (log) save_states("raw.csv", nu, nsensordata, time, ctrl, sensors, "a");
-
-  avg[i] = (t2-t1);
-  }
-  */
-
-  if (log) save_states("raw.csv", nu, nsensordata, 0.0, NULL, NULL, "c");
+  if (log) save_states(output_file, nu, nsensordata, 0.0, NULL, NULL, "c");
 
   double mean=0.0;
   double stddev=0.0;
@@ -338,11 +329,13 @@ int main (int argc, char* argv[]) {
   stddev = sqrt(stddev / count);
   printf("Average Timing: %f; Standard Deviation: %f\n", mean, stddev);
 
+  changemode(0);
+
   delete[] ctrl;
   delete[] sensors;
 
-  delete d;
   delete walker;
+  delete d;
 
 
   return 0;

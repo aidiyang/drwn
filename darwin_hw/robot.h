@@ -4,6 +4,7 @@
 class MyRobot {
   public:
     MyRobot() {}
+    virtual ~MyRobot() {}
 
     virtual bool get_sensors(double * time, double* sensor) { return false; }
 

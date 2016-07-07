@@ -10,7 +10,6 @@
 
 class SimDarwin : public MyRobot {
   private:
-    //bool darwin_ok;
 
     mjModel *m;
     mjData *d;

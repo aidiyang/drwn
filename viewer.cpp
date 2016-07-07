@@ -2,6 +2,7 @@
 #include "viewer_lib.h"
 #include "darwin_hw/drwn_walker.h"
 #include "darwin_hw/sim_interface.h"
+#include "darwin_hw/file_interface.h"
 
 #ifndef __APPLE__
    #include "darwin_hw/interface.h"
@@ -157,6 +158,7 @@ int main(int argc, const char** argv) {
 	//bool engage; // for real robot?
   std::string model_name;// = new std::string();
   std::string output_file;// = new std::string();
+  std::string input_file;
   double s_noise;
   double c_noise;
   double e_noise;
@@ -178,6 +180,7 @@ int main(int argc, const char** argv) {
 			//("engage,e", po::value<bool>(&engage)->default_value(false), "Engage motors for live run.")
 			("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
 			("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
+			("file,f", po::value<std::string>(&input_file)->default_value(""), "Use saved ctrl/sensor data as real robot.")
 			("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
 			//("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
 			("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
@@ -186,7 +189,7 @@ int main(int argc, const char** argv) {
 			("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
 			("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
 			("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
-			("alpha,a", po::value<double>(&alpha)->default_value(10e-3), "Alpha: UKF param")
+			("alpha,a", po::value<double>(&alpha)->default_value(0.001), "Alpha: UKF param")
 			("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
 			("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
 			("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
@@ -281,13 +284,19 @@ int main(int argc, const char** argv) {
     if (use_ati) printf("Using Force/Torque sensors\n");
     if (use_rigid || use_markers) printf("Using Phasespace Tracking\n");
 
-    robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers,
-        use_accel, use_gyro, use_ati, p_gain, ps_server, p);
+    if (input_file.length()) {
+      robot = new FileDarwin(m->nu, m->nsensordata, input_file);
+    }
+    else {
+      robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers,
+          use_accel, use_gyro, use_ati, p_gain, ps_server, p);
+    }
     delete[] p_gain;
   }
   else
 #endif
     robot = new SimDarwin(m, d, 2*dt, s_noise, s_time_noise, c_noise);
+
 
   double time = 0.0;
   double prev_time = 0.0;
@@ -298,14 +307,18 @@ int main(int argc, const char** argv) {
     ctrl[i] = 0.0;
   }
   double *sensors = new double[nsensordata];
-  //double *sensors = new double[nsensordata];
 
   // init darwin to walker pose
   Walking * walker = new Walking();
   if (nu >= 20) {
-      walker->Initialize(ctrl);
+    walker->Initialize(ctrl);
   }
-  robot->set_controls(ctrl, NULL, NULL);
+  robot->set_controls(ctrl, NULL, NULL); // for reading data in this gets the inital ctrl data
+  //if (input_file.length()) {
+  //  for (int i=0; i<nu; i++) {
+  //    d->ctrl[i] = ctrl[i]; // copies the data to our sim / est initializer
+  //  }
+  //}
 
   UKF * est = 0;
 
@@ -341,7 +354,7 @@ int main(int argc, const char** argv) {
           for (int i=(nv-1); i>(nv-20); i--) d->qvel[i] = init_qvel[c--];
         }
 
-        est = new UKF(m, d, alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
+        est = new UKF(m, d, m->numeric_data, alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
 
         est_data = est->get_state();
         if (real_robot) save_states(output_file, 0.0, NULL, est_data, est->get_stddev(), 0, 0, "w");
@@ -352,9 +365,19 @@ int main(int argc, const char** argv) {
         break;
     }
 
+    //double t_2 = now_t();
+
+    bool get_data_and_estimate = false;
+    if (input_file.length()) { // don't process unless we are estimating
+      get_data_and_estimate = (est!=NULL) && robot->get_sensors(&time, sensors);
+    }
+    else {
+      get_data_and_estimate = robot->get_sensors(&time, sensors);
+    }
+
     // simulate and render
     //printf("time: %f\t", d->time);
-    if (robot->get_sensors(&time, sensors)) {
+    if (get_data_and_estimate) {
 
       printf("robot hw time: %f\n", time);
       printf("prev time: %f\n", prev_time);
@@ -378,7 +401,6 @@ int main(int argc, const char** argv) {
       if (est) est->predict_correct(ctrl, time-prev_time, sensors);
 
       double t2 = now_t();
-
 
       printf("\n\t\t estimator predict %f ms, correct %f ms, total %f ms\n\n",
           t1-t0, t2-t1, t2-t0);
@@ -426,7 +448,7 @@ int main(int argc, const char** argv) {
       // we have estimated and logged the data,
       // now get new controls
       if (nu >= 20) {
-          walker->Process(time-prev_time, 0, ctrl);
+        walker->Process(time-prev_time, 0, ctrl);
       }
       robot->set_controls(ctrl, NULL, NULL);
 
@@ -456,6 +478,9 @@ int main(int argc, const char** argv) {
     }
 
     finalize();
+
+    //double t_1 = now_t();
+    //printf("\n\t\t Loop time: %f ms\n", t_1-t_2);
   }
 
   end_viz();

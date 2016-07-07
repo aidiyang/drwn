@@ -14,19 +14,21 @@ soft:
       <flag contact="disable"/>
    -->
 
-    <option	timestep="0.0025" iterations="50" tolerance="1e-2" solver="PGS" gravity="0 0 -9.81" >
+    <option	timestep="0.0025" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
     </option>
 
     <default>
 
-        <!--
+      <!--
       <geom solref=".02 1" solimp=".6 .9 .01" material="meshmat" margin='0.001' />
         -->
-      <geom condim='1' rgba='0.8 0.6 .4 1'
+      <geom condim='1' rgba='0.8 0.6 .4 1' />
+      <!--
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
+        -->
       <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
-      <position ctrllimited='true' kp='12'/>
-    
+      <position ctrllimited='true' kp='200'/>
+
       <default class='box'>
         <geom contype='1' conaffinity='0' rgba='.79 .52 .43 1'/>
       </default>
@@ -43,8 +45,8 @@ soft:
         <geom contype='0' conaffinity='0' rgba='.49 .22 .43 1'/>
       </default>
       <default class='uppers'>
-         <geom contype='0' conaffinity='4' rgba='.9 .22 .43 1'/>
-         <!-- collides with head (4) and torso (2) -->
+        <geom contype='0' conaffinity='4' rgba='.9 .22 .43 1'/>
+        <!-- collides with head (4) and torso (2) -->
       </default>
       <default class='ps_marker'>
         <site type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
@@ -53,6 +55,44 @@ soft:
         <site type="box" size="0.0035 0.003 0.001" rgba="1 0 0 1" />
       </default>
     </default>
+
+    <!--<size nuserdata="15" />-->
+    <custom>
+      <numeric name="snsr_covar" size="15" data=" 
+        1e-1
+        1e-3
+        1e-0
+        1e-0
+        1e-0
+        1e-0
+        1e-6
+        1e-4
+        1e-0
+        1e-0
+        1e-0
+        1e-6
+        1e-0
+        1e-0
+        1e-0
+        "
+        />
+<!-- Accelerometer -->
+<!-- Gyro          -->
+<!-- Force         -->
+<!-- Torque        -->
+<!-- JointPos      -->
+<!-- JointVel      -->
+<!-- TendonPos     -->
+<!-- TendonVel     -->
+<!-- ActuatorPos   -->
+<!-- ActuatorVel   -->
+<!-- ActuatorFrc   -->
+<!-- SitePos       -->
+<!-- SiteQuat      -->
+<!-- Magnetometer  -->
+<!-- Default       -->
+
+    </custom>
 
 
     <asset>
@@ -120,18 +160,18 @@ soft:
         <geom material="meshmat" size=".02 .02 .03" type="box"/>
       </body>
       -->
-      <body name="torso" pos="0 0 0.4">
+      <body name="torso" pos="0 0 0.47">
         <inertial diaginertia="6.53693 6.39822 1.88344" mass="0.975599" pos="-0.003053 -0.038651 -0.019268" quat="-0.00879356 0.867004 0.0524199 0.495458"/>
-        <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
-        <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
-        <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
+        <!--
+        <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+        <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+        <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
 
-        <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
-        <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0" armature="0"/>
-        <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" damping="0" armature="0"/>
-        <!--
         -->
+        <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <!--
+        <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+        <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint type="free" limited='false' />
         -->
         <geom name="torso" material="meshmat" contype="2" conaffinity="0" mesh="body_coll" type="mesh" class='box'/>
@@ -275,7 +315,7 @@ soft:
 
                     <geom class="visual" material="meshmat" mesh="ankle_coll" pos="0.033 0 0" euler="0 -1.5708 -1.5708" type="mesh"/>
                     <body name="toes_r" pos="0.015 0 0" quat="1.0 0 0 0">
-                      <site name="right_ati" pos="0.0287 0 0.0" euler="0 1.5708 0" type="cylinder" size="0.0125 0.0108" rgba="1 0 0 1" />
+                      <site name="right_ati" pos="0.0287 0 0.0" euler="0 -1.5708 0" type="cylinder" size="0.0125 0.0108" rgba="1 0 0 1" />
                       <!--
                       <geom class='right leg' type='box' group='1' size='.001 .033 .052' pos='.043 -.0105 0' />
                       -->

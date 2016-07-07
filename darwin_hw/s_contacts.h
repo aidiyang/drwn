@@ -136,7 +136,7 @@ close:
       static int responseSize = 14 + SamplesPerPacket * 2;
       if (this->m_Initialized) {
         int recChars, backLog;
-        int i, j, k, m, currChannel, scanNumber;
+        int j, k, m, currChannel, scanNumber;
         uint16 voltageBytes, checksumTotal;
         int autoRecoveryOn;
 
@@ -164,7 +164,7 @@ close:
           volts[k] = 0.0;
           count[k] = 0;
         }
-        double t1 = getTickCount();
+        //double t1 = getTickCount();
         for (j = 0; j < numReadsPerDisplay; j++) {
           /* For USB StreamData, use Endpoint 3 for reads.  You can read the multiple
            * StreamData responses of 64 bytes only if SamplesPerPacket is 25 to help
@@ -253,7 +253,7 @@ close:
             else packetCounter++;
           }
         }
-        double t2 = getTickCount();
+        //double t2 = getTickCount();
 
         //printf("\nNumber of scans: %d\n", scanNumber);
         //printf("Total packets read: %d\n", totalPackets);

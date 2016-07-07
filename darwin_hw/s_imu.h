@@ -114,47 +114,47 @@ class PhidgetIMU {
 	  a[2] =      9.81*r[2];
 	  if (CPhidgetSpatial_getAngularRate(imu, 0, r + 1)) {imu_ok=false;}
 	  if (CPhidgetSpatial_getAngularRate(imu, 1, r + 2)) {imu_ok=false;}
-	  if (CPhidgetSpatial_getAngularRate(imu, 2, r + 0)) {imu_ok=false;}
-	  for (int i = 0; i < 3; i++) {
-		g[i] = 0.0017453*r[i];
-	  }
-	  return imu_ok;
-	}
+      if (CPhidgetSpatial_getAngularRate(imu, 2, r + 0)) {imu_ok=false;}
+      g[0] = 0.017453*r[2];
+      g[1] = 0.017453*r[1];
+      g[2] = -0.017453*r[0];
+      return imu_ok;
+    }
 
-	void getAccel(double *a) {
-	  double r[3];
-	  CPhidgetSpatial_getAcceleration(imu, 0, r+1);
-	  CPhidgetSpatial_getAcceleration(imu, 1, r+0);
-	  CPhidgetSpatial_getAcceleration(imu, 2, r+2);
+    void getAccel(double *a) {
+        double r[3];
+        CPhidgetSpatial_getAcceleration(imu, 0, r+1);
+        CPhidgetSpatial_getAcceleration(imu, 1, r+0);
+        CPhidgetSpatial_getAcceleration(imu, 2, r+2);
 
-	  a[0] = -1.0*9.81*r[0];
-	  a[1] = -1.0*9.81*r[1];
-	  a[2] =      9.81*r[2];
+        a[0] = -1.0*9.81*r[0];
+        a[1] = -1.0*9.81*r[1];
+        a[2] =      9.81*r[2];
 
-	}
+    }
 
-	void getGyro(double *g) {
-	  double r[3];
-	  CPhidgetSpatial_getAngularRate(imu, 0, r + 1);
-	  CPhidgetSpatial_getAngularRate(imu, 1, r + 2);
-	  CPhidgetSpatial_getAngularRate(imu, 2, r + 0);
-	  for (int i = 0; i < 3; i++) {
-		g[i] = 0.0017453*r[i];
-	  }
-	}
+    void getGyro(double *g) {
+        double r[3];
+        CPhidgetSpatial_getAngularRate(imu, 0, r + 1);
+        CPhidgetSpatial_getAngularRate(imu, 1, r + 2);
+        CPhidgetSpatial_getAngularRate(imu, 2, r + 0);
+        for (int i = 0; i < 3; i++) {
+            g[i] = 0.017453*r[i];
+        }
+    }
 
-	~PhidgetIMU() {
-	  // close handle
-	  CPhidget_close((CPhidgetHandle)imu);
-	  CPhidget_delete((CPhidgetHandle)imu);
-	}
+    ~PhidgetIMU() {
+        // close handle
+        CPhidget_close((CPhidgetHandle)imu);
+        CPhidget_delete((CPhidgetHandle)imu);
+    }
 
-	/*
-	   Vector3d get_accel() { return Vector3d(accel); }
-	   Vector3d get_grav() { return Vector3d(gravi); }
-	   Vector3d get_gyro() { return Vector3d(gyro); }
-	   */
-	std::array<double, 3> const & get_accel() const { return accel; }
-	std::array<double, 3> const & get_grav() const { return gravi; }
-	std::array<double, 3> const & get_gyro() const { return gyro; }
-};
+    /*
+       Vector3d get_accel() { return Vector3d(accel); }
+       Vector3d get_grav() { return Vector3d(gravi); }
+       Vector3d get_gyro() { return Vector3d(gyro); }
+       */
+    std::array<double, 3> const & get_accel() const { return accel; }
+    std::array<double, 3> const & get_grav() const { return gravi; }
+    std::array<double, 3> const & get_gyro() const { return gyro; }
+    };

@@ -274,7 +274,7 @@ int main (int argc, char* argv[]) {
     for (int m=0; m<MARKER_SIZE; m++) {
       ps[m] = sensors[40+m];
     }
-    for (int m=0; m<MARKER_SIZE; m++) {
+    for (int m=0; m<16; m++) {
       rotated[m] << ps[m*4+0], ps[m*4+1], ps[m*4+2];
       rotated[m] = rot* rotated[m]; // - initial[m]; plus the mujoco offsets?
     }

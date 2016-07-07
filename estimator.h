@@ -78,7 +78,7 @@ class Estimator {
 
 class UKF : public Estimator {
   public:
-    UKF(mjModel *m, mjData * d,
+    UKF(mjModel *m, mjData * d, double * snsr_weights, 
         double _alpha, double _beta, double _kappa,
         double _diag, double _Ws0, double _noise,
         double _tol,
@@ -204,25 +204,50 @@ class UKF : public Estimator {
 
       PzAdd = MatrixXd::Identity(m->nsensordata, m->nsensordata);
       int my_sensordata=0;
+      double default_snsr[15] = {1e-4,1e-7,1e-4,1e-6,1e-7,1e-5,1e-4,1e-5,1e-4,1e-5,1e-3,1e-7,1e-4,1e-5,1e-2};
+      double snsr_ptr[15];
+      if (m->nnumericdata >= 15) {
+        for (int i=0; i<15; i++)
+          snsr_ptr[i] = snsr_weights[i];
+      } else {
+        for (int i=0; i<15; i++)
+          snsr_ptr[i] = default_snsr[i];
+      }
+      printf("Sensor Covariance Matrix Diagonal:\n");
+      printf("    Accelerometer: %e\n", snsr_ptr[0]);
+      printf("    Gyro         : %e\n", snsr_ptr[1]);
+      printf("    Force        : %e\n", snsr_ptr[2]);
+      printf("    Torque       : %e\n", snsr_ptr[3]);
+      printf("    JointPos     : %e\n", snsr_ptr[4]);
+      printf("    JointVel     : %e\n", snsr_ptr[5]);
+      printf("    TendonPos    : %e\n", snsr_ptr[6]);
+      printf("    TendonVel    : %e\n", snsr_ptr[7]);
+      printf("    ActuatorPos  : %e\n", snsr_ptr[8]);
+      printf("    ActuatorVel  : %e\n", snsr_ptr[9]);
+      printf("    ActuatorFrc  : %e\n", snsr_ptr[10]);
+      printf("    SitePos      : %e\n", snsr_ptr[11]);
+      printf("    SiteQuat     : %e\n", snsr_ptr[12]);
+      printf("    Magnetometer : %e\n", snsr_ptr[13]);
+      printf("    Default      : %e\n", snsr_ptr[14]);
       for (int i = 0; i < m->nsensor; i++) {
         int type = m->sensor_type[i];
         double var = 0;
         switch (type) {
-          case 1: var = 1e-3; break;   //Accelerometer
-          case 2: var = 1e-3; break;   //Gyro
-          case 3: var = 1e-4; break;   //Force
-          case 4: var = 1e-4; break;   //Torque
-          case 5: var = 1e-7; break;   //JointPos
-          case 6: var = 1e-5; break;   //JointVel
-          case 7: var = 1e-4; break;   //TendonPos
-          case 8: var = 1e-5; break;   //TendonVel
-          case 9: var = 1e-4; break;   //ActuatorPos
-          case 10: var = 1e-5; break;  //ActuatorVel
-          case 11: var = 1e-3; break;  //ActuatorFrc
-          case 12: var = 1e-8; break;  //SitePos
-          case 13: var = 1e-4; break;  //SiteQuat
-          case 14: var = 1e-5; break;  //Magnetometer (WTF?)
-          default: var = 1e-2; break;
+          case 1:  var = snsr_ptr[0]; break;   //Accelerometer
+          case 2:  var = snsr_ptr[1]; break;   //Gyro
+          case 3:  var = snsr_ptr[2]; break;   //Force
+          case 4:  var = snsr_ptr[3]; break;   //Torque
+          case 5:  var = snsr_ptr[4]; break;   //JointPos
+          case 6:  var = snsr_ptr[5]; break;   //JointVel
+          case 7:  var = snsr_ptr[6]; break;   //TendonPos
+          case 8:  var = snsr_ptr[7]; break;   //TendonVel
+          case 9:  var = snsr_ptr[8]; break;   //ActuatorPos
+          case 10: var = snsr_ptr[9]; break;   //ActuatorVel
+          case 11: var = snsr_ptr[10]; break;  //ActuatorFrc
+          case 12: var = snsr_ptr[11]; break;  //SitePos
+          case 13: var = snsr_ptr[12]; break;  //SiteQuat
+          case 14: var = snsr_ptr[13]; break;  //Magnetometer (WTF?)
+          default: var = snsr_ptr[14]; break;
 
         }
         for (int j=my_sensordata; j<(m->sensor_dim[i]+my_sensordata); j++) {
@@ -596,10 +621,10 @@ class UKF : public Estimator {
       W_s[0] = b;
       W_c[0] = b;
       for (int i=1; i<N; i++) { W_s[i] = a * W_theta[i] + b; W_c[i] = W_s[i]; }
-      double sum = 0.0;
-      printf("\nScaled Weights:\n");
-      for (int i=0; i<N; i++) { sum += W_s[i]; printf("%1.3f ", W_s[i]); }
-      printf("\nScaled Weights Sum: %f\n", sum);
+      //double sum = 0.0;
+      //printf("\nScaled Weights:\n");
+      //for (int i=0; i<N; i++) { sum += W_s[i]; printf("%1.3f ", W_s[i]); }
+      //printf("\nScaled Weights Sum: %f\n", sum);
 
       // aprior mean
       x_t.setZero();

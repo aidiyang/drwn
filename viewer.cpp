@@ -307,7 +307,7 @@ int main(int argc, const char** argv) {
   }
   robot->set_controls(ctrl, NULL, NULL);
 
-  UKF * est = 0;
+  Estimator * est = 0;
 
   // init estimator from darwin 'robot'
   printf("DT is set %f\n", dt);

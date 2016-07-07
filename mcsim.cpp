@@ -20,13 +20,17 @@
 #include <iostream>
 
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 
 using namespace Eigen;
 namespace po = boost::program_options;
-char error[1000];
+namespace fs = boost::filesystem;
+
+//char error[1000];
 mjModel* m; // defined in viewer_lib.h to capture perturbations
 mjData* d;
 
+//Convert inputted array in a string
 std::string makeString(double arr[], int size) {
   std::stringstream ss;
   for(int i = 0; i < size; i++) {
@@ -39,8 +43,10 @@ std::string makeString(double arr[], int size) {
   return s;
 }
 
-std::ofstream myfile;
+std::ofstream myfile; //Need global file or no?
 std::string to_string(double x);
+
+//Save the states of real, estimate, and covar (stddev) to inputed file
 void save_states(std::string filename, mjModel *m, mjData *real, mjData *est, mjData *stddev,
       std::string mode = "w") {
   if (mode=="w") {
@@ -128,27 +134,26 @@ int main(int argc, const char** argv) {
   double kappa;
   double diag;
   double Ws0;
-  int num_threads = omp_get_num_procs()>>1;
+  int num_threads = 1;//omp_get_num_procs();
 
-	
 	try {
 		po::options_description desc("Allowed options");
 		desc.add_options()
 			("help", "Usage guide")
 			//("engage,e", po::value<bool>(&engage)->default_value(false), "Engage motors for live run.")
 			("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
-      ("directory, d", po::value<std::string>(&dir)->default_value("./mcouts/"), "Directory name to put out files in")
+      ("dir", po::value<std::string>(&dir)->default_value("./mcouts/"), "Directory name to put out files in")
 			("output, o", po::value<std::string>(&output_file)->default_value("mcout"), "Output file prefix.")
-			("timesteps,t", po::value<int>(&maxtime)->default_value(500), "Number of times to allow estimator to run before quitting.")
+			("timesteps,t", po::value<int>(&maxtime)->default_value(100), "Number of times to allow estimator to run before quitting.")
 			("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
 			("c_noise,c", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
 			("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
-			("simulations,i", po::value<int>(&sim)->default_value(100), "Number of simulations to do")
+			("simulations,i", po::value<int>(&sim)->default_value(30), "Number of simulations to do")
       ("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
       ("alpha,a", po::value<double>(&alpha)->default_value(10e-3), "Alpha: UKF param")
       ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
       ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
-      ("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
+      ("diagonal,d", po::value<double>(&diag)->default_value(1e-6), "Diagonal amount to add to UKF covariance matrix.")
       ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
       ;
 
@@ -191,8 +196,15 @@ int main(int argc, const char** argv) {
   printf("UKF diag:\t\t%f\n", diag);
   printf("UKF Ws0:\t\t%f\n", Ws0);
 
+  //Make directory if does not exist yet
+  if(!fs::is_directory(dir)) {
+    //boost::filesystem::path dir(dir);
+    boost::filesystem::create_directory(dir);
+    printf("Made directory");
+  }  
 
   mjModel* m = mj_loadXML(model_name.c_str(), 0, 0, 0);
+  //Estimator * est = 0;
 
   printf("total state vector size:\t%u\n", m->nq+m->nv+m->nu+m->nsensordata + 1);
 
@@ -200,34 +212,42 @@ int main(int argc, const char** argv) {
   static std::random_device rd;
   static std::mt19937 rng(rd());
   static std::normal_distribution<> nd(0, c_noise);
+  static std::normal_distribution<> snd(0, s_noise);
   double estctrl[m->nu];
+  double estsensor[m->nsensordata];
   for (int i = 0; i<m->nu; i++) {
     estctrl[i] = 0;
   }
 
-  UKF * est = 0;
-
 //#pragma omp parallel for
   for(int i=0; i<sim; i++) {
     mjData* d = mj_makeData(m);   //remake data (reset robot) in order to start at time 0.0 again
-    est = new UKF(m, d, alpha, beta, kappa, diag, Ws0, e_noise, -1, debug, num_threads);   //Make new UKF estimator
+    mj_forward(m,d); // init
+    Estimator * est = new UKF(m, d, alpha, beta, kappa, diag, Ws0, e_noise, -1, debug, 1);   //Make new UKF estimator
     std::stringstream mcname;
-    mcname<<dir<<output_file<<"_"<<i<<".csv";   //MCout file prefix
+    mcname<<"./"<<dir<<"/"<<output_file<<"_"<<i<<".csv";   //MCout file prefix
     std::string filename = mcname.str();
     save_states(filename, m, d, est->get_state(), est->get_stddev(), "w");  //Create/open MC file
     for(int j = 0; j<maxtime; j++) {
       //Make control noise array
-      for (int k = 0; k<m->nu; k++) {
+      for (int k = 0; k < m->nu; k++) {
         d->ctrl[k] = nd(rng);
       }
+      for (int k = 0; k < m->nsensordata; k++) {
+        estsensor[k] = d->sensordata[k] + snd(rng);
+      }
       save_states(filename, m, d, est->get_state(), est->get_stddev(), "a");
-      mj_step(m, d);
-      est->predict_correct(estctrl, m->opt.timestep, d->sensordata);
+      //mj_step(m,d);
+      mj_Euler(m,d);
+      mj_forward(m,d);
+      mj_sensor(m,d);
+      est->predict_correct(estctrl, m->opt.timestep, estsensor);
 	  }
     save_states(filename, m, d, est->get_state(), est->get_stddev(), "a");
-    myfile.close();
+    myfile.close();     //Close file, if don't use global file, use save_states close
     mj_deleteData(d);   //free data
-    delete est;
+    delete est;         //Delete UKF to free data
+
   }
 
 }

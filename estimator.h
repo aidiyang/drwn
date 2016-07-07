@@ -58,7 +58,12 @@ class Estimator {
     //virtual void init();
     virtual void predict(double * ctrl, double dt) {};
     virtual void correct(double* sensors) {};
+    virtual void predict_correct(double * ctrl, double dt, double* sensors) {};
+    virtual mjData* get_state() {return this->d; };
+    virtual mjData* get_stddev() {return this->d; };
+    virtual std::vector<mjData*> get_sigmas() {return sigma_states; };
 
+    std::vector<mjData *> sigma_states;
     mjModel* m;
     mjData* d;
     int nq;
@@ -66,15 +71,7 @@ class Estimator {
     int nu;
 };
 
-/*
-   class EKF : public Estimator {
-   public:
-   EKF(mjModel *m, mjData * d) : Estimator() {
-   };
-   ~EKF() : ~Estimator() {};
 
-   };
-   */
 
 class UKF : public Estimator {
   public:
@@ -85,6 +82,7 @@ class UKF : public Estimator {
         bool debug = false, int threads = 1) : Estimator(m, d) {
 
       ctrl_state = false;
+      num_threads = threads;
 
       L = nq + nv; // size of state dimensions
       if (ctrl_state) L += nu;
@@ -408,11 +406,18 @@ class UKF : public Estimator {
 #pragma omp parallel
       {
         //double omp1 = omp_get_wtime()*1000.0;
-        int tid = omp_get_thread_num();
+        int s, e, tid;
+        if (num_threads > 1) {
+        tid = omp_get_thread_num();
         int t = omp_get_num_threads();
-        int s = tid * L / t;
-        int e = (tid + 1 ) * L / t;
+        s = tid * L / t;
+        e = (tid + 1 ) * L / t;
         if (tid == t-1) e = L;
+      } else {
+        tid = 0;
+        s=0;
+        e=L;
+      }
 
         mjData *t_d = sigmas[tid];
 
@@ -595,10 +600,10 @@ class UKF : public Estimator {
       W_s[0] = b;
       W_c[0] = b;
       for (int i=1; i<N; i++) { W_s[i] = a * W_theta[i] + b; W_c[i] = W_s[i]; }
-      double sum = 0.0;
-      printf("\nScaled Weights:\n");
-      for (int i=0; i<N; i++) { sum += W_s[i]; printf("%1.3f ", W_s[i]); }
-      printf("\nScaled Weights Sum: %f\n", sum);
+      //double sum = 0.0;
+      //printf("\nScaled Weights:\n");
+      //for (int i=0; i<N; i++) { sum += W_s[i]; printf("%1.3f ", W_s[i]); }
+      //printf("\nScaled Weights Sum: %f\n", sum);
 
       // aprior mean
       x_t.setZero();
@@ -1048,6 +1053,7 @@ class UKF : public Estimator {
   private:
     int L;
     int N;
+    int num_threads;
     double alpha;
     double beta;
     double lambda;

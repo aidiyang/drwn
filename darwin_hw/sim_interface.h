@@ -76,7 +76,7 @@ class SimDarwin : public MyRobot {
     //}
 
     //bool get_state(double* time, double* qpos, double* qvel, double *sensor) {
-    bool get_sensors(double * time, double* sensor) {
+    bool get_sensors(double * time, double* sensor, double* conf) {
 
       *time = d->time;
       if (d->time < sensor_time ) {

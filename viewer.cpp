@@ -262,6 +262,7 @@ int main(int argc, const char** argv) {
     bool zero_gyro = true;
     bool use_rigid = false;
     bool use_markers = true;
+    bool use_raw = false;
     std::string ps_server = "128.208.4.49";
     double *p = NULL; // initial pose
     bool use_accel = false;
@@ -288,7 +289,7 @@ int main(int argc, const char** argv) {
       robot = new FileDarwin(m->nu, m->nsensordata, input_file);
     }
     else {
-      robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers,
+      robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers, use_raw,
           use_accel, use_gyro, use_ati, p_gain, ps_server, p);
     }
     delete[] p_gain;
@@ -307,6 +308,7 @@ int main(int argc, const char** argv) {
     ctrl[i] = 0.0;
   }
   double *sensors = new double[nsensordata];
+  double *conf = new double[16];
 
   // init darwin to walker pose
   Walking * walker = new Walking();
@@ -369,10 +371,10 @@ int main(int argc, const char** argv) {
 
     bool get_data_and_estimate = false;
     if (input_file.length()) { // don't process unless we are estimating
-      get_data_and_estimate = (est!=NULL) && robot->get_sensors(&time, sensors);
+      get_data_and_estimate = (est!=NULL) && robot->get_sensors(&time, sensors, conf);
     }
     else {
-      get_data_and_estimate = robot->get_sensors(&time, sensors);
+      get_data_and_estimate = robot->get_sensors(&time, sensors, conf);
     }
 
     // simulate and render
@@ -398,7 +400,7 @@ int main(int argc, const char** argv) {
       double t1 = now_t();
       //if (est) est->correct(sensors);
       printf("prev time: %f\n", prev_time);
-      if (est) est->predict_correct(ctrl, time-prev_time, sensors);
+      if (est) est->predict_correct(ctrl, time-prev_time, sensors, conf);
 
       double t2 = now_t();
 
@@ -501,6 +503,7 @@ int main(int argc, const char** argv) {
   delete[] qvel;
   delete[] ctrl;
   delete[] sensors;
+  delete[] conf;
   delete est;
 
   return 0;

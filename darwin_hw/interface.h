@@ -20,8 +20,12 @@
 
 #include "robot.h"
 
+#include <Eigen/Dense>
+#include <vector>
+#include <math.h>
 
 using namespace Robot;
+using namespace Eigen;
 
 class DarwinRobot : public MyRobot {
   private:
@@ -44,6 +48,11 @@ class DarwinRobot : public MyRobot {
     bool use_gyro;
     bool use_ati;
     bool use_cm730;
+    bool use_raw;
+
+    Matrix3d table_rotation;
+    Matrix3d init_pos;
+    Vector3d *offset;
 
 #ifdef _WIN32
     std::string BOARD_NAME="\\\\.\\COM3";
@@ -54,7 +63,7 @@ class DarwinRobot : public MyRobot {
 #endif
 
   public:
-    DarwinRobot(bool joints, bool zero_gyro, bool use_rigid, bool use_markers,
+    DarwinRobot(bool joints, bool zero_gyro, bool use_rigid, bool use_markers, bool raw_markers,
         bool _use_accel, bool _use_gyro, bool _use_ati, int* p_gain, 
         std::string ps_server, double* p) {
       //phasespace: bool use_rigid = true;
@@ -64,11 +73,16 @@ class DarwinRobot : public MyRobot {
       //auto init1 = std::async(std::launch::async, &DarwinRobot::init_CM730, this, 2, 0);
       
       this->use_ps = use_rigid | use_markers;
+      this->use_raw = raw_markers;
       this->use_accel = _use_accel;
       this->use_gyro = _use_gyro;
       this->use_imu = use_accel| use_gyro;
       this->use_ati = _use_ati;
       this->use_cm730 = joints;
+
+      table_rotation = Matrix3d::Identity();
+      init_pos = Matrix3d::Identity();
+      offset = new Vector3d[16];
 
       std::future<bool> init3, init4; 
         auto init2 = std::async(std::launch::async, &DarwinRobot::init_phasespace, this, ps_server, use_rigid, use_markers);
@@ -117,6 +131,7 @@ class DarwinRobot : public MyRobot {
       delete this->cm730;
       delete this->imu;
       delete this->ps;
+      delete[] offset;
       delete[] this->cmd_vec;
       delete[] this->i_pose;
     }
@@ -182,6 +197,8 @@ class DarwinRobot : public MyRobot {
       this->pgain[JointData::ID_HEAD_TILT]=p[JointData::ID_HEAD_TILT];
       this->dgain[JointData::ID_HEAD_PAN]=0; //d[JointData::ID_HEAD_PAN];
       this->dgain[JointData::ID_HEAD_TILT]=0; //d[JointData::ID_HEAD_TILT];
+
+
 
       return true;
     }
@@ -270,14 +287,14 @@ class DarwinRobot : public MyRobot {
       printf("\nFBGyroCenter:%d , RLGyroCenter:%d \n", m_FBGyroCenter, m_RLGyroCenter);
     }
 
-    bool get_cm730_gyro(double* gyro) {
+    void get_cm730_gyro(double* gyro) {
       gyro[0] =
         cm730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_GYRO_X_L) - m_RLGyroCenter;
       gyro[1] =
         cm730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_GYRO_Y_L) - m_FBGyroCenter;
     }
 
-    bool get_sensors(double * time, double* sensor) {
+    bool get_sensors(double * time, double* sensor, double* conf) {
       // TODO convert this to just be for sensor vector: 20, 20, 3, 3, 6, 6
       // and phasespace markers
       // get data from sensors, process into qpos, qvel 
@@ -325,10 +342,31 @@ class DarwinRobot : public MyRobot {
         //printf("ATI Sensor Time: %f ms\n", t2-t1);
 
         //double pose[8];
-        //double markers[16*4]; // 16 markers * (x, y, z, confidence)
-        double * markers = sensor+idx;
-        if (use_ps && !(ps->getMarkers(markers))) {
+        double markers[16*4]; // 16 markers * (x, y, z, confidence)
+        double * m_ptr = sensor+idx;
+        if (use_ps) {
+           if (!(ps->getMarkers(markers))) {
             return false;
+           }
+           else {
+               // TODO get marker confidence and rotations; etc
+               // table rotation, initial rotation
+               if (!use_raw) {
+                   for (int i=0; i<16; i++) { // TODO fix this hard coded number
+                       //Vector3d m(markers[i*4+0],markers[i*4+1],markers[i*4+2]);
+                       Map<Vector3d> m(markers + i*4);
+                       m = init_pos*table_rotation*m - offset[i]; // apply the rotation
+                   }
+               }
+               for (int i=0; i<16; i++) { // TODO fix this hard coded number
+                   m_ptr[i*3+0] = markers[i*4 + 0];
+                   m_ptr[i*3+1] = markers[i*4 + 1];
+                   m_ptr[i*3+2] = markers[i*4 + 2];
+                   if (conf) {
+                       conf[i] = markers[i*4 + 3];
+                   }
+               }
+           }
         }
 
         if (use_cm730) {
@@ -373,17 +411,6 @@ class DarwinRobot : public MyRobot {
             current[joint+1]=radian2joint(u[joint]);
         }
 
-        /* OLD ctrl order that matches qpos
-           for (int joint=0; joint<JointData::ID_R_HIP_ROLL; joint++) {
-           joint_num++;
-           current[joint_num]=radian2joint(u[joint]);
-           joint_num++;
-           current[joint_num]=radian2joint(u[joint+9]);
-           }
-           current[JointData::ID_HEAD_PAN]=radian2joint(u[JointData::ID_HEAD_PAN]);
-           current[JointData::ID_HEAD_TILT]=radian2joint(u[JointData::ID_HEAD_TILT]);
-           */
-
         // TODO setting pgain and dgain not configured yet
         if (use_cm730 && darwin_ok) {
             int n = 0;
@@ -405,4 +432,53 @@ class DarwinRobot : public MyRobot {
         }
     }
 
+    void set_frame_rotation(Matrix3d rot) {
+        table_rotation = rot;
+        std::cout<<"Table rotation Matrix set to be:\n"<<table_rotation<<std::endl;
+    }
+
+    double angle(Vector3d v1, Vector3d v2) {
+        double angle_diff = v1.dot(v2) / (v1.norm() * v2.norm());
+        if (angle_diff < -1) angle_diff = -1.0;
+        if (angle_diff >  1) angle_diff =  1.0;
+        angle_diff = acos(angle_diff);
+
+        return angle_diff;
+    }
+
+    // given real_chest marker positions, get the rotational offset
+    void set_initpos_rt(Vector3d vec_r, Vector3d vec_s, double* mrkr, double *pose) {
+
+        Vector3d vec_z(1,0,0);
+        vec_z.normalize();
+
+        vec_r.normalize();
+        vec_s.normalize();
+
+        printf("Chest Vector from markers, norm: %f\n", vec_r.norm());
+        printf("Chest Vector from Simultr, norm: %f\n", vec_s.norm());
+
+        double angle_diff = angle(vec_r, vec_s);
+        std::cout<<"Angle difference: "<<angle_diff*180/3.1415<<", radian:"<<angle_diff<<"\n";
+
+        double a1 = angle(vec_r, vec_z);
+        double a2 = angle(vec_s, vec_z);
+
+        std::cout<<"Angles (degrees) from independent point:"<<a1*180/3.1415<<", "<<a2*180/3.1415<<"\n";
+
+        if (a2 > a1) {
+            init_pos<< cos(angle_diff),  sin(angle_diff), 0, -1*sin(angle_diff), cos(angle_diff), 0, 0, 0, 1;
+        }
+        else {
+            init_pos<< cos(angle_diff),  -1*sin(angle_diff), 0, sin(angle_diff), cos(angle_diff), 0, 0, 0, 1;
+        }
+
+        std::cout<<"Rotation Matrix for initial position:\n"<<init_pos<<std::endl;
+
+        for (int i=0; i<16; i++) { // calculate the offset
+            Map<Vector3d> p(pose+i*3);
+            Map<Vector3d> m(mrkr+i*3);
+            offset[i] = init_pos*table_rotation*m - p;
+        }
+    }
 };

@@ -77,7 +77,6 @@ class ContactSensors {
 
       // Initialize Labjack u6
       long error=0;
-      int idx = 7;
       if( (hDevice = openUSBConnection(-1)) == NULL ) { // should only have one u6...
         printf("Couldn't open U6. Please connect one and try again.\n");
         goto close;

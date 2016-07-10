@@ -341,11 +341,9 @@ int main(int argc, const char** argv) {
       for (int i=0; i<100; i++)
           mj_step(m, d);
   }
-  else {
-      robot->set_controls(ctrl, NULL, NULL); // for reading data in this gets the inital ctrl data
-  }
-  
-  UKF * est = 0;
+  robot->set_controls(ctrl, NULL, NULL);
+
+  Estimator * est = 0;
 
   // init estimator from darwin 'robot'
   printf("DT is set %f\n", dt);

@@ -68,15 +68,7 @@ class Estimator {
         int ns;
 };
 
-/*
-   class EKF : public Estimator {
-   public:
-   EKF(mjModel *m, mjData * d) : Estimator() {
-   };
-   ~EKF() : ~Estimator() {};
 
-   };
-   */
 
 class UKF : public Estimator {
     public:
@@ -286,6 +278,7 @@ class UKF : public Estimator {
             static std::normal_distribution<> nd(0, 0.01);
 
             return nd(rng);
+
         }
 
         double sensor_sample(double a) {
@@ -760,14 +753,7 @@ class UKF : public Estimator {
 
             m->opt.timestep = dt; // smoother way of doing this?
 
-            mju_copy(d->ctrl, ctrl, nu); // set controls for the center point
-            if (ctrl_state) mju_copy(&x_t(nq+nv), ctrl, nu);
-            // qpos and qvel set previously
 
-            // d has the previous estimate already set
-            //mju_copy(&x[0](0),  d->qpos, nq);
-            //mju_copy(&x[0](nq), d->qvel, nv);
-            x[0] = x_t;
 
             double t3 = omp_get_wtime()*1000.0;
 
@@ -1134,6 +1120,7 @@ class UKF : public Estimator {
 
         bool NUMBER_CHECK;
         bool ctrl_state;
+
 };
 
 

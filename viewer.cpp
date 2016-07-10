@@ -135,12 +135,14 @@ void save_states(std::string filename, double time,
 
 }
 
-double * get_numeric_field(const mjModel* m, std::string s) {
+double * get_numeric_field(const mjModel* m, std::string s, int *size) {
   for (int i=0; i<m->nnumeric; i++) {
     std::string f = m->names + m->name_numericadr[i];
-    printf("%s\n", f.c_str());
+    //printf("%d %s %d\n", m->numeric_adr[i], f.c_str(), m->numeric_size[i]);
     if (s.compare(f) == 0) {
-      return m->numeric_data + m->numeric_size[i];
+      if (size)
+        *size = m->numeric_size[i];
+      return m->numeric_data + m->numeric_adr[i];
     }
   }
   return 0;
@@ -303,7 +305,7 @@ int main(int argc, const char** argv) {
       robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers, use_raw,
           use_accel, use_gyro, use_ati, p_gain, ps_server, p);
 
-      double * rot=get_numeric_field(m, "t_rot");
+      double * rot=get_numeric_field(m, "t_rot", NULL);
       if (rot) {
         robot->set_frame_rotation(rot);
       }
@@ -350,6 +352,7 @@ int main(int argc, const char** argv) {
   mjData * est_data = 0;
   bool color = false;
 
+
   while( !closeViewer() ) {
 
     switch (viewer_signal()) { // signal for keyboard presses (triggers walking)
@@ -370,19 +373,12 @@ int main(int argc, const char** argv) {
         if (est)
           delete est;
         printf("New UKF initialization\n");
-        if (real_robot) {
-          //int c=25;
-          //for (int i=(nq-1); i>(nq-20); i--) d->qpos[i] = init_qpos[c--];
-          //c=25;
-          //for (int i=(nv-1); i>(nv-20); i--) d->qvel[i] = init_qvel[c--];
-          //for (int i=0; i<nq; i++) d->qpos[i] = init_qpos[i];
-          //for (int i=0; i<nv; i++) d->qvel[i] = init_qvel[i];
-        }
 
-        //for (int i=0; i<100; i++)
-        //    mj_step(m, d);
+        double * s_cov = get_numeric_field(m, "snsr_covar", NULL);
+        double * p_cov = get_numeric_field(m, "covar_diag", NULL);
 
-        est = new UKF(m, d, m->numeric_data, alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
+        est = new UKF(m, d, s_cov, P_cov,
+            alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
 
         est_data = est->get_state();
         if (real_robot) save_states(output_file, 0.0, NULL, est_data, est->get_stddev(), 0, 0, "w");

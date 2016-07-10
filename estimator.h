@@ -80,7 +80,7 @@ class Estimator {
 
 class UKF : public Estimator {
     public:
-        UKF(mjModel *m, mjData * d, double * snsr_weights, 
+        UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
                 double _alpha, double _beta, double _kappa,
                 double _diag, double _Ws0, double _noise,
                 double _tol,
@@ -203,6 +203,14 @@ class UKF : public Estimator {
             this->noise = _noise;
 
             this->NUMBER_CHECK = debug;
+
+            PtAdd = MatrixXd::Identity(L, L);
+            if (P_covar) {
+              for (int i=0; i<nq; i++) {
+                PtAdd(i,i) = P_covar[i];
+                PtAdd(2*i,2*i) = P_covar[i];
+              }
+            }
 
             PzAdd = MatrixXd::Identity(ns, ns);
             int my_sensordata=0;
@@ -677,13 +685,6 @@ class UKF : public Estimator {
                         else { PzAdd(idx, idx) = mrkr_conf; }
                     }
                 }
-                /*
-                for (int j=0; j<16; j++) { printf("%1.3f ", sensors[40+6+12+j*3]); }
-                printf("\n");
-                for (int j=0; j<16; j++) { printf("%1.3f ", conf[j]); }
-                printf("\n");
-                std::cout<<"Pzadd with Mrkr conf:\n"<<PzAdd.block(ns-16,ns-16,16,16)<<std::endl;
-                */
             }
 
             P_z = P_z + PzAdd;
@@ -712,7 +713,8 @@ class UKF : public Estimator {
             x_t = x_t + (K*(s-z_k));
             P_t = P_t - (K * P_z * K.transpose());
 
-            P_t = P_t + MatrixXd::Identity(L, L)*diag; 
+            //P_t = P_t + MatrixXd::Identity(L, L)*diag; 
+            P_t = P_t + PtAdd; 
 
             printf("Estimation end. t = %f\n", d->time);
 
@@ -1119,6 +1121,7 @@ class UKF : public Estimator {
         MatrixXd P_z;
         MatrixXd Pxz;
         MatrixXd PzAdd;
+        MatrixXd PtAdd;
         double mrkr_conf;
 
         mjData * prev_d;

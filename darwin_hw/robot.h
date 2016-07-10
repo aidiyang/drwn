@@ -14,6 +14,8 @@ class MyRobot {
 
     bool darwin_ok;
 
+    void set_frame_rotation(double * rot) {}
+
 };
 
 

@@ -5,6 +5,7 @@ import sys
 import matplotlib.pyplot as plt
 
 f = 'out.csv'
+r = 'raw.csv'
 if len(sys.argv) > 1:
     f = sys.argv[1]
 
@@ -38,6 +39,7 @@ std_snsr = np.sqrt(std_snsr)
 
 p_time = df['predict']
 c_time = df['correct']
+
 
 
 fig, axs = plt.subplots(2, 3, sharex=False)
@@ -104,4 +106,5 @@ print "     Total Timing Avg:", np.mean(c_time+p_time)
 #    axs[1,2].fill_between(t, est_qpos[:,col]+std_qpos[:,col],
 #            est_qpos[:,col]-std_qpos[:,col], edgecolor='none', alpha=0.5)
 
+plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 plt.show()

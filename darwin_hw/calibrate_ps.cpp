@@ -115,6 +115,7 @@ int main (int argc, char* argv[]) {
   int G_SIZE=3;
   int CONTACTS_SIZE=12;
   int MARKER_SIZE = 16*3;
+  int NMARKERS=16;
   int nsensordata = 40+
     use_accel*A_SIZE+
     use_gyro*G_SIZE+
@@ -126,6 +127,7 @@ int main (int argc, char* argv[]) {
     use_ati*CONTACTS_SIZE;
   printf("Sensor Size: %d\n", nsensordata);
   double *sensors = new double[nsensordata];
+  double *ps_c = new double[NMARKERS];
 
   ////////////////////////////////// move to initial position
   zero_position(d, ctrl, sensors, nu);
@@ -151,31 +153,14 @@ int main (int argc, char* argv[]) {
   int c = getchar(); // pop off queue
 
   int count = 200;
-  for (int m=0; m<(16*4); m++) { // clear buffer
-    ps[m] = 0.0;
-  }
-  for (int i = 0; i < count; i++) {
-    d->get_sensors(&time, sensors, conf);
-    //orig_ps_order(ps, sensors, conf);
-    for (int m=0; m<16; m++) {
-      ps[m*4+0] += sensors[40+m*3+0];
-      ps[m*4+1] += sensors[40+m*3+1];
-      ps[m*4+2] += sensors[40+m*3+2];
-      ps[m*4+3] += conf[m];
-    }
-    printf(".");
-    fflush(stdout);
-  }
-  printf("done.\n");
-  for (int m=0; m<MARKER_SIZE; m++) { // average the data points 
-    ps[m] = ps[m] / (double)count;
-  }
+  buffer_markers(d, ps, ps_c, sensors, conf, mrkr_idx, NMARKERS, count);
 
-  Vector3d l1(ps[M_L*4+0], ps[M_L*4+1], ps[M_L*4+2]);
-  Vector3d r1(ps[M_R*4+0], ps[M_R*4+1], ps[M_R*4+2]);
+  Vector3d l1(ps[M_L*3+0], ps[M_L*3+1], ps[M_L*3+2]);
+  Vector3d r1(ps[M_R*3+0], ps[M_R*3+1], ps[M_R*3+2]);
 
-  std::cout<<"2nd Left  Foot: "<< l1 << "\n";
-  std::cout<<"2nd Right Foot: "<< r1 << "\n";
+  printf("MARKER IDX %d\n", mrkr_idx);
+  std::cout<<"\n1st Left  Foot: "<< l1.transpose() << "\n";
+  std::cout<<  "1st Right Foot: "<< r1.transpose() << "\n";
 
   ////////////////////////////////// get second position of data
   printf("Set robot to the second position.\n");
@@ -191,29 +176,13 @@ int main (int argc, char* argv[]) {
   }
   c = getchar(); // pop off queue
 
-  for (int m=0; m<MARKER_SIZE; m++) { // clear buffer
-    ps[m] = 0.0;
-  }
-  for (int i = 0; i < count; i++) {
-    d->get_sensors(&time, sensors, conf);
-    for (int m=0; m<16; m++) {
-      ps[m*4+0] += sensors[40+m*3+0];
-      ps[m*4+1] += sensors[40+m*3+1];
-      ps[m*4+2] += sensors[40+m*3+2];
-      ps[m*4+3] += conf[m];
-    }
-    printf(".");
-    fflush(stdout);
-  }
-  for (int m=0; m<MARKER_SIZE; m++) { // average the data points
-    ps[m] = ps[m] / (double)count;
-  }
+  buffer_markers(d, ps, ps_c, sensors, conf, mrkr_idx, NMARKERS, count);
 
-  Vector3d l2(ps[M_L*4+0], ps[M_L*4+1], ps[M_L*4+2]);
-  Vector3d r2(ps[M_R*4+0], ps[M_R*4+1], ps[M_R*4+2]);
+  Vector3d l2(ps[M_L*3+0], ps[M_L*3+1], ps[M_L*3+2]);
+  Vector3d r2(ps[M_R*3+0], ps[M_R*3+1], ps[M_R*3+2]);
 
-  std::cout<<"2nd Left  Foot: "<< l2 << "\n";
-  std::cout<<"2nd Right Foot: "<< r2 << "\n";
+  std::cout<<"\n2nd Left  Foot: "<< l2.transpose() << "\n";
+  std::cout<<  "2nd Right Foot: "<< r2.transpose() << "\n";
 
   Vector3d va1 = r1 - l1;
   Vector3d va2 = l2 - l1;
@@ -231,7 +200,7 @@ int main (int argc, char* argv[]) {
   Matrix3d rot = rot_matrix(m_normal, s_normal);
 
   std::cout<<"\nRotation:\n"<< rot << std::endl;
-  std::cout<<"\n2nd Rotation:\n"<< rot_matrix(cross2, s_normal) << std::endl;
+  std::cout<<"\n2nd Rotation:\n"<< rot_matrix(s_normal, cross2) << std::endl;
 
   std::cout<<"First position Rotated:\n"
     << (rot*l1).transpose() << "\n\n"
@@ -276,25 +245,33 @@ int main (int argc, char* argv[]) {
   // getting initial position for offset and rotation
 
   d->get_sensors(&time, sensors, conf);
-  orig_ps_order(ps, sensors, conf);
+  //orig_ps_order(ps, sensors, conf);
+  //for (int m=0; m<MARKER_SIZE; m++) {
+  //  initial[m] << ps[m*4+0], ps[m*4+1], ps[m*4+2];
+  //  initial[m] = rot*initial[m];
+  //}
 
-  for (int m=0; m<MARKER_SIZE; m++) {
-    initial[m] << ps[m*4+0], ps[m*4+1], ps[m*4+2];
-    initial[m] = rot*initial[m];
-  }
+  int m_count = 100;
+  buffer_markers(d, ps, ps_c, sensors, conf, mrkr_idx, NMARKERS, m_count);
 
-  Vector3d v1(ps[c1*4+0], ps[c1*4+1], ps[c1*4+2]);
-  Vector3d v2(ps[c2*4+0], ps[c2*4+1], ps[c2*4+2]);
-  Vector3d vec_r = rot*v1 - rot*v2;
+  Vector3d v1(ps[c1*3+0], ps[c1*3+1], ps[c1*3+2]); // these should be good from above
+  Vector3d v2(ps[c2*3+0], ps[c2*3+1], ps[c2*3+2]);
+  //Vector3d vec_r = rot*v1 - rot*v2;
+  Vector3d vec_r = v1 - v2;
   vec_r[2] = 0;
   Vector3d vec_s(0, -1, 0); // basically only in y axis
 
-  double* mrkr = sensors+mrkr_idx;
-  d->set_initpos_rt(vec_r, vec_s, mrkr, s_ps_zero);
 
+  //d->set_initpos_rt(vec_r, vec_s, mrkr, s_ps_zero);
+  d->set_initpos_rt(vec_r, vec_s, ps, ps_c, s_ps_zero); // pass the clean data
+
+  double* mrkr = sensors+mrkr_idx;
+  printf("Mrkr Index: %d\n", mrkr_idx);
+  printf("Ready?\n");
+  c=getchar();
   while (1) {
     d->get_sensors(&time, sensors, conf);
-    orig_ps_order(ps, sensors, conf);
+    //orig_ps_order(ps, mrkr, conf);
 
     // should be rotated in interface.h
     //for (int m=0; m<16; m++) {
@@ -304,13 +281,13 @@ int main (int argc, char* argv[]) {
     //  //rotated[m] = rot*rotated[m]; // - initial[m]; plus the mujoco offsets?
     //}
     printf("Rotated:\nx: ");
-    for (int m=0; m<16; m++) { printf("%1.3f  ", ps[m*4+0]); }
+    for (int m=0; m<16; m++) { printf("%1.3f  ", mrkr[m*3+0]); }
     printf("\ny: ");
-    for (int m=0; m<16; m++) { printf("%1.3f  ", ps[m*4+1]); }
+    for (int m=0; m<16; m++) { printf("%1.3f  ", mrkr[m*3+1]); }
     printf("\nz: ");
-    for (int m=0; m<16; m++) { printf("%1.3f  ", ps[m*4+2]); }
+    for (int m=0; m<16; m++) { printf("%1.3f  ", mrkr[m*3+2]); }
     printf("\nconf: ");
-    for (int m=0; m<16; m++) { printf("%1.3f  ", ps[m*4+3]); }
+    for (int m=0; m<16; m++) { printf("%1.3f  ", conf[m]); }
     printf("\n");
   }
 

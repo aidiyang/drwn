@@ -332,6 +332,7 @@ class UKF : public Estimator {
 
         double constraint_violated(mjData* t_d) {
             VectorXd constraint = Map<VectorXd>(t_d->qfrc_constraint, nv);
+            //VectorXd constraint = Map<VectorXd>(t_d->qfrc_inverse, nv);
             return constraint.norm();
         }
 
@@ -350,6 +351,7 @@ class UKF : public Estimator {
                     mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
                     //fast_forward(t_d, j);
                     mj_forward(m, t_d);
+                    //mj_inverse(m, t_d);
 
                     if (constraint_violated(t_d) > tol) {
                         scale = scale - pow(0.5, i);
@@ -675,9 +677,13 @@ class UKF : public Estimator {
                         else { PzAdd(idx, idx) = mrkr_conf; }
                     }
                 }
-                if (NUMBER_CHECK) {
-                    std::cout<<"Pzadd with Mrkr conf:\n"<<PzAdd.block(ns-16,ns-16,16,16)<<std::endl;
-                }
+                /*
+                for (int j=0; j<16; j++) { printf("%1.3f ", sensors[40+6+12+j*3]); }
+                printf("\n");
+                for (int j=0; j<16; j++) { printf("%1.3f ", conf[j]); }
+                printf("\n");
+                std::cout<<"Pzadd with Mrkr conf:\n"<<PzAdd.block(ns-16,ns-16,16,16)<<std::endl;
+                */
             }
 
             P_z = P_z + PzAdd;

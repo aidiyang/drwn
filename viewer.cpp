@@ -23,8 +23,8 @@ namespace po = boost::program_options;
 extern mjModel* m; // defined in viewer_lib.h to capture perturbations
 extern mjData* d;
 
-double init_qpos[26] = { 0.03, -0.00, -0.06, 0.00, 0.16, 0.00, -0.00, -0.40, 0.72, 0.29, -0.50, -0.84, -0.29, 0.50,
-  -0.00, -0.01, 0.64, -0.94, -0.55, -0.01, 0.00, 0.01, -0.64, 0.94, 0.55, 0.01 };
+double init_qpos[26] = {
+0.0423, 0.0002, -0.0282, 0.0004, 0.2284, -0.0020, 0.0000, -0.4004, 0.7208, 0.2962, -0.5045, -0.8434, -0.2962, 0.5045, -0.0005, -0.0084, 0.6314, -0.9293, -0.5251, -0.0115, 0.0005, 0.0084, -0.6314, 0.9293, 0.5251, 0.0115};
 double init_qvel[26] = { 0.00, -0.00, -0.01, 0.00, -0.00, 0.00, 0.00, -0.01, 0.01, 0.01, -0.01, -0.01, -0.01, 0.01,
   0.00, -0.01, 0.00, -0.02, 0.09, -0.03, -0.00, 0.00, -0.00, 0.01, -0.03, 0.04 };
 
@@ -135,6 +135,17 @@ void save_states(std::string filename, double time,
 
 }
 
+double * get_numeric_field(const mjModel* m, std::string s) {
+  for (int i=0; i<m->nnumeric; i++) {
+    std::string f = m->names + m->name_numericadr[i];
+    printf("%s\n", f.c_str());
+    if (s.compare(f) == 0) {
+      return m->numeric_data + m->numeric_size[i];
+    }
+  }
+  return 0;
+}
+
 void print_state(const mjModel* m, const mjData* d) {
   for (int i=0; i<m->nq; i++) {
     printf("%1.4f ", d->qpos[i]);
@@ -155,7 +166,7 @@ int main(int argc, const char** argv) {
 
   int num_threads=1;
   int estimation_counts;
-	//bool engage; // for real robot?
+  //bool engage; // for real robot?
   std::string model_name;// = new std::string();
   std::string output_file;// = new std::string();
   std::string input_file;
@@ -173,52 +184,52 @@ int main(int argc, const char** argv) {
   bool debug;
   bool real_robot;
 
-	try {
-		po::options_description desc("Allowed options");
-		desc.add_options()
-			("help", "Usage guide")
-			//("engage,e", po::value<bool>(&engage)->default_value(false), "Engage motors for live run.")
-			("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
-			("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
-			("file,f", po::value<std::string>(&input_file)->default_value(""), "Use saved ctrl/sensor data as real robot.")
-			("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
-			//("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
-			("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
-			("real,r", po::value<bool>(&real_robot)->default_value(false), "Use real robot.")
-			//("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
-			("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
-			("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
-			("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
-			("alpha,a", po::value<double>(&alpha)->default_value(0.001), "Alpha: UKF param")
-			("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
-			("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
-			("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
+  try {
+    po::options_description desc("Allowed options");
+    desc.add_options()
+      ("help", "Usage guide")
+      //("engage,e", po::value<bool>(&engage)->default_value(false), "Engage motors for live run.")
+      ("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
+      ("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
+      ("file,f", po::value<std::string>(&input_file)->default_value(""), "Use saved ctrl/sensor data as real robot.")
+      ("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
+      //("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
+      ("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
+      ("real,r", po::value<bool>(&real_robot)->default_value(false), "Use real robot.")
+      //("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
+      ("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
+      ("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
+      ("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
+      ("alpha,a", po::value<double>(&alpha)->default_value(0.001), "Alpha: UKF param")
+      ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
+      ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
+      ("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
       ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
       ("tol,i", po::value<double>(&tol)->default_value(-1.0), "Set Constraint Tolerance (default NONE).")
-			//("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
+      //("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 #ifndef __APPLE__
       ("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
 #endif
-			//("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
-			//("d_gain,d", po::value<int>(&d_gain)->default_value(0), "D gain of PiD controller, 0-32")
-			;
+      //("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
+      //("d_gain,d", po::value<int>(&d_gain)->default_value(0), "D gain of PiD controller, 0-32")
+      ;
 
-		po::variables_map vm;
-		po::store(po::parse_command_line(argc, argv, desc), vm);
-		if (vm.count("help")) {
-			std::cout << desc << std::endl;
-			return 0;
-		}
-		po::notify(vm);
-	}
-	catch(std::exception& e) {
-		std::cerr << "Error: " << e.what() << "\n";
-		return 0;
-	}
-	catch(...) {
-		std::cerr << "Unknown error!\n";
-		return 0;
-	}
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    if (vm.count("help")) {
+      std::cout << desc << std::endl;
+      return 0;
+    }
+    po::notify(vm);
+  }
+  catch(std::exception& e) {
+    std::cerr << "Error: " << e.what() << "\n";
+    return 0;
+  }
+  catch(...) {
+    std::cerr << "Unknown error!\n";
+    return 0;
+  }
 
 
   if(Ws0 > 1) {
@@ -251,7 +262,7 @@ int main(int argc, const char** argv) {
   int nu = m->nu;
   int nsensordata = m->nsensordata;
 
-  
+
   ////// SIMULATED ROBOT
   double dt = m->opt.timestep;
   MyRobot *robot;
@@ -291,6 +302,11 @@ int main(int argc, const char** argv) {
     else {
       robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers, use_raw,
           use_accel, use_gyro, use_ati, p_gain, ps_server, p);
+
+      double * rot=get_numeric_field(m, "t_rot");
+      if (rot) {
+        robot->set_frame_rotation(rot);
+      }
     }
     delete[] p_gain;
   }
@@ -315,13 +331,18 @@ int main(int argc, const char** argv) {
   if (nu >= 20) {
     walker->Initialize(ctrl);
   }
-  robot->set_controls(ctrl, NULL, NULL); // for reading data in this gets the inital ctrl data
-  //if (input_file.length()) {
-  //  for (int i=0; i<nu; i++) {
-  //    d->ctrl[i] = ctrl[i]; // copies the data to our sim / est initializer
-  //  }
-  //}
+  if (input_file.length()) {
+      for (int i=0; i<nu; i++) d->ctrl[i] = ctrl[i];
+      for (int i=0; i<nq; i++) d->qpos[i] = init_qpos[i];
+      //for (int i=0; i<nv; i++) d->qvel[i] = 0;
 
+      for (int i=0; i<100; i++)
+          mj_step(m, d);
+  }
+  else {
+      robot->set_controls(ctrl, NULL, NULL); // for reading data in this gets the inital ctrl data
+  }
+  
   UKF * est = 0;
 
   // init estimator from darwin 'robot'
@@ -350,11 +371,16 @@ int main(int argc, const char** argv) {
           delete est;
         printf("New UKF initialization\n");
         if (real_robot) {
-          int c=25;
-          for (int i=(nq-1); i>(nq-20); i--) d->qpos[i] = init_qpos[c--];
-          c=25;
-          for (int i=(nv-1); i>(nv-20); i--) d->qvel[i] = init_qvel[c--];
+          //int c=25;
+          //for (int i=(nq-1); i>(nq-20); i--) d->qpos[i] = init_qpos[c--];
+          //c=25;
+          //for (int i=(nv-1); i>(nv-20); i--) d->qvel[i] = init_qvel[c--];
+          //for (int i=0; i<nq; i++) d->qpos[i] = init_qpos[i];
+          //for (int i=0; i<nv; i++) d->qvel[i] = init_qvel[i];
         }
+
+        //for (int i=0; i<100; i++)
+        //    mj_step(m, d);
 
         est = new UKF(m, d, m->numeric_data, alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
 

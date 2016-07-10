@@ -17,6 +17,44 @@
 
 namespace po = boost::program_options;
 
+double s_ps_walk[16*3] = {
+   -0.0246,  0.0560, 0.3758,
+   -0.0711, -0.0540, 0.3161,
+    0.0210,  0.0450, 0.3601,
+    0.0417,  0.0180, 0.3144,
+   -0.0246, -0.0560, 0.3758,
+   -0.0711,  0.0540, 0.3161,
+    0.0210, -0.0450, 0.3601,
+    0.0417, -0.0180, 0.3144,
+   -0.0795, -0.0743, 0.0169,
+   -0.0795,  0.0743, 0.0169,
+    0.0084, -0.0742, 0.0117,
+    0.0084,  0.0742, 0.0117,
+    0.0061, -0.1081, 0.2651,
+    0.0205, -0.1174, 0.2375,
+    0.0161,  0.1082, 0.2655,
+    0.0337,  0.1176, 0.2399};
+
+
+double s_ps_zero[16*3] = 
+  {-0.0440,  0.0560, 0.3918, 
+   -0.0750, -0.0540, 0.3228,
+    0.0040,  0.0450, 0.3873,
+    0.0350,  0.0180, 0.3478,
+   -0.0440, -0.0560, 0.3918,
+   -0.0750,  0.0540, 0.3228,
+    0.0040, -0.0450, 0.3873,
+    0.0350, -0.0180, 0.3478,
+   -0.0490, -0.0723, 0.0162,
+   -0.0490,  0.0723, 0.0162,
+    0.0390, -0.0723, 0.0117,
+    0.0390,  0.0723, 0.0117,
+    0.0710, -0.1324, 0.3141,
+    0.0960, -0.1517, 0.3063,
+    0.0710,  0.1326, 0.3151,
+    0.0960,  0.1519, 0.3073};
+
+
 
 int main (int argc, char* argv[]) {
 
@@ -99,24 +137,63 @@ int main (int argc, char* argv[]) {
     use_gyro*G_SIZE+
     use_ati*CONTACTS_SIZE+
     use_markers*MARKER_SIZE;
+  int mrkr_idx = 40+
+    use_accel*A_SIZE+
+    use_gyro*G_SIZE+
+    use_ati*CONTACTS_SIZE;
 
   double *sensors = new double[nsensordata];
   double *conf = new double[NMARKERS];
+  double *ps = new double[MARKER_SIZE];
+  double *ps_c = new double[NMARKERS];
+
+  double gyro[2];
+  int count = 1000;
+  double avg[count];
 
   ////////////////////////////////// move to initial position
   walker->Initialize(ctrl); // new goal state
   zero_position(d, ctrl, sensors, nu);
   d->set_gyro_offsets();
-  double gyro[2];
+  Matrix3d rot;
 
-  int count = 1000;
-  double avg[count];
+  //rot<<0.999303305496562, -0.03732162407565985, 0, 0.03732162407565985, 0.999303305496562, 0, 0, 0, 1;
+  rot<<0.9965100112758773, -0.08347333362787641, 0, 0.08347333362787641, 0.9965100112758773, 0, 0, 0, 1;
+
+  d->set_frame_rotation(rot);
+  int c1 = 7; // marker positions
+  int c2 = 3;
+  double* mrkr = sensors+mrkr_idx;
+  kb_changemode(1);
+  while (!kbhit()) { // double check the chest marker positioning
+    d->get_sensors(&time, sensors, conf);
+    printf("\r");
+    printf("M1: %1.4f %1.4f %1.4f : %1.4f\t\t",
+        mrkr[c1*3+0], mrkr[c1*3+1], mrkr[c1*3+2], conf[c1]);
+    printf("M2: %1.4f %1.4f %1.4f : %1.4f",
+        mrkr[c2*3+0], mrkr[c2*3+1], mrkr[c2*3+2], conf[c2]);
+  }
+  int c=getchar();
+  // after chest markers are in view, average their values
+  int m_count = 100;
+  buffer_markers(d, ps, ps_c, sensors, conf, mrkr_idx, NMARKERS, m_count);
+  // ps has been averaged of good markers
+  
+  Vector3d v1(ps[c1*3+0], ps[c1*3+1], ps[c1*3+2]); // these should be good from above
+  Vector3d v2(ps[c2*3+0], ps[c2*3+1], ps[c2*3+2]);
+  //Vector3d vec_r = rot*v1 - rot*v2;
+  Vector3d vec_r = v1 - v2;
+  vec_r[2] = 0;
+  Vector3d vec_s(0, -1, 0); // basically only in y axis
+
+  // set these at the same time?
+  d->set_initpos_rt(vec_r, vec_s, ps, ps_c, s_ps_walk); // pass the clean data
+
 
   printf("Press w to walk.\n");
   printf("Press q to quit.\n");
   printf("Press enter to begin.\n");
 
-  kb_changemode(1);
   double init_time;
   while (!kbhit()) {
     d->get_sensors(&init_time, sensors, conf);
@@ -163,11 +240,11 @@ int main (int argc, char* argv[]) {
     //
     d->get_cm730_gyro(gyro);
     printf("\ncm730 %f %f\n", gyro[0], gyro[1]);
-    gyro[0] = sensors[40+3+1]*57.2958;
-    gyro[1] = sensors[40+3+2]*57.2958;
+    //gyro[0] = sensors[40+3+1]*57.2958;
+    //gyro[1] = sensors[40+3+2]*57.2958;
 
-    //walker->Process(time-prev_time, gyro, ctrl);
-    walker->Process(time-prev_time, NULL, ctrl);
+    walker->Process(time-prev_time, gyro, ctrl);
+    //walker->Process(time-prev_time, NULL, ctrl);
     d->set_controls(ctrl, NULL, NULL);
 
     if (log) save_states(myfile, output_file, nu, nsensordata, NMARKERS, time, ctrl, sensors, conf, "a");

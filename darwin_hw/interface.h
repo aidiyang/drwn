@@ -61,6 +61,7 @@ class DarwinRobot : public MyRobot {
     std::string BOARD_NAME="/dev/ttyUSB0";
     LinuxCM730 *my_cm730;
 #endif
+    int NMARKER;
 
   public:
     DarwinRobot(bool joints, bool zero_gyro, bool use_rigid, bool use_markers, bool raw_markers,
@@ -71,7 +72,7 @@ class DarwinRobot : public MyRobot {
       //phasespace: std::string ps_server = "128.208.4.127";
       //imu: bool zero_gyro = true;
       //auto init1 = std::async(std::launch::async, &DarwinRobot::init_CM730, this, 2, 0);
-      
+
       this->use_ps = use_rigid | use_markers;
       this->use_raw = raw_markers;
       this->use_accel = _use_accel;
@@ -80,12 +81,16 @@ class DarwinRobot : public MyRobot {
       this->use_ati = _use_ati;
       this->use_cm730 = joints;
 
+      NMARKER = 16;
+
+      double imu_alpha = 0.5;
+
       table_rotation = Matrix3d::Identity();
       init_pos = Matrix3d::Identity();
-      offset = new Vector3d[16];
+      offset = new Vector3d[NMARKER];
 
       std::future<bool> init3, init4; 
-        auto init2 = std::async(std::launch::async, &DarwinRobot::init_phasespace, this, ps_server, use_rigid, use_markers);
+      auto init2 = std::async(std::launch::async, &DarwinRobot::init_phasespace, this, ps_server, use_rigid, use_markers);
       //if (use_ps) {
       //  printf("Initializing Phasespace\n");
       //  init2 = std::async(std::launch::async, &DarwinRobot::init_phasespace, this, ps_server, use_rigid, use_markers);
@@ -93,7 +98,7 @@ class DarwinRobot : public MyRobot {
       int data_rate = -1; // we are not using the imu in streaming mode
       if (use_accel || use_gyro) {
         printf("Initializing IMU\n");
-        init3 = std::async(std::launch::async, &DarwinRobot::init_imu, this, data_rate, zero_gyro);
+        init3 = std::async(std::launch::async, &DarwinRobot::init_imu, this, data_rate, zero_gyro, imu_alpha);
       }
       if (use_ati) {
         printf("Initializing Contact Sensors\n");
@@ -180,7 +185,7 @@ class DarwinRobot : public MyRobot {
 
       cm730->BulkRead(); // need to do a blank read to init things
       set_gyro_offsets();
- 
+
       int joint_num = 0;
       //int current[JointData::NUMBER_OF_JOINTS];
       this->pgain = new int[JointData::NUMBER_OF_JOINTS];
@@ -198,8 +203,6 @@ class DarwinRobot : public MyRobot {
       this->dgain[JointData::ID_HEAD_PAN]=0; //d[JointData::ID_HEAD_PAN];
       this->dgain[JointData::ID_HEAD_TILT]=0; //d[JointData::ID_HEAD_TILT];
 
-
-
       return true;
     }
 
@@ -214,8 +217,8 @@ class DarwinRobot : public MyRobot {
       return this->ps->isRunning();
     }
 
-    bool init_imu(int data_rate, bool zero_gyro) {
-      this->imu = new PhidgetIMU(data_rate, zero_gyro);
+    bool init_imu(int data_rate, bool zero_gyro, double imu_alpha) {
+      this->imu = new PhidgetIMU(data_rate, zero_gyro, imu_alpha);
       if (this->imu->is_running() && zero_gyro) {
         std::chrono::milliseconds interval(2500);
         std::this_thread::sleep_for(interval);
@@ -323,66 +326,66 @@ class DarwinRobot : public MyRobot {
         double l[6];
         //t1 = GetCurrentTimeMS();
         if (use_ati && ati->getData(r, l)) {
-            sensor[idx+0] = r[0]; // right force x
-            sensor[idx+1] = -1.0*r[1]; // right force y
-            sensor[idx+2] = r[2]; // right force z
-            sensor[idx+3] = r[3]; // right torque x
-            sensor[idx+4] = -1.0*r[4]; // right torque y
-            sensor[idx+5] = r[5]; // right torque z
-            idx += 6;
-            sensor[idx+0] = -1.0*l[0]; // left force x
-            sensor[idx+1] = l[1]; // left force y
-            sensor[idx+2] = l[2]; // left force z
-            sensor[idx+3] = -1.0*l[3]; // left torque x
-            sensor[idx+4] = l[4]; // left torque y
-            sensor[idx+5] = l[5]; // left torque z
-            idx += 6;
+          sensor[idx+0] = r[0]; // right force x
+          sensor[idx+1] = -1.0*r[1]; // right force y
+          sensor[idx+2] = r[2]; // right force z
+          sensor[idx+3] = r[3]; // right torque x
+          sensor[idx+4] = -1.0*r[4]; // right torque y
+          sensor[idx+5] = r[5]; // right torque z
+          idx += 6;
+          sensor[idx+0] = -1.0*l[0]; // left force x
+          sensor[idx+1] = l[1]; // left force y
+          sensor[idx+2] = l[2]; // left force z
+          sensor[idx+3] = -1.0*l[3]; // left torque x
+          sensor[idx+4] = l[4]; // left torque y
+          sensor[idx+5] = l[5]; // left torque z
+          idx += 6;
         }
         //t2 = GetCurrentTimeMS();
         //printf("ATI Sensor Time: %f ms\n", t2-t1);
 
         //double pose[8];
-        double markers[16*4]; // 16 markers * (x, y, z, confidence)
+        double markers[NMARKER*4]; // 16 markers * (x, y, z, confidence)
         double * m_ptr = sensor+idx;
         if (use_ps) {
-           if (!(ps->getMarkers(markers))) {
+          if (!(ps->getMarkers(markers))) {
             return false;
-           }
-           else {
-               // TODO get marker confidence and rotations; etc
-               // table rotation, initial rotation
-               if (!use_raw) {
-                   for (int i=0; i<16; i++) { // TODO fix this hard coded number
-                       //Vector3d m(markers[i*4+0],markers[i*4+1],markers[i*4+2]);
-                       Map<Vector3d> m(markers + i*4);
-                       m = init_pos*table_rotation*m - offset[i]; // apply the rotation
-                   }
-               }
-               for (int i=0; i<16; i++) { // TODO fix this hard coded number
-                   m_ptr[i*3+0] = markers[i*4 + 0];
-                   m_ptr[i*3+1] = markers[i*4 + 1];
-                   m_ptr[i*3+2] = markers[i*4 + 2];
-                   if (conf) {
-                       conf[i] = markers[i*4 + 3];
-                   }
-               }
-           }
+          }
+          else {
+            // TODO get marker confidence and rotations; etc
+            // table rotation, initial rotation
+            if (use_raw == false) {
+              for (int i=0; i<NMARKER; i++) { // TODO fix this hard coded number
+                //Vector3d m(markers[i*4+0],markers[i*4+1],markers[i*4+2]);
+                Map<Vector3d> m(markers + i*4);
+                m = init_pos*table_rotation*m - offset[i]; // apply the rotation
+              }
+            }
+            for (int i=0; i<NMARKER; i++) { // TODO fix this hard coded number
+              m_ptr[i*3+0] = markers[i*4 + 0];
+              m_ptr[i*3+1] = markers[i*4 + 1];
+              m_ptr[i*3+2] = markers[i*4 + 2];
+              if (conf) {
+                conf[i] = markers[i*4 + 3];
+              }
+            }
+          }
         }
 
         if (use_cm730) {
-            if (body_data.get() != CM730::SUCCESS) {
-                printf("BAD JOINT READ\n");
+          if (body_data.get() != CM730::SUCCESS) {
+            printf("BAD JOINT READ\n");
+          }
+          else {
+            // raw values collected, convert to mujoco
+            // positions
+            for(int id = 1; id <= 20; id++) {
+              int i = id-1;
+              sensor[i] = joint2radian(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_POSITION_L));
+              sensor[i+20] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
             }
-            else {
-                // raw values collected, convert to mujoco
-                // positions
-                for(int id = 1; id <= 20; id++) {
-                    int i = id-1;
-                    sensor[i] = joint2radian(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_POSITION_L));
-                    sensor[i+20] = j_rpm2rads_ps(cm730->m_BulkReadData[id].ReadWord(MX28::P_PRESENT_SPEED_L));
-                }
 
-            }
+          }
         }
 
         // TODO generate root positions and velocities
@@ -395,8 +398,8 @@ class DarwinRobot : public MyRobot {
         *time = (GetCurrentTimeMS() - init_time) / 1000.0;
       }
       else {
-          printf("Initialize sensor buffer\n");
-          return false;
+        printf("Initialize sensor buffer\n");
+        return false;
       }
 
       //my_cm730->Sleep(10); // some delay between readings seems to be help?
@@ -405,80 +408,103 @@ class DarwinRobot : public MyRobot {
 
     // mujoco controls to darwin centric controls
     bool set_controls(double * u, int *p, int *d) {
-        // converts controls to darwin positions
-        int current[JointData::NUMBER_OF_JOINTS];
-        for (int joint=0; joint<20; joint++) {
-            current[joint+1]=radian2joint(u[joint]);
-        }
+      // converts controls to darwin positions
+      int current[JointData::NUMBER_OF_JOINTS];
+      for (int joint=0; joint<20; joint++) {
+        current[joint+1]=radian2joint(u[joint]);
+      }
 
-        // TODO setting pgain and dgain not configured yet
-        if (use_cm730 && darwin_ok) {
-            int n = 0;
-            for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++) {
-                cmd_vec[n++] = id;
-                //cmd_vec[n++] = this->dgain; // d gain
-                cmd_vec[n++] = 0; // d gain
-                cmd_vec[n++] = 0; // i gain
-                cmd_vec[n++] = this->pgain[id-1]; // p gain
-                cmd_vec[n++] = 0; // reserved
-                cmd_vec[n++] = CM730::GetLowByte(current[id]); // move to middle
-                cmd_vec[n++] = CM730::GetHighByte(current[id]);
-            }
-            cm730->SyncWrite(MX28::P_D_GAIN, MX28::PARAM_BYTES, 20, cmd_vec);
-            return true;
+      // TODO setting pgain and dgain not configured yet
+      if (use_cm730 && darwin_ok) {
+        int n = 0;
+        for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++) {
+          cmd_vec[n++] = id;
+          //cmd_vec[n++] = this->dgain; // d gain
+          cmd_vec[n++] = 0; // d gain
+          cmd_vec[n++] = 0; // i gain
+          cmd_vec[n++] = this->pgain[id-1]; // p gain
+          cmd_vec[n++] = 0; // reserved
+          cmd_vec[n++] = CM730::GetLowByte(current[id]); // move to middle
+          cmd_vec[n++] = CM730::GetHighByte(current[id]);
         }
-        else {
-            return false;
-        }
+        cm730->SyncWrite(MX28::P_D_GAIN, MX28::PARAM_BYTES, 20, cmd_vec);
+        return true;
+      }
+      else {
+        return false;
+      }
+    }
+
+    void set_frame_rotation(double * rot) {
+      for (int i=0; i<3; i++) 
+        for (int j=0; j<3; j++) 
+          table_rotation(i,j) = rot[i*3+j];
+      std::cout<<"Table rotation Matrix set to be:\n"<<table_rotation<<std::endl;
     }
 
     void set_frame_rotation(Matrix3d rot) {
-        table_rotation = rot;
-        std::cout<<"Table rotation Matrix set to be:\n"<<table_rotation<<std::endl;
+      table_rotation = rot;
+      std::cout<<"Table rotation Matrix set to be:\n"<<table_rotation<<std::endl;
     }
 
     double angle(Vector3d v1, Vector3d v2) {
-        double angle_diff = v1.dot(v2) / (v1.norm() * v2.norm());
-        if (angle_diff < -1) angle_diff = -1.0;
-        if (angle_diff >  1) angle_diff =  1.0;
-        angle_diff = acos(angle_diff);
+      double angle_diff = v1.dot(v2) / (v1.norm() * v2.norm());
+      if (angle_diff < -1) angle_diff = -1.0;
+      if (angle_diff >  1) angle_diff =  1.0;
+      angle_diff = acos(angle_diff);
 
-        return angle_diff;
+      return angle_diff;
     }
 
     // given real_chest marker positions, get the rotational offset
-    void set_initpos_rt(Vector3d vec_r, Vector3d vec_s, double* mrkr, double *pose) {
+    void set_initpos_rt(Vector3d vec_r, Vector3d vec_s, double* mrkr, double* ps_c, double *pose) {
 
-        Vector3d vec_z(1,0,0);
-        vec_z.normalize();
+      Vector3d vec_z(1,0,0);
+      vec_z.normalize();
+      std::cout<<"V1: "<< vec_r.transpose()<<std::endl;
+      std::cout<<"V2: "<< vec_s.transpose()<<std::endl;
+      vec_r.normalize();
+      vec_s.normalize();
 
-        vec_r.normalize();
-        vec_s.normalize();
+      printf("\n");
+      printf("Chest Vector from markers, norm: %f\n", vec_r.norm());
+      printf("Chest Vector from Simultr, norm: %f\n", vec_s.norm());
 
-        printf("Chest Vector from markers, norm: %f\n", vec_r.norm());
-        printf("Chest Vector from Simultr, norm: %f\n", vec_s.norm());
+      double angle_diff = angle(vec_r, vec_s);
+      std::cout<<"Angle difference: "<<angle_diff*180/3.1415<<", radian:"<<angle_diff<<"\n";
 
-        double angle_diff = angle(vec_r, vec_s);
-        std::cout<<"Angle difference: "<<angle_diff*180/3.1415<<", radian:"<<angle_diff<<"\n";
+      double a1 = angle(vec_r, vec_z);
+      double a2 = angle(vec_s, vec_z);
 
-        double a1 = angle(vec_r, vec_z);
-        double a2 = angle(vec_s, vec_z);
+      std::cout<<"Angles (degrees) from independent point:"<<a1*180/3.1415<<", "<<a2*180/3.1415<<"\n";
 
-        std::cout<<"Angles (degrees) from independent point:"<<a1*180/3.1415<<", "<<a2*180/3.1415<<"\n";
+      if (a2 > a1) {
+        init_pos<<cos(angle_diff),sin(angle_diff),0,-1*sin(angle_diff),cos(angle_diff),0,0,0,1;
+      }
+      else {
+        init_pos<<cos(angle_diff),-1*sin(angle_diff),0,sin(angle_diff),cos(angle_diff),0,0,0,1;
+      }
 
-        if (a2 > a1) {
-            init_pos<< cos(angle_diff),  sin(angle_diff), 0, -1*sin(angle_diff), cos(angle_diff), 0, 0, 0, 1;
+      std::cout<<"Rotation Matrix for initial position:\n"<<init_pos<<std::endl;
+
+      Vector3d off(0,0,0);
+      int c=0;
+      std::cout<<"Calculating Offset:\n";
+      for (int i=0; i<NMARKER; i++) {
+        Map<Vector3d> p(pose+i*3);
+        Map<Vector3d> m(mrkr+i*3);
+        if (ps_c[i] > 0.5) { // saw a marker well more than half the time
+            //Vector3d n = init_pos*table_rotation*m - p;
+            Vector3d n = init_pos*m - p;
+            std::cout<<i<<":"<<ps_c[i]<<": "<<(init_pos*m).transpose()<<" - "<<p.transpose()<<" : "<<n.transpose()<<std::endl;
+            off = off + n;
+            c++;
         }
-        else {
-            init_pos<< cos(angle_diff),  -1*sin(angle_diff), 0, sin(angle_diff), cos(angle_diff), 0, 0, 0, 1;
-        }
-
-        std::cout<<"Rotation Matrix for initial position:\n"<<init_pos<<std::endl;
-
-        for (int i=0; i<16; i++) { // calculate the offset
-            Map<Vector3d> p(pose+i*3);
-            Map<Vector3d> m(mrkr+i*3);
-            offset[i] = init_pos*table_rotation*m - p;
-        }
+      }
+      off = off / (double)c; // average the offset
+      std::cout<<"Offset:\n"<<off<<"\n";
+      for (int i=0; i<NMARKER; i++) { // calculate the offset
+          offset[i] = off;
+      }
     }
 };

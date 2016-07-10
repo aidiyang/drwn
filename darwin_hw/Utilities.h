@@ -152,6 +152,42 @@ void zero_position(MyRobot *d, double* ctrl, double* sensors, int nu) {
   printf(" done.\n");
 }
 
+void buffer_markers(MyRobot *d, double* ps, double* ps_c,
+    double* sensors, double* conf, int mrkr_idx, int NMARKER, int b_count) {
+  // ASSUMES ps is NMARKER*3 in size
+  // ASSUMES ps_c is NMARKER in size
+  // ASSUMES other buffers are adequate
+  for (int m=0; m<NMARKER; m++) { // clear buffer
+    ps[m*3+0] = 0.0; ps[m*3+1] = 0.0; ps[m*3+2] = 0.0;
+    ps_c[m] = 0;
+  }
+  double time;
+  for (int i = 0; i < b_count; i++) {
+    d->get_sensors(&time, sensors, conf);
+    for (int m=0; m<NMARKER; m++) {
+      if (conf[m] > 3.9) {
+        ps[m*3+0] += sensors[mrkr_idx+ m*3+0];
+        ps[m*3+1] += sensors[mrkr_idx+ m*3+1];
+        ps[m*3+2] += sensors[mrkr_idx+ m*3+2];
+        ps_c[m] += 1.0;
+      }
+    }
+    printf(".");
+    fflush(stdout);
+  }
+  for (int m=0; m<NMARKER; m++) { // average the data points
+    if (ps_c[m] > 1e-6) {
+      ps[m*3+0] = ps[m*3+0] / ps_c[m];
+      ps[m*3+1] = ps[m*3+1] / ps_c[m];
+      ps[m*3+2] = ps[m*3+2] / ps_c[m];
+    }
+  }
+  for (int m=0; m<NMARKER; m++) {
+    //printf("%d %1.3f %1.3f %1.3f %1.3f\n", m, ps[m*3+0], ps[m*3+1], ps[m*3+2], ps_c[m]);
+    ps_c[m] = ps_c[m] / (double) b_count; // threshold these above 0.5
+  }
+}
+
 void kb_changemode(int dir)
 {
 #ifndef __WIN32__

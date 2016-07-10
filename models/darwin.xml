@@ -14,15 +14,15 @@ soft:
       <flag contact="disable"/>
    -->
 
-    <option	timestep="0.0025" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
+    <option	timestep="0.0025" iterations="100" tolerance="1e-9" solver="PGS" gravity="0 0 -9.81" >
     </option>
 
     <default>
 
       <!--
-      <geom solref=".02 1" solimp=".6 .9 .01" material="meshmat" margin='0.001' />
+      <geom condim='3' rgba='0.8 0.6 .4 1' />
         -->
-      <geom condim='1' rgba='0.8 0.6 .4 1' />
+      <geom condim='3' solref=".02 1" solimp=".8 .9 .01" material="meshmat" margin='0.001' />
       <!--
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
@@ -56,26 +56,30 @@ soft:
       </default>
     </default>
 
-    <!--<size nuserdata="15" />-->
+    <!--<size nuserdata="15" />
+         1e-0 1e-7 1e-0 1e-0 1e-7 1e-5 1e-4 1e-5 1e-4 1e-5 1e-3 1e-2 1e-4 1e-5 1e-2"/>
+         -->
     <custom>
-      <numeric name="snsr_covar" size="15" data=" 
-        1e-1
-        1e-3
-        1e-0
-        1e-0
-        1e-0
-        1e-0
+        <numeric name="snsr_covar" size="15" data="
+        1e+9
         1e-6
+        1e+9
+        1e+9
+        1e-4
         1e-4
         1e-0
         1e-0
         1e-0
-        1e-6
+        1e-0
+        1e-0
+        1e-7
         1e-0
         1e-0
         1e-0
         "
         />
+        <!--
+        -->
 <!-- Accelerometer -->
 <!-- Gyro          -->
 <!-- Force         -->
@@ -91,7 +95,10 @@ soft:
 <!-- SiteQuat      -->
 <!-- Magnetometer  -->
 <!-- Default       -->
-
+      <numeric name="t_rot" size="9" data=" 
+        1 0 0 0 1 0 0 0 1
+        "
+        />
     </custom>
 
 
@@ -160,18 +167,18 @@ soft:
         <geom material="meshmat" size=".02 .02 .03" type="box"/>
       </body>
       -->
-      <body name="torso" pos="0 0 0.47">
+      <body name="torso" pos="0 0 0.37">
         <inertial diaginertia="6.53693 6.39822 1.88344" mass="0.975599" pos="-0.003053 -0.038651 -0.019268" quat="-0.00879356 0.867004 0.0524199 0.495458"/>
         <!--
+        -->
         <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
 
-        -->
         <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
-        <!--
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+        <!--
         <joint type="free" limited='false' />
         -->
         <geom name="torso" material="meshmat" contype="2" conaffinity="0" mesh="body_coll" type="mesh" class='box'/>

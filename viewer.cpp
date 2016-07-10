@@ -350,6 +350,8 @@ int main(int argc, const char** argv) {
   mjData * est_data = 0;
   bool color = false;
 
+  double * s_cov = get_numeric_field(m, "snsr_covar", NULL);
+  double * p_cov = get_numeric_field(m, "covar_diag", NULL);
 
   while( !closeViewer() ) {
 
@@ -372,10 +374,7 @@ int main(int argc, const char** argv) {
           delete est;
         printf("New UKF initialization\n");
 
-        double * s_cov = get_numeric_field(m, "snsr_covar", NULL);
-        double * p_cov = get_numeric_field(m, "covar_diag", NULL);
-
-        est = new UKF(m, d, s_cov, P_cov,
+        est = new UKF(m, d, s_cov, p_cov,
             alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
 
         est_data = est->get_state();

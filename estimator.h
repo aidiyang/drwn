@@ -59,7 +59,12 @@ class Estimator {
         //virtual void init();
         virtual void predict(double * ctrl, double dt) {};
         virtual void correct(double* sensors) {};
+        virtual void predict_correct(double * ctrl, double dt, double* sensors, double* conf) {};
+        virtual mjData* get_state() {return this->d; };
+        virtual mjData* get_stddev() {return this->d; };
+        virtual std::vector<mjData*> get_sigmas() {return sigma_states; };
 
+        std::vector<mjData *> sigma_states;
         mjModel* m;
         mjData* d;
         int nq;
@@ -104,6 +109,7 @@ class UKF : public Estimator {
             sigma_states.resize(2*nq + 1); // only useful to visualize qpos perturbed
 
             sigmas.resize(threads);
+            omp_set_num_threads(threads);
 
             stddev = mj_makeData(this->m);
 
@@ -403,7 +409,7 @@ class UKF : public Estimator {
             //m->opt.iterations = 100; 
             //m->opt.tolerance = 1e-6; 
             bool INV_CHECK = false;
-            printf("Estimation start. t-1 = %f\n", d->time);
+            //printf("Estimation start. t-1 = %f\n", d->time);
 
             // Optimization note:
             // when trying to do the fancy central point first scheme,
@@ -709,13 +715,13 @@ class UKF : public Estimator {
             //P_t = P_t + MatrixXd::Identity(L, L)*diag; 
             P_t = P_t + PtAdd; 
 
-            printf("Estimation end. t = %f\n", d->time);
+            //printf("Estimation end. t = %f\n", d->time);
 
             set_data(d, &(x_t));
             mju_copy(d->ctrl, ctrl, nu); // set controls for the center point
             mj_forward(m, d);
-            printf("\tdone qacc: ");
-            for (int i=0; i<nv; i++) printf("%1.4f ", d->qacc[i]);
+            //printf("\tdone qacc: ");
+            //for (int i=0; i<nv; i++) printf("%1.4f ", d->qacc[i]);
 
             //std::cout << "\ncorrect x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
             //std::cout << "\nother   x_t:\n"<< x_t_aug.transpose().format(CleanFmt) << std::endl;
@@ -727,8 +733,8 @@ class UKF : public Estimator {
 
             double t6 = omp_get_wtime()*1000.0;
 
-            printf("\ncombo init %f, sqrt %f, mjsteps %f, merge %f\n",
-                    t3-t2, t4-t3, t5-t4, t6-t5);
+            //printf("\ncombo init %f, sqrt %f, mjsteps %f, merge %f\n",
+            //        t3-t2, t4-t3, t5-t4, t6-t5);
 
             if (NUMBER_CHECK) {
                 IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");

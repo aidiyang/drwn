@@ -14,7 +14,7 @@ soft:
       <flag contact="disable"/>
    -->
 
-    <option	timestep="0.0025" iterations="100" tolerance="1e-9" solver="PGS" gravity="0 0 -9.81" >
+    <option	timestep="0.0025" iterations="100" tolerance="-1" solver="elliptic" gravity="0 0 -9.81" >
     </option>
 
     <default>
@@ -22,12 +22,12 @@ soft:
       <!--
       <geom condim='3' rgba='0.8 0.6 .4 1' />
         -->
-      <geom condim='3' solref=".02 1" solimp=".8 .9 .01" material="meshmat" margin='0.001' />
+      <geom condim='3' solref=".0002 1" solimp="1.0 0.9 0.001" friction="1 0.05 0.001" material="meshmat" margin='0.00' />
       <!--
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
       <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
-      <position ctrllimited='true' kp='200'/>
+      <position ctrllimited='true' kp='8'/>
 
       <default class='box'>
         <geom contype='1' conaffinity='0' rgba='.79 .52 .43 1'/>
@@ -262,7 +262,7 @@ soft:
           </body>
         </body>
 
-        <body name="pelvis_l" pos="-0.005 0.037 -0.09355" quat="0 0.707107 0.707107 0">
+        <body name="pelvis_l" pos="-0.005 0.037 -0.09355" euler="0 3.1415 1.5708">
           <inertial diaginertia="0.122641 0.11137 0.0411301" mass="0.027069" pos="0 0.00048 0.018437" quat="0.998273 -0.0514899 -0.00396715 0.0279885"/>
           <joint axis="0 0 1" name="l_hip_yaw" pos="0 0 0" range="-.9250245036 2.14675498" type="hinge"/>
           <geom class="visual" material="meshmat" mesh="pelvis_l_coll" type="mesh"/>
@@ -308,7 +308,7 @@ soft:
             </body>
           </body>
         </body>
-        <body name="pelvis_r" pos="-0.005 -0.037 -0.09355" quat="0 -0.707107 0.707107 0">
+        <body name="pelvis_r" pos="-0.005 -0.037 -0.09355" euler="0 3.1415 -1.5708">
           <inertial diaginertia="0.122641 0.11137 0.0411301" mass="0.027069" pos="0 0.00048 0.018437" quat="0.998273 -0.0514899 -0.00396715 0.0279885"/>
           <joint axis="0 0 1" name="r_hip_yaw" pos="0 0 0" range="-2.14675498 .9250245036" type="hinge"/>
           <geom class="visual" material="meshmat" mesh="pelvis_r_coll" type="mesh"/>
@@ -471,6 +471,7 @@ soft:
     </sensor>
 
     <actuator>
+      <!--
       <position name='0_r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
       <position name='1_l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5 1.5' />
       <position name='2_r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.25'  	/>
@@ -492,8 +493,29 @@ soft:
 
       <position name='18_head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
       <position name='19_head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
-      <!--
       -->
+
+      <position name='0_r_shoulder_pitch' joint='r_shoulder_pitch' ctrlrange='-1.5 1.5'  	/>
+      <position name='1_l_shoulder_pitch' joint='l_shoulder_pitch' ctrlrange='-1.5 1.5' />
+      <position name='2_r_shoulder_roll'  joint='r_shoulder_roll'  ctrlrange='-.85 1.25'  	/>
+      <position name='3_l_shoulder_roll'  joint='l_shoulder_roll'  ctrlrange='-1.25 .85' />
+      <position name='4_r_elbow'          joint='r_elbow'          ctrlrange='-1.55 1.25'	/>
+      <position name='5_l_elbow'          joint='l_elbow'          ctrlrange='-1.25 1.55' />
+      <position name='6_r_hip_yaw'        joint='r_hip_yaw'        ctrlrange='-1 .9'   	/>
+      <position name='7_l_hip_yaw'        joint='l_hip_yaw'        ctrlrange='-.9 1'   />
+      <position name='8_r_hip_roll'       joint='r_hip_roll'       ctrlrange='-.7 .45'   />
+      <position name='9_l_hip_roll'       joint='l_hip_roll'       ctrlrange='-.45 .7'   />
+      <position name='10_r_hip_pitch'     joint='r_hip_pitch'      ctrlrange='-1.7 .45'  />
+      <position name='11_l_hip_pitch'     joint='l_hip_pitch'      ctrlrange='-.45 1.7'  />
+      <position name='12_r_knee'          joint='r_knee'           ctrlrange='-0.05 2.2' />
+      <position name='13_l_knee'          joint='l_knee'           ctrlrange='-2.2 0.05' />
+      <position name='14_r_ankle_pitch'   joint='r_ankle_pitch'    ctrlrange='-1.2 1.35' />
+      <position name='15_l_ankle_pitch'   joint='l_ankle_pitch'    ctrlrange='-1.35 1.2' />
+      <position name='16_r_ankle_roll'    joint='r_ankle_roll'     ctrlrange='-.7 .95'   />
+      <position name='17_l_ankle_roll'    joint='l_ankle_roll'     ctrlrange='-.95 .7'   />
+
+      <position name='18_head_pan'        joint='head_pan'         ctrlrange='-2 2'      /> 
+      <position name='19_head_tilt'       joint='head_tilt'        ctrlrange='-.4 .9'    /> 
 
 
       <!--

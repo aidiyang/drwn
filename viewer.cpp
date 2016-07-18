@@ -11,7 +11,8 @@
 
 #include "darwin_hw/robot.h"
 
-#include "estimator.h"
+//#include "estimator.h"
+#include "ekf_estimator.h"
 
 #include <iostream>
 #include <fstream>
@@ -185,6 +186,7 @@ int main(int argc, const char** argv) {
   //bool do_correct;
   bool debug;
   bool real_robot;
+  bool useUKF;
 
   try {
     po::options_description desc("Allowed options");
@@ -208,6 +210,7 @@ int main(int argc, const char** argv) {
       ("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
       ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
       ("tol,i", po::value<double>(&tol)->default_value(-1.0), "Set Constraint Tolerance (default NONE).")
+      ("UKF,u", po::value<bool>(&useUKF)->default_value(true), "Use UKF or EKF")
       //("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 #ifndef __APPLE__
       ("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
@@ -327,7 +330,7 @@ int main(int argc, const char** argv) {
     ctrl[i] = 0.0;
   }
   double *sensors = new double[nsensordata];
-  double *conf = new double[16];
+   double *conf = new double[16];
 
   // init darwin to walker pose
   Walking * walker = new Walking();
@@ -373,11 +376,18 @@ int main(int argc, const char** argv) {
       case 2:
         if (est)
           delete est;
-        printf("New UKF initialization\n");
+          if (useUKF) {
+            printf("New UKF initialization\n");
+          }else {
+            printf("New EKF initialization\n");
+          }
 
-        est = new UKF(m, d, s_cov, p_cov,
+        if (useUKF) {
+          est = new UKF(m, d, s_cov, p_cov,
             alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
-
+        }else {
+          est = new EKF(m, d, e_noise, tol, diag, debug, num_threads);
+        }
         est_data = est->get_state();
         if (real_robot) save_states(output_file, 0.0, NULL, est_data, est->get_stddev(), 0, 0, "w");
         else save_states(output_file, 0.0, d, est_data, est->get_stddev(), 0, 0, "w");
@@ -396,7 +406,6 @@ int main(int argc, const char** argv) {
     else {
       get_data_and_estimate = robot->get_sensors(&time, sensors, conf);
     }
-
     // simulate and render
     //printf("time: %f\t", d->time);
     if (get_data_and_estimate) {
@@ -420,9 +429,15 @@ int main(int argc, const char** argv) {
       double t1 = now_t();
       //if (est) est->correct(sensors);
       printf("prev time: %f\n", prev_time);
-      if (est) est->predict_correct(ctrl, time-prev_time, sensors, conf);
+      if (est) {
+          est->predict_correct(ctrl, time-prev_time, sensors, conf);
+      }
 
       double t2 = now_t();
+      if (est) {
+        printf("Est state:\n");
+        print_state(m, est->get_state());
+      }
 
       printf("\n\t\t estimator predict %f ms, correct %f ms, total %f ms\n\n",
           t1-t0, t2-t1, t2-t0);

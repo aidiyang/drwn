@@ -3,7 +3,8 @@
 //#include <random>
 #include <functional>
 
-#include "estimator.h"
+//#include "estimator.h"
+#include "ekf_estimator.h"
 #ifndef __APPLE__
 #include <omp.h>
 #endif
@@ -33,7 +34,7 @@ namespace fs = boost::filesystem;
 mjModel* m; // defined in viewer_lib.h to capture perturbations
 //mjData* d;
 
-int num_threads = 4;
+const int num_threads = 4;
 std::string output_file;
 std::string dir;
 int maxtime;
@@ -49,17 +50,17 @@ double diag;
 double Ws0;
 double tol;
 
-#ifdef __APPLE__
-double omp_get_wtime() {
-    std::chrono::time_point<std::chrono::high_resolution_clock> t
-        = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double, std::milli> d=t.time_since_epoch();
-    return d.count() / 1000.0 ; // returns milliseconds
-}
-int omp_get_thread_num() { return 0; }
-int omp_get_num_threads() { return 1; }
-#endif
+//#ifdef __APPLE__
+//double omp_get_wtime() {
+//    std::chrono::time_point<std::chrono::high_resolution_clock> t
+//        = std::chrono::high_resolution_clock::now();
+//
+//    std::chrono::duration<double, std::milli> d=t.time_since_epoch();
+//    return d.count() / 1000.0 ; // returns milliseconds
+//}
+//int omp_get_thread_num() { return 0; }
+//int omp_get_num_threads() { return 1; }
+//#endif
 
 //Convert inputted array in a string
 std::string makeString(double arr[], int size) {
@@ -78,15 +79,14 @@ std::string to_string(double x);
 
 //Save the states of real, estimate, and covar (stddev) to inputed file
 void save_states(std::ofstream &myfile, std::string filename, mjModel *m, mjData *real, mjData *est, mjData *stddev,
-    std::string mode = "w") {
+    mjData* ekfest, mjData* ekfstddev, std::string mode = "w") {
   if (mode=="w") {
     // create file
     myfile.open(filename, std::ofstream::out);
     myfile<<"time,";
-    for (int i=0; i<m->nq; i++) {
-      myfile<<"qpos,";
-    }
 
+    for (int i=0; i<m->nq; i++)
+      myfile<<"qpos,";
     for (int i=0; i<m->nv; i++) 
       myfile<<"qvel,";
     for (int i=0; i<m->nu; i++) 
@@ -111,6 +111,24 @@ void save_states(std::ofstream &myfile, std::string filename, mjModel *m, mjData
       myfile<<"stddev_c,";
     for (int i=0; i<m->nsensordata; i++) 
       myfile<<"stddev_s,";
+
+    for (int i=0; i<m->nq; i++) 
+      myfile<<"ekf_p,";
+    for (int i=0; i<m->nv; i++) 
+      myfile<<"ekf_v,";
+    for (int i=0; i<m->nu; i++) 
+      myfile<<"ekf_c,";
+    for (int i=0; i<m->nsensordata; i++) 
+      myfile<<"ekf_s,";
+
+    for (int i=0; i<m->nq; i++) 
+      myfile<<"ekfdev_p,";
+    for (int i=0; i<m->nv; i++) 
+      myfile<<"ekfdev_v,";
+    for (int i=0; i<m->nu; i++) 
+      myfile<<"ekfdev_c,";
+    for (int i=0; i<m->nsensordata; i++) 
+      myfile<<"ekfdev_s,";
 
     myfile<<"\n";
     myfile.close();
@@ -139,11 +157,31 @@ void save_states(std::ofstream &myfile, std::string filename, mjModel *m, mjData
       + "," + makeString(stddev->sensordata, m->nsensordata) + ",";
     myfile<<stdstr;
 
+    std::string ekfeststr = makeString(ekfest->qpos, m->nq) + "," + makeString(ekfest->qvel, m->nv) + "," + makeString(ekfest->ctrl, m->nu)
+      + "," + makeString(ekfest->sensordata, m->nsensordata) + ",";
+    myfile<<ekfeststr;
+
+    std::string ekfstdstr = makeString(ekfstddev->qpos, m->nq) + "," + makeString(ekfstddev->qvel, m->nv) + "," + makeString(ekfstddev->ctrl, m->nu)
+      + "," + makeString(ekfstddev->sensordata, m->nsensordata) + ",";
+    myfile<<ekfstdstr;
+
     myfile<<"\n";
 
   }
 }
 
+double * get_numeric_field(const mjModel* m, std::string s, int *size) {
+  for (int i=0; i<m->nnumeric; i++) {
+    std::string f = m->names + m->name_numericadr[i];
+    //printf("%d %s %d\n", m->numeric_adr[i], f.c_str(), m->numeric_size[i]);
+    if (s.compare(f) == 0) {
+      if (size)
+        *size = m->numeric_size[i];
+      return m->numeric_data + m->numeric_adr[i];
+    }
+  }
+  return 0;
+}
 
 void do_work(int tid)
 {
@@ -164,36 +202,60 @@ void do_work(int tid)
   }
 
   for(int i=s; i<e; i++) {
+    mjData* ukf_data = 0;
+    mjData* ekf_data = 0;
     mjData* d = mj_makeData(m);   //remake data (reset robot) in order to start at time 0.0 again
     mj_forward(m,d); // init
 
-    Estimator * est = new UKF(m, d, NULL, NULL,
+    double * s_cov = get_numeric_field(m, "snsr_covar", NULL);
+    double * p_cov = get_numeric_field(m, "covar_diag", NULL);
+
+    Estimator * est = new UKF(m, d, s_cov, p_cov,
         alpha, beta, kappa, diag, Ws0, e_noise, tol, false, 1);   //Make new UKF estimator
+    ukf_data = est->get_state();
+
+    Estimator * ekfest = new EKF(m, d, e_noise, tol, diag, debug, num_threads); //Make new EKF estimator
+    ekf_data = ekfest->get_state();
 
     std::stringstream mcname;
     mcname<<"./"<<dir<<"/"<<output_file<<"_"<<i<<".csv";   //MCout file prefix
     std::string filename = mcname.str();
-    save_states(myfile, filename, m, d, est->get_state(), est->get_stddev(), "w");  //Create/open MC file
+    save_states(myfile, filename, m, d, ukf_data, est->get_stddev(), ekf_data, ekfest->get_stddev(), "w");  //Create/open MC file
     for(int j = 0; j<maxtime; j++) {
       //Make control noise array
       for (int k = 0; k < m->nu; k++) {
         d->ctrl[k] = nd(rng);
       }
+      /*for (int k = 0; k < m->nsensordata; k++) {
+        estsensor[k] = d->sensordata[k] + snd(rng);
+      }*/
+      //std::vector<mjData*> tmp = ekfest->get_sigmas();
+      //mjData* tmp = ekfest->get_sigmas()[0];
+      //save_states(myfile, filename, m, d, ukf_data, est->get_stddev(), ekf_data, ekfest->get_stddev(), "a");
+      //mj_step(m,d);
+      //mj_Euler(m,d);
+      //mj_forward(m,d);
+      mj_Euler(m,d);
+      mj_forward(m, d);
+      mj_Euler(m,d);
+
+
+      mj_forward(m, d);
+      mj_sensor(m,d);
       for (int k = 0; k < m->nsensordata; k++) {
         estsensor[k] = d->sensordata[k] + snd(rng);
       }
-      save_states(myfile, filename, m, d, est->get_state(), est->get_stddev(), "a");
-      //mj_step(m,d);
-      mj_Euler(m,d);
-      mj_forward(m,d);
-      mj_sensor(m,d);
+
       est->predict_correct(estctrl, m->opt.timestep, estsensor, NULL);
+      ekfest->predict_correct(estctrl, m->opt.timestep, estsensor, NULL);
+      save_states(myfile, filename, m, d, ukf_data, est->get_stddev(), ekf_data, ekfest->get_stddev(), "a");
     }
-    save_states(myfile, filename, m, d, est->get_state(), est->get_stddev(), "a");
+    save_states(myfile, filename, m, d, ukf_data, est->get_stddev(), ekf_data, ekfest->get_stddev(), "a");
     myfile.close();     //Close file, if don't use global file, use save_states close
 
     mj_deleteData(d);   //free data
     delete est;         //Delete UKF to free data
+    delete ekfest;
   }
 }
 
@@ -221,7 +283,7 @@ int main(int argc, const char** argv) {
       ("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
       ("simulations,l", po::value<int>(&sim)->default_value(30), "Number of simulations to do")
       ("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
-      ("alpha,a", po::value<double>(&alpha)->default_value(10e-3), "Alpha: UKF param")
+      ("alpha,a", po::value<double>(&alpha)->default_value(1e-3), "Alpha: UKF param")
       ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
       ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
       ("diagonal,d", po::value<double>(&diag)->default_value(1e-6), "Diagonal amount to add to UKF covariance matrix.")
@@ -246,8 +308,10 @@ int main(int argc, const char** argv) {
     return 0;
   }
 
-  omp_set_num_threads(omp_threads);
-  omp_set_dynamic(0);
+#ifndef __APPLE__
+ omp_set_num_threads(omp_threads);
+ omp_set_dynamic(0);
+#endif
 
   if(Ws0 > 1) {
     Ws0 = 1;
@@ -273,7 +337,7 @@ int main(int argc, const char** argv) {
   if(!fs::is_directory(dir)) {
     //boost::filesystem::path dir(dir);
     boost::filesystem::create_directory(dir);
-    printf("Made directory");
+    printf("Made directory\n");
   }  
 
   m = mj_loadXML(model_name.c_str(), 0, 0, 0);

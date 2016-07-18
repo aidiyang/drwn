@@ -14,6 +14,7 @@ parser.add_argument("-p", "--doPlot", action="store_true", help="Print plots")
 parser.add_argument("-w", "--whole", action="store_true", help="Print out entire covariance")
 parser.add_argument("-q", "--doQpos", action="store_true", help="Plot qpos for each simulation")
 parser.add_argument("-e", "--plotError", action="store_true", help="Plot RMS error")
+parser.add_argument("-s", "--plotSensor", action="store_true", help="Plot sensor data")
 
 args = parser.parse_args()
 dir = args.dir
@@ -29,12 +30,14 @@ filelist = glob.glob(dir+"*_*.csv")
 
 datatmp = pd.read_csv(filelist[0], sep=',')
 timelength = datatmp.shape[0]
-datalength = (datatmp.shape[1] - 2) / 3 + 1
+datalength = (datatmp.shape[1] - 1) / 5 + 1
 
 realdata = np.zeros((timelength, datalength, len(filelist)))
 estdata = np.zeros((timelength, datalength, len(filelist)))
+ekfdata = np.zeros((timelength, datalength, len(filelist)))
 #4-D matrix: Covariance by time by simulation (file)
 covardata = np.zeros((datalength - 1, datalength - 1, timelength, len(filelist)))
+ekf_covardata = np.zeros((datalength - 1, datalength - 1, timelength, len(filelist)))
 
 for i in range(len(filelist)):
 	df = pd.read_csv(filelist[i], sep=',')
@@ -52,6 +55,11 @@ for i in range(len(filelist)):
 	est_ctrl = df.filter(regex='est_c').values
 	est_snsr = df.filter(regex='est_s').values
 
+	ekf_qpos = df.filter(regex='ekf_p').values
+	ekf_qvel = df.filter(regex='ekf_v').values
+	ekf_ctrl = df.filter(regex='ekf_c').values
+	ekf_snsr = df.filter(regex='ekf_s').values
+
 	nq = est_qpos.shape[1]
 	nv = est_qvel.shape[1]
 	nu = est_ctrl.shape[1]
@@ -62,39 +70,60 @@ for i in range(len(filelist)):
 	covar_ctrl = df.filter(regex='stddev_c').values
 	covar_snsr = df.filter(regex='stddev_s').values
 
+	ekf_covar_qpos = df.filter(regex='ekfdev_p').values
+	ekf_covar_qvel = df.filter(regex='ekfdev_v').values
+	ekf_covar_ctrl = df.filter(regex='ekfdev_c').values
+	ekf_covar_snsr = df.filter(regex='ekfdev_s').values
+
 	realtmp = np.hstack((t, qpos, qvel, ctrl, snsr))
 	esttmp = np.hstack((t, est_qpos, est_qvel, est_ctrl, est_snsr))
+	ekftmp = np.hstack((t, ekf_qpos, ekf_qvel, ekf_ctrl, ekf_snsr))
 	covartmp = np.hstack((covar_qpos, covar_qvel, covar_ctrl, covar_snsr))
+	ekf_covartmp = np.hstack((ekf_covar_qpos, ekf_covar_qvel, ekf_covar_ctrl, ekf_covar_snsr))
 
 	realdata[:, :, i] = realtmp
 	estdata[:, :, i] = esttmp
+	ekfdata[:, :, i] = ekftmp
 	for j in range(timelength):
 		covardata[:, :, j, i] = np.diag(covartmp[j, :])
+		ekf_covardata[:, :, j, i] = np.diag(ekf_covartmp[j, :])
 
 avgreal = np.mean(realdata, axis = 2)
 avgest = np.mean(estdata, axis = 2)
+avgekf = np.mean(ekfdata, axis = 2)
 avgcovar = np.mean(covardata, axis = 3) #UKF covariance: Covariance by time (3-D)
+avg_ekfcovar = np.mean(ekf_covardata, axis = 3)\
 
 #Calculate covariance
 #3-D matrix: covariance by time
 realcovars = np.zeros((datalength - 1, datalength - 1, timelength))
 estcovars = np.zeros((datalength - 1, datalength - 1, timelength))
+ekfcovars = np.zeros((datalength - 1, datalength - 1, timelength))
 
 for i in range(timelength):
 	realcovars[:, :, i] = np.cov(realdata[i, 1:datalength, :])
 	estcovars[:, :, i] = np.cov(estdata[i, 1:datalength, :])
+	ekfcovars[:, :, i] = np.cov(ekfdata[i, 1:datalength, :])
 
 #Calculate standard deviation from covariance
 std_qpos = np.zeros((timelength, nq))
 std_qvel = np.zeros((timelength, nv))
 std_ctrl = np.zeros((timelength, nu))
 std_snsr = np.zeros((timelength, ns))
+ekf_std_qpos = np.zeros((timelength, nq))
+ekf_std_qvel = np.zeros((timelength, nv))
+ekf_std_ctrl = np.zeros((timelength, nu))
+ekf_std_snsr = np.zeros((timelength, ns))
 
 for i in range(timelength):
 	std_qpos[i, :] = np.sqrt(estcovars[0:nq, 0:nq, i].diagonal())
 	std_qvel[i, :] = np.sqrt(estcovars[nq:nq+nv, nq:nq+nv, i].diagonal())
 	std_ctrl[i, :] = np.sqrt(estcovars[nq+nv:nq+nv+nu, nq+nv:nq+nv+nu, i].diagonal())
 	std_snsr[i, :] = np.sqrt(estcovars[nq+nv+nu:nq+nv+nu+ns, nq+nv+nu:nq+nv+nu+ns, i].diagonal())
+	ekf_std_qpos[i, :] = np.sqrt(ekfcovars[0:nq, 0:nq, i].diagonal())
+	ekf_std_qvel[i, :] = np.sqrt(ekfcovars[nq:nq+nv, nq:nq+nv, i].diagonal())
+	ekf_std_ctrl[i, :] = np.sqrt(ekfcovars[nq+nv:nq+nv+nu, nq+nv:nq+nv+nu, i].diagonal())
+	ekf_std_snsr[i, :] = np.sqrt(ekfcovars[nq+nv+nu:nq+nv+nu+ns, nq+nv+nu:nq+nv+nu+ns, i].diagonal())
 
 #Calculate RMS error
 #NOTE: RMS error has dimensions timelength by datalength (RMS error includes time unlike NEES error)
@@ -145,6 +174,11 @@ if args.doPlot:
 	est_ctrl = avgest[:,1+nq+nv:nq+nv+nu+1]
 	est_snsr = avgest[:,1+nq+nv+nu:nq+nv+nu+ns+1]
 
+	ekf_qpos = avgekf[:,1:nq+1]
+	ekf_qvel = avgekf[:,1+nq:nq+nv+1]
+	ekf_ctrl = avgekf[:,1+nq+nv:nq+nv+nu+1]
+	ekf_snsr = avgekf[:,1+nq+nv+nu:nq+nv+nu+ns+1]
+
 	fig, axs = plt.subplots(2, 2, sharex=False)
 
 	#qpos/qvel 2 is z 
@@ -152,44 +186,78 @@ if args.doPlot:
 	my_lw = 4
 	my_alpha = 0.5
 
+	#Plot qpos[0] (x position)
 	if qpos.any():
-	    axs[0,0].plot(t, qpos, lw=my_lw, alpha=my_alpha)
-	plt.gca().set_color_cycle(None) # reset color cycle
-	axs[0,0].plot(t, est_qpos, ls=my_ls, alpha=1.0)
-	axs[0,0].set_title('qpos')
-	for col in range(nq):	
-		axs[0,0].fill_between(t[:,0], est_qpos[:,col]+std_qpos[:,col], 
-		   	est_qpos[:,col]-std_qpos[:,col], edgecolor='none', alpha=0.1)
+	    axs[0,0].plot(t, qpos[:,0], lw=my_lw, alpha=my_alpha, label = 'Real qpos')
+	#plt.gca().set_color_cycle(None) # reset color cycle
+	axs[0,0].plot(t, est_qpos[:,0], ls=my_ls, c = 'red', alpha=1.0, label = 'UKF qpos')
+	axs[0,0].plot(t, ekf_qpos[:,0], ls='-', c = 'black', alpha=1.0, label = 'EKF qpos')
+	axs[0,0].set_title('x qpos')
+	handles, labels = axs[0,0].get_legend_handles_labels()
+	axs[0,0].legend(handles, labels)
+	#Plot UKF covar lines	
+	axs[0,0].fill_between(t[:,0], est_qpos[:,0]+std_qpos[:,0], 
+	   	est_qpos[:,0]-std_qpos[:,0], edgecolor='black', alpha=0.1)
 
+	#Plot qpos[1] (z position)
+	if qpos.any():
+	    axs[1,0].plot(t, qpos[:,1], lw=my_lw, alpha=my_alpha, label = 'Real qpos')
+	#plt.gca().set_color_cycle(None) # reset color cycle
+	axs[1,0].plot(t, est_qpos[:,1], ls=my_ls, c = 'red', alpha=1.0, label = 'UKF qpos')
+	axs[1,0].plot(t, ekf_qpos[:,1], ls='-', c = 'black', alpha=1.0, label = 'EKF qpos')
+	axs[1,0].set_title('z qpos')
+	handles, labels = axs[1,0].get_legend_handles_labels()
+	axs[1,0].legend(handles, labels)
+	#Plot UKF covar lines	
+	axs[1,0].fill_between(t[:,0], est_qpos[:,1]+std_qpos[:,1], 
+	   	est_qpos[:,1]-std_qpos[:,1], edgecolor='black', alpha=0.1)
+
+	#Plot qvel[0] (x velocity)
 	if qvel.any():
-	    axs[0,1].plot(t, qvel, lw=my_lw, alpha=my_alpha)
-	plt.gca().set_color_cycle(None)
-	axs[0,1].plot(t, est_qvel, ls=my_ls, alpha=1.0)
-	axs[0,1].set_title('qvel')
+	    axs[0,1].plot(t, qvel[:, 0], lw=my_lw, alpha=my_alpha, label = 'Real qvel')
+	#plt.gca().set_color_cycle(None)
+	axs[0,1].plot(t, est_qvel[:, 0], ls=my_ls, c = 'red', alpha=1.0, label = 'UKF qvel')
+	axs[0,1].plot(t, ekf_qpos[:, 0], ls='-', c = 'black', alpha=1.0, label = 'EKF qvel')
+	axs[0,1].set_title('x qvel')
+	handles, labels = axs[0,1].get_legend_handles_labels()
+	axs[0,1].legend(handles, labels)
 	for col in range(nv):
-	#col = j;
-		axs[0,1].fill_between(t[:,0], est_qvel[:,col]+std_qvel[:,col],
-	            est_qvel[:,col]-std_qvel[:,col], edgecolor='none', alpha=0.1)
+		axs[0,1].fill_between(t[:,0], est_qvel[:,0]+std_qvel[:,0],
+	            est_qvel[:,0]-std_qvel[:,0], edgecolor='none', alpha=0.1)
 
-	if ctrl.any():
-	    axs[1,0].plot(t, ctrl, lw=my_lw, alpha=my_alpha)
-	plt.gca().set_color_cycle(None)
+	#Plot qvel[1] (z velocity)
+	if qvel.any():
+	    axs[1,1].plot(t, qvel[:, 1], lw=my_lw, alpha=my_alpha, label = 'Real qvel')
+	#plt.gca().set_color_cycle(None)
+	axs[1,1].plot(t, est_qvel[:, 1], ls=my_ls, c = 'red', alpha=1.0, label = 'UKF qvel')
+	axs[1,1].plot(t, ekf_qpos[:, 1], ls='-', c = 'black', alpha=1.0, label = 'EKF qvel')
+	axs[1,1].set_title('x qvel')
+	handles, labels = axs[1,1].get_legend_handles_labels()
+	axs[1,1].legend(handles, labels)
+	for col in range(nv):
+		axs[0,1].fill_between(t[:,0], est_qvel[:,1]+std_qvel[:,1],
+	            est_qvel[:,1]-std_qvel[:,1], edgecolor='none', alpha=0.1)
 
-	if est_ctrl.any():
-	    axs[1,0].plot(t, est_ctrl, ls=my_ls, alpha=1.0)
-	axs[1,0].set_title('ctrl')
-	#for col in range(nu):
-	#    axs[1,0].fill_between(t, est_ctrl[:,col]+std_ctrl[:,col],
-	#            est_ctrl[:,col]-std_ctrl[:,col], edgecolor='none', alpha=0.1)
+	plt.show()
+
+#TODO: Figure out color cycle
+if args.plotSensor:
+
+	snsr = avgreal[:,1+nq+nv+nu:nq+nv+nu+ns+1]
+	est_snsr = avgest[:,1+nq+nv+nu:nq+nv+nu+ns+1]
+	ekf_snsr = avgekf[:,1+nq+nv+nu:nq+nv+nu+ns+1]
 
 	if snsr.any():
-	    axs[1,1].plot(t, snsr, lw=my_lw, alpha=my_alpha)
+	    plt.plot(t, snsr, lw=4, alpha=0.5, label='Real sensor')
 	plt.gca().set_color_cycle(None)
-	axs[1,1].plot(t, est_snsr, ls=my_ls, alpha=1.0)
+	plt.plot(t, est_snsr, ls='--', alpha=1.0, label='UKF sensor')
+	plt.plot(t, ekf_snsr, ls='-', c = 'black', alpha=1.0, label = 'EKF sensor')
 	#axs[1,0].fill_between(t, est_snsr+std_snsr, est_snsr-std_snsr, ls=my_ls, alpha=1.0)
-	axs[1,1].set_title('sensors')
+	plt.title('sensors')
+	#handles, labels = plt.get_legend_handles_labels()
+	plt.legend()
 	for col in range(ns):
-	    axs[1,1].fill_between(t[:,0], est_snsr[:,col]+std_snsr[:,col],
+	    plt.fill_between(t[:,0], est_snsr[:,col]+std_snsr[:,col],
 	            est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
 
 	plt.show()
@@ -199,12 +267,15 @@ if args.doQpos:
 	for i in range(len(filelist)):
 		qpos = realdata[:,1:nq+1, i]
 		est_qpos = estdata[:, 1:nq+1, i]
+		ekf_qpos = ekfdata[:, 1:nq+1, i]
 		plt.plot(t, qpos, 'b--')
+		plt.plot(t, ekf_qpos, 'r--')
 		plt.title("Simulation qpos")
 		#plt.gca().set_color_cycle(None) # reset color cycle
 		#plt.plot(t, est_qpos, ls='--', alpha=1.0)
 		plt.show()
 
+#TODO: Add ekf error as well. Need to calc error above
 if args.plotError:
 
 	# RMSqpos = esterror[:,1:nq+1]

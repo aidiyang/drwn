@@ -17,8 +17,8 @@ qpos = df.filter(regex='qpos').values
 qvel = df.filter(regex='qvel').values
 ctrl = df.filter(regex='ctrl').values
 snsr = df.filter(regex='snsr').values
-mrkr = snsr[:,58:]
-mrkr = mrkr.reshape(len(t), 16,3)
+#mrkr = snsr[:,58:]
+#mrkr = mrkr.reshape(len(t), 16,3)
 
 est_qpos = df.filter(regex='est_p').values
 est_qvel = df.filter(regex='est_v').values
@@ -124,28 +124,28 @@ for col in range(43,46):
     axs[2,2].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
             est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
 
-# mrkr 
-if mrkr.any():
-    axs[1,2].plot(t, mrkr[:,7,:], lw=my_lw, alpha=my_alpha)
-plt.gca().set_color_cycle(None)
-axs[1,2].plot(t, est_mrkr[:,7,:], ls=my_ls, alpha=1.0)
-#axs[1,0].fill_between(t, est_snsr+std_snsr, est_snsr-std_snsr, ls=my_ls, alpha=1.0)
-axs[1,2].set_title('mrkr 7')
-#for col in range(40,43):
-#    axs[2,1].fill_between(t, est_mrkr[:,col]+std_mrkr[:,col],
-#            est_mrkr[:,col]-std_mrkrk[:,col], edgecolor='none', alpha=0.1)
+## mrkr 
+# if mrkr.any():
+#     axs[1,2].plot(t, mrkr[:,7,:], lw=my_lw, alpha=my_alpha)
+# plt.gca().set_color_cycle(None)
+# axs[1,2].plot(t, est_mrkr[:,7,:], ls=my_ls, alpha=1.0)
+# #axs[1,0].fill_between(t, est_snsr+std_snsr, est_snsr-std_snsr, ls=my_ls, alpha=1.0)
+# axs[1,2].set_title('mrkr 7')
+# #for col in range(40,43):
+# #    axs[2,1].fill_between(t, est_mrkr[:,col]+std_mrkr[:,col],
+# #            est_mrkr[:,col]-std_mrkrk[:,col], edgecolor='none', alpha=0.1)
 
 
 
 
-#axs[0,2].plot(t, p_time, ls=my_ls, alpha=1.0, label="Prediction")
-#axs[0,2].set_title('timings')
-#axs[0,2].plot(t, c_time, ls=my_ls, alpha=1.0, label="Correction")
-#axs[0,2].plot(t, c_time+p_time, ls=my_ls, alpha=1.0, label="Total")
-#axs[0,2].legend()
+axs[0,2].plot(t, p_time, ls=my_ls, alpha=1.0, label="Prediction")
+axs[0,2].set_title('timings')
+axs[0,2].plot(t, c_time, ls=my_ls, alpha=1.0, label="Correction")
+axs[0,2].plot(t, c_time+p_time, ls=my_ls, alpha=1.0, label="Total")
+axs[0,2].legend()
 
-print "Prediction Timing Avg:", np.mean(p_time)
-print "Correction Timing Avg:", np.mean(c_time)
+print "Prediction Timing Avg:", np.mean(p_time), np.std(p_time)
+print "Correction Timing Avg:", np.mean(c_time), np.std(c_time)
 print "     Total Timing Avg:", np.mean(c_time+p_time)
 
 #axs[0,2].set_title('correct time')

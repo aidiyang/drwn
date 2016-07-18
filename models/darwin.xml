@@ -13,11 +13,10 @@ soft:
         margin="0.001" solref="1 1" solimp=".001 .001 .01" material="meshmat"/>
    -->
 
-    <option	timestep="0.008" iterations="100" tolerance="1e-6" solver="elliptic" gravity="0 0 -9.81" >
+    <option	timestep="0.008" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
     </option>
 
     <default>
-
       <!--
       <geom condim='3' rgba='0.8 0.6 .4 1' />
         -->
@@ -32,18 +31,14 @@ soft:
         <geom contype='1' conaffinity='0' rgba='.79 .52 .43 1'/>
       </default>
       <default class='left leg'>
-        <geom contype='2' conaffinity='0' rgba='.69 .72 .43 1' condim='3'
+        <geom contype='2' conaffinity='0' rgba='.69 .72 .43 1' condim='1'
           solref=".02 0.1" solimp="0.8 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
-        <!--
-          solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
-          -->
+        <!-- solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' /> -->
       </default>
       <default class='right leg'>
-        <geom contype='4' conaffinity='0' rgba='.29 .72 .43 1' condim='3'
+        <geom contype='4' conaffinity='0' rgba='.29 .72 .43 1' condim='1'
           solref=".02 0.1" solimp="0.8 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
-        <!--
-          solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
-          -->
+        <!-- solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' /> -->
       </default>
       <default class='forearm'>
         <geom contype='8' conaffinity='0' rgba='.49 .22 .43 1'/>
@@ -71,7 +66,7 @@ soft:
         1e-2
         1e-6
         1e-0
-        1e-0
+        1e-1
         1e-6
         1e-3
         1e-0
@@ -140,12 +135,7 @@ soft:
         1e-1
         "
         />
-
-    <!--
-        1e-1
-        -->
     </custom>
-
 
     <asset>
       <mesh file="body_coll.stl"/>
@@ -181,37 +171,26 @@ soft:
     </asset>
 
     <contact>       
-      <!--
-      <exclude body1="head" body2="torso"/>
-
+ <!-- <exclude body1="head" body2="torso"/>
       <exclude body1="foot_l" body2="tibia_l"/>
-      <exclude body1="foot_r" body2="tibia_r"/>
-    -->
-
+      <exclude body1="foot_r" body2="tibia_r"/> -->
+      
       <exclude body1="ankle1_r" body2="tibia_r"/>
       <exclude body1="tibia_r" body2="thigh2_r"/>
 
       <exclude body1="ankle1_l" body2="tibia_l"/>
       <exclude body1="tibia_l" body2="thigh2_l"/>
 
-      <!--
-      <pair geom1="thigh2_l" geom2="torso"/>
+ <!-- <pair geom1="thigh2_l" geom2="torso"/>
       <pair geom1="thigh2_r" geom2="torso"/>
       <pair geom1="thigh2_l" geom2="torso"/>
-      <pair geom1="thigh2_r" geom2="torso"/>
-      -->
-
+      <pair geom1="thigh2_r" geom2="torso"/> -->
       <exclude body1="arm_high_r" body2="arm_high_l"/>
     </contact>
 
 
     <worldbody>
       <geom material="boring" pos="0 0 0" size=".5 .5 .5" type="plane" contype='0' conaffinity='15'/>
-      <!--
-      <body pos="0.5 0 0">
-        <geom material="meshmat" size=".02 .02 .03" type="box"/>
-      </body>
-      -->
       <body name="torso" pos="0 0 0.37">
         <inertial diaginertia="6.53693 6.39822 1.88344" mass="0.975599" pos="-0.003053 -0.038651 -0.019268" quat="-0.00879356 0.867004 0.0524199 0.495458"/>
         <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
@@ -222,7 +201,6 @@ soft:
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <!--
-
         -->
         <!--
         <joint type="free" limited='false' />
@@ -374,6 +352,7 @@ soft:
                       -->
                       <geom class='right leg' type='box' group='1' size='.0070 .033 .045' pos='.0355 -.0105 0' />
                       <geom class='right leg' type='box' group='1' size='.0075 .021 .052' pos='.0355 -.0105 0' />
+
                       <geom class="visual" material="meshmat" mesh="foot_right" pos="0.04 -0.01 0"    euler="3.14159 0 1.5708" type="mesh"/>
                       <geom class="visual" material="meshmat" mesh="foot_bracket" pos="-0.23 0.037 0.0" euler="3.14159 0 1.5708" type="mesh"/>
                       <site class="ps_marker1" name="ps8" pos="0.0265 -0.035 -0.044" euler="0 1.571 0" />

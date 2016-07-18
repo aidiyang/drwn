@@ -28,6 +28,7 @@ int increment = 0;
 bool showoption = false;
 bool showinfo = true;
 bool showdepth = false;
+bool show_sensor = false;
 int my_signal = 0;
 int showhelp = 1;		// 0: none; 1: brief; 2: full
 int speedtype = 1;		// 0: slow; 1: normal; 2: max
@@ -256,11 +257,18 @@ void keyboard(GLFWwindow * window, int key, int scancode, int act, int mods)
 			cam.camid++;
 		break;
 
+  case GLFW_KEY_F:	// next camera
+    my_signal = 3;
+		break;
+
+
 	default:
 		// control keys
 		if (mods & GLFW_MOD_CONTROL) {
 			if (key == GLFW_KEY_A)
 				autoscale(window);
+      else if (key == GLFW_KEY_S)
+        show_sensor = !show_sensor;
 			else if (key == GLFW_KEY_Q)
 				glfwSetWindowShouldClose(window, GL_TRUE);
 			else if (key == GLFW_KEY_S)
@@ -526,7 +534,7 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool step)
       for (int i=0; i<increment; i++) {
         advance();
       }
-			increment = false;
+			increment = 0;
 		}
 		// 15 msec delay
 		while (glfwGetTime() - starttm < 0.015) ;
@@ -562,10 +570,40 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool step)
 	}
 
 	// update simulation statistics
-	if (!paused)
+	if (!paused) {
 		sprintf(status, "%.1f\n%d (%d)\n%.2f\n%.0f          \n%.2f\n%.2f (%2.0f it)\n%d",
 			d->time, d->nefc, d->ncon,
 			duration, 1.0 / (glfwGetTime() - lastrendertm), d->energy[0] + d->energy[1], mju_log10(mju_max(mjMINVAL, d->solverstat[1])), d->solverstat[0], cam.camid);
+    if (show_sensor) {
+      int ns=0;
+      int c=0;
+      for (int i = 0; i < m->nsensor; i++) {
+        int type = m->sensor_type[i];
+        double var = 0;
+        switch (type) {
+          case 1:  if (c!=1) printf("\nAccelerometer: "); c=1;      break;   //Accelerometer
+          case 2:  if (c!=2) printf("\nGyro: ");          c=2;      break;   //Gyro
+          case 3:  if (c!=3) printf("\nForce: ");         c=3;      break;   //Force
+          case 4:  if (c!=4) printf("\nTorque: ");        c=4;      break;   //Torque
+          case 5:  if (c!=5) printf("\nJointPos: ");      c=5;      break;   //JointPos
+          case 6:  if (c!=6) printf("\nJointVel: ");      c=6;      break;   //JointVel
+          case 7:  if (c!=7) printf("\nTendonPos: ");     c=7;      break;   //TendonPos
+          case 8:  if (c!=8) printf("\nTendonVel: ");     c=8;      break;   //TendonVel
+          case 9:  if (c!=9) printf("\nActuatorPos: ");   c=9;      break;   //ActuatorPos
+          case 10: if (c!=10) printf("\nActuatorVel: ");   c=10;      break;   //ActuatorVel
+          case 11: if (c!=11) printf("\nActuatorFrc: ");   c=11;      break;  //ActuatorFrc
+          case 12: if (c!=12) printf("\nSitePos: ");       c=12;      break;  //SitePos
+          case 13: if (c!=13) printf("\nSiteQuat: ");      c=13;      break;  //SiteQuat
+          case 14: if (c!=14) printf("\nMagnetometer: ");  c=14; break;  //Magnetometer (WTF?)
+          default:  break;
+        }
+        for (int j=ns; j<(ns+m->sensor_dim[i]); j++) {
+          printf(" %4.4f ", d->sensordata[j]);
+        }
+        ns += m->sensor_dim[i];
+      }
+    }
+}
 	lastrendertm = glfwGetTime();
 
 	// create geoms and lights
@@ -613,7 +651,8 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool step)
 
 	if (frame.size()) {
     for (unsigned int idx = 0; idx<frame.size(); idx++) {
-      mj_forward(m, frame[idx]);
+      //mj_forward(m, frame[idx]);
+      mj_kinematics(m, frame[idx]);
       //mjv_makeGeoms(m, frame, &objects2, &vopt, mjCAT_ALL, selbody, 
       mjv_makeGeoms(m, frame[idx], &objects2, &vopt, mjCAT_DYNAMIC, selbody, 
           (perturb & mjPERT_TRANSLATE) ? refpos : 0, 
@@ -624,16 +663,17 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool step)
       mjvGeom *p2 = objects2.geoms;
       for (int i = 0; i < objects2.ngeom; i++) {
         //objects->geoms[objects->ngeom + i] = objects2->geoms[i]; 
-        if (step) {
+        if (idx == 0) {
+          p2[i].rgba[0] = 0.0f;
+          p2[i].rgba[1] = 0.0f;
+          p2[i].rgba[2] = 1.0f;
+          p2[i].rgba[3] = 0.5f;
+        } else {
           p2[i].rgba[0] = 0.0f;
           p2[i].rgba[1] = 1.0f;
           p2[i].rgba[2] = 0.0f;
-        } else {
-          p2[i].rgba[0] = 1.0f;
-          p2[i].rgba[1] = 0.0f;
-          p2[i].rgba[2] = 0.0f;
+          p2[i].rgba[3] = 0.15f;
         }
-        p2[i].rgba[3] = 0.15f;
         memcpy(p + (objects.ngeom + i), p2 + i, sizeof(mjvGeom));
         objects.geomorder[objects.ngeom + i] = objects2.geomorder[i];	// ptrs 
       }
@@ -715,6 +755,7 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool step)
 int viewer_signal() {
   // 1 for walk
   // 2 for initialize estimator
+  // 3 for f key pressed
   return my_signal;
 }
 

@@ -12,20 +12,23 @@ if len(sys.argv) < 2:
     sys.exit
 
 f = sys.argv[1]
+if len(sys.argv) == 3:
+    r = sys.argv[2]
 
 df = pd.read_csv(f, sep=',')
 
 t = df['time']
 ctrl = df.filter(regex='ctrl').values
-snsr = df.filter(regex='snsr').values
 conf = df.filter(regex='conf').values
+est_snsr = df.filter(regex='est_s').values
+snsr = df.filter(regex='snsr').values
 print snsr.shape
 
-#qpos = snsr[:,0:20]
-#qvel = snsr[:,20:40]
-#accl = snsr[:,40:43]
-#gyro = snsr[:,43:46]
-#ctct = snsr[:,46:58]
+if np.all(conf):
+    conf = np.ones((len(t), 16)) * 10 # full confidence
+
+if np.all(est_snsr):
+    snsr = est_snsr
 
 mrkr = snsr[:,58:]
 if (mrkr.shape[1] > 107):
@@ -43,15 +46,15 @@ fig = plt.figure()
 
 ax = fig.add_subplot(111, projection='3d')
 
-h = 10
-l = 3
+h = 110
+l = -2
 
 bools = np.vstack((conf[:,0]>l, conf[:,0]<h))
 print bools.shape
 bools = np.all(bools, axis=0)
 print bools.shape
 
-dt_tol=0.001
+dt_tol=1000.001
 for i in range(0,16):
     bools = np.all(np.vstack((conf[:,i]>l, conf[:,i]<h)), axis=0)
     x = mrkr[bools,i,0]
@@ -84,5 +87,9 @@ for i in range(0,16):
     
     print i, " took ", c, " iterations"
     ax.plot(x, y, zs=z, marker='.')
+
+#ax.set_xlim3d(-0.06, 0.08)
+#ax.set_ylim3d(-.15, .15)
+#ax.set_zlim3d(0, 0.4)
 
 plt.show()

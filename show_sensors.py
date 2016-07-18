@@ -60,7 +60,7 @@ print "mrkr:\n", v_mrkr
 dt = np.ediff1d(t)
 mean_dt = np.mean(dt)
 print "Mean dt:", mean_dt
-print np.var(dt)
+print "Var  dt:", np.std(dt)
 
 #sp_qpos = np.fft.fft(qpos, axis=0)
 #sp_qvel = np.fft.fft(qvel, axis=0)
@@ -96,11 +96,13 @@ for i in range(0,16):
 def low_pass(raw, alpha):
     p = np.mean(raw, axis=0)
     filt = np.zeros(raw.shape)
-    for i in range(1, len(t)):
+    for i in range(0, len(t)):
         filt[i,:] = p + alpha * (raw[i,:]-p)
-        p =filt[i,:] 
+        p=filt[i,:] 
     return filt
 
+print "Accl mean:", np.mean(accl, axis=0)
+print "Gyro mean:", np.mean(gyro, axis=0)
 
 alpha = 0.5
 accl = np.copy(snsr[:,40:43])

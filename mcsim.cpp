@@ -46,7 +46,7 @@ double alpha;
 double beta;
 double kappa;
 double diag;
-jouble Ws0;
+double Ws0;
 double tol;
 
 #ifdef __APPLE__

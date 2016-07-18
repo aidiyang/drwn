@@ -75,12 +75,13 @@ def snsr_breakout(snsr):
             'mrkr':mrkr,
             'ps':ps}
 
-def get_real_data(f, limit=10000000):
+def get_real_data(f, max_t):
     df = pd.read_csv(f, sep=',')
     t = df['time']
+    t = t[t<max_t]
     e = len(t)
-    if limit < len(t):
-        e = limit
+    #if limit < len(t):
+    #    e = limit
 
     ctrl = df.filter(regex='ctrl').values
     snsr = df.filter(regex='snsr').values
@@ -115,7 +116,8 @@ def get_real_data(f, limit=10000000):
             'gyro':gyro, 
             'ctct':ctct,
             'mrkr':mrkr,
-            'ps':ps}
+            'ps':ps,
+            'conf':conf}
     #return t, ctrl, conf, qpos, qvel, accl, gyro, ctct, mrkr, ps
 
 

@@ -267,6 +267,7 @@ int main(int argc, const char** argv) {
 
   ////// SIMULATED ROBOT
   double dt = m->opt.timestep;
+  printf("DT of mujoco model %f\n", dt);
   MyRobot *robot;
 #ifndef __APPLE__
   if (real_robot) {
@@ -299,7 +300,7 @@ int main(int argc, const char** argv) {
     if (use_rigid || use_markers) printf("Using Phasespace Tracking\n");
 
     if (input_file.length()) {
-      robot = new FileDarwin(m->nu, m->nsensordata, input_file);
+      robot = new FileDarwin(d, dt, m->nu, m->nsensordata, input_file);
     }
     else {
       robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers, use_raw,
@@ -444,12 +445,13 @@ int main(int argc, const char** argv) {
       //}
       if (est) {
         printf("\n\nSensor Compare:\nreal: ");
-        for (int i=40; i<nsensordata; i++) {
+        int s = 40+6+12;
+        for (int i=s; i<nsensordata; i++) {
           if (real_robot) printf("%1.4f ", sensors[i]);
           else printf("%1.4f ", d->sensordata[i]);
         }
         printf("\n est: ");
-        for (int i=40; i<nsensordata; i++) {
+        for (int i=s; i<nsensordata; i++) {
           printf("%1.4f ", est_data->sensordata[i]);
         }
       }

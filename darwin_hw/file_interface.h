@@ -1,6 +1,8 @@
 #pragma once
 
 
+#include "mujoco.h"
+
 //#include "Utilities.h"
 #include "robot.h"
 #include <iostream>
@@ -14,9 +16,12 @@
 class FileDarwin : public MyRobot {
     private:
 
+      mjData *d;
+
         std::ifstream infile;
 
-        double s_dt;
+        double sensor_time;
+        double dt; 
 
         double s_time_noise;
 
@@ -35,11 +40,13 @@ class FileDarwin : public MyRobot {
         std::vector<double> values;
 
     public:
-        FileDarwin(
+        FileDarwin( mjData * d, double dt,
                 int _nu, int _ns,
                 std::string input_file) {
 
             t=0;
+            this->dt = dt;
+            this->d = d;
 
             printf("Loading File %s\n", input_file.c_str());
             infile.open(input_file, std::ifstream::in);
@@ -88,6 +95,10 @@ class FileDarwin : public MyRobot {
         bool get_sensors(double * time, double* sensor, double* conf) {
 
             *time = data.col(t)(0);
+            if (d->time < sensor_time ) {
+              return false;
+            }
+            sensor_time = d->time + dt;// + t_noise(gen);
 
             if (sensor) {
                 double * snsr = &((data.col(t))(nu+1));
@@ -98,9 +109,9 @@ class FileDarwin : public MyRobot {
                 int o=(20+20+6+12);
                 // remap the data
                 for (int id=0; id<16; id++) {
-                    sensor[o+id*3+0] = snsr[o+id*4+0]; 
-                    sensor[o+id*3+1] = snsr[o+id*4+1]; 
-                    sensor[o+id*3+2] = snsr[o+id*4+2]; 
+                    sensor[o+id*3+0] = snsr[o+id*3+0]; 
+                    sensor[o+id*3+1] = snsr[o+id*3+1]; 
+                    sensor[o+id*3+2] = snsr[o+id*3+2]; 
                     //conf[id] = snsr[o+id*4+3];
                 }
                 o += 16*3;

@@ -11,10 +11,9 @@
       <flag constraint="disable"/>
 soft:
         margin="0.001" solref="1 1" solimp=".001 .001 .01" material="meshmat"/>
-      <flag contact="disable"/>
    -->
 
-    <option	timestep="0.0025" iterations="100" tolerance="-1" solver="elliptic" gravity="0 0 -9.81" >
+    <option	timestep="0.008" iterations="100" tolerance="1e-6" solver="elliptic" gravity="0 0 -9.81" >
     </option>
 
     <default>
@@ -22,21 +21,29 @@ soft:
       <!--
       <geom condim='3' rgba='0.8 0.6 .4 1' />
         -->
-      <geom condim='3' solref=".0002 1" solimp="1.0 0.9 0.001" friction="1 0.05 0.001" material="meshmat" margin='0.00' />
+      <geom material="meshmat" />
       <!--
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
       <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
-      <position ctrllimited='true' kp='8'/>
+      <position ctrllimited='true' kp='18'/>
 
-      <default class='box'>
+      <default class='torso'>
         <geom contype='1' conaffinity='0' rgba='.79 .52 .43 1'/>
       </default>
       <default class='left leg'>
-        <geom contype='2' conaffinity='0' rgba='.69 .72 .43 1'/>
+        <geom contype='2' conaffinity='0' rgba='.69 .72 .43 1' condim='3'
+          solref=".02 0.1" solimp="0.8 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
+        <!--
+          solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
+          -->
       </default>
       <default class='right leg'>
-        <geom contype='4' conaffinity='0' rgba='.29 .72 .43 1'/>
+        <geom contype='4' conaffinity='0' rgba='.29 .72 .43 1' condim='3'
+          solref=".02 0.1" solimp="0.8 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
+        <!--
+          solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
+          -->
       </default>
       <default class='forearm'>
         <geom contype='8' conaffinity='0' rgba='.49 .22 .43 1'/>
@@ -61,18 +68,18 @@ soft:
          -->
     <custom>
         <numeric name="snsr_covar" size="15" data="
-        1e+9
+        1e-2
         1e-6
-        1e+9
-        1e+9
-        1e-4
-        1e-4
+        1e-0
+        1e-0
+        1e-6
+        1e-3
         1e-0
         1e-0
         1e-0
         1e-0
         1e-0
-        1e-7
+        1e+10
         1e-0
         1e-0
         1e-0
@@ -103,19 +110,40 @@ soft:
         1 2 2 0 1 0 2 2 1
         "
         />
-      <numeric name="covar_diag" size="26"
-        data="1e-9 1e-9 1e-9
-        1e-9 1e-9 1e-9
-        1e-2 1e-2 1e-2
-        1e-2 1e-2 1e-2
-        1e-2 1e-2 1e-2
-        1e-2 1e-2 1e-2
-        1e-2 1e-2 1e-2
-        1e-2 1e-2 1e-2
-        1e-2 1e-2
+      <numeric name="covar_diag" size="26" data="
+        1e-1 
+        1e-1 
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
+        1e-1
         "
         />
 
+    <!--
+        1e-1
+        -->
     </custom>
 
 
@@ -186,23 +214,24 @@ soft:
       -->
       <body name="torso" pos="0 0 0.37">
         <inertial diaginertia="6.53693 6.39822 1.88344" mass="0.975599" pos="-0.003053 -0.038651 -0.019268" quat="-0.00879356 0.867004 0.0524199 0.495458"/>
-        <!--
-        -->
         <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
-        <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+        <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" range="-1 1" frictional="false" damping="0" armature="0"/>
 
         <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <!--
+
+        -->
+        <!--
         <joint type="free" limited='false' />
         -->
-        <geom name="torso" material="meshmat" contype="2" conaffinity="0" mesh="body_coll" type="mesh" class='box'/>
+        <geom name="torso" material="meshmat" contype="2" conaffinity="0" mesh="body_coll" type="mesh" class='torso'/>
         <site name="imu" pos="0.0 0 -0.04" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
 
-        <site class="ps_marker" name="ps_t7" pos="0.035 -0.018 -0.018" euler="0 1.31 1.571" />
-        <site class="ps_marker" name="ps_t3" pos="0.035  0.018 -0.018" euler="0 1.31 1.571" />
+        <site class="ps_marker1" name="ps_t7" pos="0.035 -0.018 -0.018" euler="0 1.31 1.571" />
+        <site class="ps_marker1" name="ps_t3" pos="0.035  0.018 -0.018" euler="0 1.31 1.571" />
         <site class="ps_marker" name="ps_t6" pos="0.004 -0.045 0.0215" euler="0 0.1 1.571" />
         <site class="ps_marker" name="ps_t2" pos="0.004  0.045 0.0215" euler="0 0.1 1.571" />
         <site class="ps_marker" name="ps_t4" pos="-0.044 -0.056 0.026" euler=" 0.65 0 0" />
@@ -294,7 +323,7 @@ soft:
                       <!--
                       <geom class='left leg' type='box' group='1' size='.001 .033 .052' pos='-.043 -.0105 0' />
                       -->
-                      <geom class='left leg' type='box' group='1' size='.0075 .033 .045' pos='-.0355 -.0105 0' />
+                      <geom class='left leg' type='box' group='1' size='.0070 .033 .045' pos='-.0355 -.0105 0' />
                       <geom class='left leg' type='box' group='1' size='.0075 .021 .052' pos='-.0355 -.0105 0' />
 
                       <geom class="visual" material="meshmat" mesh="foot_left" pos="-0.040 -0.01 0"    euler="0 0 -1.5708" type="mesh"/>
@@ -343,7 +372,7 @@ soft:
                       <!--
                       <geom class='right leg' type='box' group='1' size='.001 .033 .052' pos='.043 -.0105 0' />
                       -->
-                      <geom class='right leg' type='box' group='1' size='.0075 .033 .045' pos='.0355 -.0105 0' />
+                      <geom class='right leg' type='box' group='1' size='.0070 .033 .045' pos='.0355 -.0105 0' />
                       <geom class='right leg' type='box' group='1' size='.0075 .021 .052' pos='.0355 -.0105 0' />
                       <geom class="visual" material="meshmat" mesh="foot_right" pos="0.04 -0.01 0"    euler="3.14159 0 1.5708" type="mesh"/>
                       <geom class="visual" material="meshmat" mesh="foot_bracket" pos="-0.23 0.037 0.0" euler="3.14159 0 1.5708" type="mesh"/>
@@ -471,7 +500,6 @@ soft:
     </sensor>
 
     <actuator>
-      <!--
       <position name='0_r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
       <position name='1_l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5 1.5' />
       <position name='2_r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.25'  	/>
@@ -493,29 +521,30 @@ soft:
 
       <position name='18_head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
       <position name='19_head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
+
+      <!--
+      <position name='0_r_shoulder_pitch' kp='20' joint='r_shoulder_pitch' ctrlrange='-1.5 1.5'  	/>
+      <position name='1_l_shoulder_pitch' kp='20' joint='l_shoulder_pitch' ctrlrange='-1.5 1.5' />
+      <position name='2_r_shoulder_roll'  kp='12' joint='r_shoulder_roll'  ctrlrange='-.85 1.25'  	/>
+      <position name='3_l_shoulder_roll'  kp='12' joint='l_shoulder_roll'  ctrlrange='-1.25 .85' />
+      <position name='4_r_elbow'          kp='8' joint='r_elbow'          ctrlrange='-1.55 1.25'	/>
+      <position name='5_l_elbow'          kp='8' joint='l_elbow'          ctrlrange='-1.25 1.55' />
+      <position name='6_r_hip_yaw'        kp='20' joint='r_hip_yaw'        ctrlrange='-1 .9'   	/>
+      <position name='7_l_hip_yaw'        kp='20' joint='l_hip_yaw'        ctrlrange='-.9 1'   />
+      <position name='8_r_hip_roll'       kp='20' joint='r_hip_roll'       ctrlrange='-.7 .45'   />
+      <position name='9_l_hip_roll'       kp='20' joint='l_hip_roll'       ctrlrange='-.45 .7'   />
+      <position name='10_r_hip_pitch'     kp='20' joint='r_hip_pitch'      ctrlrange='-1.7 .45'  />
+      <position name='11_l_hip_pitch'     kp='20' joint='l_hip_pitch'      ctrlrange='-.45 1.7'  />
+      <position name='12_r_knee'          kp='20' joint='r_knee'           ctrlrange='-0.05 2.2' />
+      <position name='13_l_knee'          kp='20' joint='l_knee'           ctrlrange='-2.2 0.05' />
+      <position name='14_r_ankle_pitch'   kp='18' joint='r_ankle_pitch'    ctrlrange='-1.2 1.35' />
+      <position name='15_l_ankle_pitch'   kp='18' joint='l_ankle_pitch'    ctrlrange='-1.35 1.2' />
+      <position name='16_r_ankle_roll'    kp='4' joint='r_ankle_roll'     ctrlrange='-.7 .95'   />
+      <position name='17_l_ankle_roll'    kp='4' joint='l_ankle_roll'     ctrlrange='-.95 .7'   />
+
+      <position name='18_head_pan'        kp='20' joint='head_pan'         ctrlrange='-2 2'      /> 
+      <position name='19_head_tilt'       kp='20' joint='head_tilt'        ctrlrange='-.4 .9'    /> 
       -->
-
-      <position name='0_r_shoulder_pitch' joint='r_shoulder_pitch' ctrlrange='-1.5 1.5'  	/>
-      <position name='1_l_shoulder_pitch' joint='l_shoulder_pitch' ctrlrange='-1.5 1.5' />
-      <position name='2_r_shoulder_roll'  joint='r_shoulder_roll'  ctrlrange='-.85 1.25'  	/>
-      <position name='3_l_shoulder_roll'  joint='l_shoulder_roll'  ctrlrange='-1.25 .85' />
-      <position name='4_r_elbow'          joint='r_elbow'          ctrlrange='-1.55 1.25'	/>
-      <position name='5_l_elbow'          joint='l_elbow'          ctrlrange='-1.25 1.55' />
-      <position name='6_r_hip_yaw'        joint='r_hip_yaw'        ctrlrange='-1 .9'   	/>
-      <position name='7_l_hip_yaw'        joint='l_hip_yaw'        ctrlrange='-.9 1'   />
-      <position name='8_r_hip_roll'       joint='r_hip_roll'       ctrlrange='-.7 .45'   />
-      <position name='9_l_hip_roll'       joint='l_hip_roll'       ctrlrange='-.45 .7'   />
-      <position name='10_r_hip_pitch'     joint='r_hip_pitch'      ctrlrange='-1.7 .45'  />
-      <position name='11_l_hip_pitch'     joint='l_hip_pitch'      ctrlrange='-.45 1.7'  />
-      <position name='12_r_knee'          joint='r_knee'           ctrlrange='-0.05 2.2' />
-      <position name='13_l_knee'          joint='l_knee'           ctrlrange='-2.2 0.05' />
-      <position name='14_r_ankle_pitch'   joint='r_ankle_pitch'    ctrlrange='-1.2 1.35' />
-      <position name='15_l_ankle_pitch'   joint='l_ankle_pitch'    ctrlrange='-1.35 1.2' />
-      <position name='16_r_ankle_roll'    joint='r_ankle_roll'     ctrlrange='-.7 .95'   />
-      <position name='17_l_ankle_roll'    joint='l_ankle_roll'     ctrlrange='-.95 .7'   />
-
-      <position name='18_head_pan'        joint='head_pan'         ctrlrange='-2 2'      /> 
-      <position name='19_head_tilt'       joint='head_tilt'        ctrlrange='-.4 .9'    /> 
 
 
       <!--

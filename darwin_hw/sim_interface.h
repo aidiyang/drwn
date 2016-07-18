@@ -43,8 +43,6 @@ class SimDarwin : public MyRobot {
       this->d = d;
 
       this->sensor_time = 0.0; 
-      //this->s_dt = 0.0025; //ms in seconds
-      //this->s_dt = 0.0055; //ms in seconds
       this->s_dt = dt; // 2x the ms of the 'robot' timestep
       this->s_time_noise = s_time_noise;
 
@@ -97,12 +95,17 @@ class SimDarwin : public MyRobot {
       if (sensor) {
         for (int id=0; id<m->nsensordata; id++) {
           double r = sen_noise(gen);
-          sensor[id] = d->sensordata[id] + r; //cs_noise perturbation;
+          sensor[id] = d->sensordata[id];// + r; //cs_noise perturbation;
         }
       }
       else {
         printf("Initialize sensor buffer\n");
         return false;
+      }
+
+      if (conf) {
+        for (int i=0; i<16; i++)
+          conf[i] = 6;
       }
 
       return true;
@@ -113,7 +116,7 @@ class SimDarwin : public MyRobot {
       // converts controls to darwin positions
       for(int id = 0; id < nu; id++) {
         double r = ctrl_noise(gen);
-        d->ctrl[id] = u[id] + r;
+        d->ctrl[id] = u[id];// + r;
         //printf("%f %f %f\n", u[id], d->ctrl[id], r);
       }
 

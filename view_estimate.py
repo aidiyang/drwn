@@ -137,7 +137,6 @@ for col in range(43,46):
 
 
 
-
 axs[0,2].plot(t, p_time, ls=my_ls, alpha=1.0, label="Prediction")
 axs[0,2].set_title('timings')
 axs[0,2].plot(t, c_time, ls=my_ls, alpha=1.0, label="Correction")
@@ -146,7 +145,7 @@ axs[0,2].legend()
 
 print "Prediction Timing Avg:", np.mean(p_time), np.std(p_time)
 print "Correction Timing Avg:", np.mean(c_time), np.std(c_time)
-print "     Total Timing Avg:", np.mean(c_time+p_time)
+print "     Total Timing Avg:", np.mean(c_time+p_time), np.std(c_time+p_time)
 
 #axs[0,2].set_title('correct time')
 

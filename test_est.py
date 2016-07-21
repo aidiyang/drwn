@@ -16,16 +16,16 @@ if len(sys.argv) > 2:
 
 
 es = util.get_est_data(f)
-t = es['time']
-t = t - t[0]
-hw = util.get_real_data(r, np.max(t))
 
+t = es['time']
+#t = t - t[0]
+
+hw = util.get_real_data(r, len(t))
 
 ss = util.snsr_breakout(es['est_snsr'])
 
 r_t=hw['time']
-print t
-print r_t
+
 fig, axs = plt.subplots(7, 3, sharex=False)
 
 my_ls = '--'
@@ -111,42 +111,60 @@ axs[6,0].set_title('l t ctct-x')
 axs[6,1].set_title('l t ctct-y')
 axs[6,2].set_title('l t ctct-z')
 
-
 plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
-fig2, axs2 = plt.subplots(16, 3, sharex=False)
-s_x = ss['ps'][:,:,0]
-s_y = ss['ps'][:,:,1]
-s_z = ss['ps'][:,:,2]
+############ marker distance vs estimated difference
 
-r_x = hw['ps'][:,:,0]
-r_y = hw['ps'][:,:,1]
-r_z = hw['ps'][:,:,2]
+#fig3, axs3 = plt.subplots(1, 1, sharex=False)
+#
+#rms = util.dist_diff_v_time(ss['ps'], hw['ps'], hw['conf'])
+#
+#print "rms shape:", rms.shape
+#
+#axs3.plot(t, rms, color='b', alpha=my_alpha)
+##axs3[0,0].plot(r_t, hw['ps'][:,i,0], color='r', alpha=hw_alpha)
+#
+#plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
-print "Sim Mean x:\n", np.mean(s_x, axis=0);
-print "Sim Mean y:\n", np.mean(s_y, axis=0);
-print "Sim Mean z:\n", np.mean(s_z, axis=0);
-print "IRL Mean x:\n", np.mean(r_x, axis=0);
-print "IRL Mean y:\n", np.mean(r_y, axis=0);
-print "IRL Mean z:\n", np.mean(r_z, axis=0);
+############ marker plots
 
-print "Sim Var x:\n", np.var(s_x, axis=0);
-print "Sim Var y:\n", np.var(s_y, axis=0);
-print "Sim Var z:\n", np.var(s_z, axis=0);
-print "IRL Var x:\n", np.var(r_x, axis=0);
-print "IRL Var y:\n", np.var(r_y, axis=0);
-print "IRL Var z:\n", np.var(r_z, axis=0);
 
-for i in range(0,16):
-    axs2[i,0].plot(t,   ss['ps'][:,i,0], color='b', alpha=my_alpha)
-    axs2[i,0].plot(r_t, hw['ps'][:,i,0], color='r', alpha=hw_alpha)
-    axs2[i,1].plot(t,   ss['ps'][:,i,1], color='b', alpha=my_alpha)
-    axs2[i,1].plot(r_t, hw['ps'][:,i,1], color='r', alpha=hw_alpha)
-    axs2[i,2].plot(t,   ss['ps'][:,i,2], color='b', alpha=my_alpha)
-    axs2[i,2].plot(r_t, hw['ps'][:,i,2], color='r', alpha=hw_alpha)
-axs2[0,0].set_title('mrkr-x')
-axs2[0,1].set_title('mrkr-y')
-axs2[0,2].set_title('mrkr-z')
+# fig2, axs2 = plt.subplots(16, 3, sharex=False)
+# s_x = ss['ps'][:,:,0]
+# s_y = ss['ps'][:,:,1]
+# s_z = ss['ps'][:,:,2]
+# 
+# r_x = hw['ps'][:,:,0]
+# r_y = hw['ps'][:,:,1]
+# r_z = hw['ps'][:,:,2]
+# 
+# #print "Sim Mean x:\n", np.mean(s_x, axis=0);
+# #print "Sim Mean y:\n", np.mean(s_y, axis=0);
+# #print "Sim Mean z:\n", np.mean(s_z, axis=0);
+# #print "IRL Mean x:\n", np.mean(r_x, axis=0);
+# #print "IRL Mean y:\n", np.mean(r_y, axis=0);
+# #print "IRL Mean z:\n", np.mean(r_z, axis=0);
+# 
+# #print "Sim Var x:\n", np.var(s_x, axis=0);
+# #print "Sim Var y:\n", np.var(s_y, axis=0);
+# #print "Sim Var z:\n", np.var(s_z, axis=0);
+# #print "IRL Var x:\n", np.var(r_x, axis=0);
+# #print "IRL Var y:\n", np.var(r_y, axis=0);
+# #print "IRL Var z:\n", np.var(r_z, axis=0);
+# 
+# for i in range(0,16):
+#     axs2[i,0].plot(t,   ss['ps'][:,i,0], color='b', alpha=my_alpha)
+#     axs2[i,0].plot(r_t, hw['ps'][:,i,0], color='r', alpha=hw_alpha)
+#     axs2[i,1].plot(t,   ss['ps'][:,i,1], color='b', alpha=my_alpha)
+#     axs2[i,1].plot(r_t, hw['ps'][:,i,1], color='r', alpha=hw_alpha)
+#     axs2[i,2].plot(t,   ss['ps'][:,i,2], color='b', alpha=my_alpha)
+#     axs2[i,2].plot(r_t, hw['ps'][:,i,2], color='r', alpha=hw_alpha)
+# axs2[0,0].set_title('mrkr-x')
+# axs2[0,1].set_title('mrkr-y')
+# axs2[0,2].set_title('mrkr-z')
+# 
+# plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
-plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+
+
 plt.show()

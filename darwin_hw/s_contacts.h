@@ -70,8 +70,11 @@ class ContactSensors {
 
       // may need different bias for different feets?
       // bias vector need only be of length 6
-      //float SampleBias[7]={0.2651,-0.0177,-0.0384,-0.0427,-0.1891,0.1373,-3.2423};
-      //Bias(cal,SampleBias);
+      // TODO need uncalibrated voltages?
+      //float Bias_l[7]={-3.5432, -2.7646, 3.9127, 0.0555, -0.1515, -0.1409};
+      //float Bias_r[7]={-2.4288, -0.0376, -0.3378, -0.0194, -0.1230, -0.1234};
+      //Bias(cal_r,Bias_r);
+      //Bias(cal_l,Bias_l);
       // Calibration of ATI-NANO 25
 
 

@@ -1,4 +1,4 @@
-<mujoco model="darwin">  <compiler angle="radian" coordinate="local" inertiafromgeom="true" meshdir="meshes/"/>
+<mujoco model="darwin">  <compiler angle="radian" coordinate="local" inertiafromgeom="true" meshdir="meshes/" settotalmass="2.97" />
   <!--
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
     <option	timestep="0.00025" gravity="0 0 0"/>
@@ -32,12 +32,12 @@ soft:
       </default>
       <default class='left leg'>
         <geom contype='2' conaffinity='0' rgba='.69 .72 .43 1' condim='1'
-          solref=".02 0.1" solimp="0.8 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
+          solref=".02 0.1" solimp="0.9 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
         <!-- solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' /> -->
       </default>
       <default class='right leg'>
         <geom contype='4' conaffinity='0' rgba='.29 .72 .43 1' condim='1'
-          solref=".02 0.1" solimp="0.8 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
+          solref=".02 0.1" solimp="0.9 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
         <!-- solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' /> -->
       </default>
       <default class='forearm'>
@@ -65,7 +65,7 @@ soft:
         <numeric name="snsr_covar" size="15" data="
         1e-2
         1e-6
-        1e-0
+        1e-1
         1e-1
         1e-6
         1e-3
@@ -74,14 +74,12 @@ soft:
         1e-0
         1e-0
         1e-0
-        1e+10
+        1e+100
         1e-0
         1e-0
         1e-0
         "
         />
-        <!--
-        -->
 <!-- Accelerometer -->
 <!-- Gyro          -->
 <!-- Force         -->
@@ -135,6 +133,10 @@ soft:
         1e-1
         "
         />
+      <!--
+      <numeric name="time_var" size='1' data='0.00109' />
+      <numeric name="mass_var" size='1' data='0.06' />
+      -->
     </custom>
 
     <asset>

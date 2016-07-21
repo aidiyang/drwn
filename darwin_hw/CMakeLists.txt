@@ -8,6 +8,7 @@ list(REMOVE_ITEM DARWIN_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/test_darwin.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/calibrate_ps.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/loop_time.cpp 
+  ${CMAKE_CURRENT_SOURCE_DIR}/loop_time.cpp 
   ${CMAKE_CURRENT_SOURCE_DIR}/test_eigen.cpp )
 #${CMAKE_CURRENT_SOURCE_DIR}/walker.cpp )
 if (WIN32)

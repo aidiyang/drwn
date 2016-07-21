@@ -5,34 +5,30 @@ import sys
 def get_est_data(f):
     df = pd.read_csv(f, sep=',')
     
-    t = df['time']
+    s = 0
+    t = np.copy(df['time'][s:])
     
-    qpos = df.filter(regex='qpos').values
-    qvel = df.filter(regex='qvel').values
-    ctrl = df.filter(regex='ctrl').values
-    snsr = df.filter(regex='snsr').values
+    qpos = np.copy(df.filter(regex='qpos').values[s:,:])
+    qvel = np.copy(df.filter(regex='qvel').values[s:,:])
+    ctrl = np.copy(df.filter(regex='ctrl').values[s:,:])
+    snsr = np.copy(df.filter(regex='snsr').values[s:,:])
     
-    est_qpos = df.filter(regex='est_p').values
-    est_qvel = df.filter(regex='est_v').values
-    est_ctrl = df.filter(regex='est_c').values
-    est_snsr = df.filter(regex='est_s').values
+    est_qpos = np.copy(df.filter(regex='est_p').values[s:,:])
+    est_qvel = np.copy(df.filter(regex='est_v').values[s:,:])
+    est_ctrl = np.copy(df.filter(regex='est_c').values[s:,:])
+    est_snsr = np.copy(df.filter(regex='est_s').values[s:,:])
     
-    #nq = est_qpos.shape[1]
-    #nv = est_qvel.shape[1]
-    #nu = est_ctrl.shape[1]
-    #ns = est_snsr.shape[1]
-    
-    std_qpos = df.filter(regex='stddev_p').values
-    std_qvel = df.filter(regex='stddev_v').values
-    std_ctrl = df.filter(regex='stddev_c').values
-    std_snsr = df.filter(regex='stddev_s').values
+    std_qpos = np.copy(df.filter(regex='stddev_p').values[s:,:])
+    std_qvel = np.copy(df.filter(regex='stddev_v').values[s:,:])
+    std_ctrl = np.copy(df.filter(regex='stddev_c').values[s:,:])
+    std_snsr = np.copy(df.filter(regex='stddev_s').values[s:,:])
     std_qpos = np.sqrt(std_qpos) 
     std_qvel = np.sqrt(std_qvel) 
     std_ctrl = np.sqrt(std_ctrl) 
     std_snsr = np.sqrt(std_snsr) 
     
-    p_time = df['predict']
-    c_time = df['correct']
+    p_time = np.copy(df['predict'][s:])
+    c_time = np.copy(df['correct'][s:])
 
     return {'time':t,
             'qpos':qpos, 
@@ -49,6 +45,7 @@ def get_est_data(f):
             'std_snsr':std_snsr,
             'p_time':p_time,
             'c_time':c_time}
+
 
 def snsr_breakout(snsr):
     qpos = snsr[:,0:20]
@@ -78,7 +75,11 @@ def snsr_breakout(snsr):
 def get_real_data(f, max_t):
     df = pd.read_csv(f, sep=',')
     t = df['time']
-    t = t[t<max_t]
+    #t = t[t<=max_t]
+    if max_t < 0:
+        max_t = len(t)
+
+    t = t[0:max_t]
     e = len(t)
     #if limit < len(t):
     #    e = limit
@@ -101,10 +102,10 @@ def get_real_data(f, max_t):
     ctct = snsr[0:e,46:58]
     mrkr = snsr[0:e,58:]
     if (mrkr.shape[1] > 107):
-        mrkr = mrkr.reshape(len(t), 16,4)
+        mrkr = mrkr.reshape(e, 16,4)
         print mrkr[0,:,3]
     else:
-        mrkr = mrkr.reshape(len(t), 16,3)
+        mrkr = mrkr.reshape(e, 16,3)
     ps = np.copy(mrkr[:,:,0:3])
 
     return {'time':t,
@@ -120,5 +121,46 @@ def get_real_data(f, max_t):
             'conf':conf}
     #return t, ctrl, conf, qpos, qvel, accl, gyro, ctct, mrkr, ps
 
+def dist_diff_whole_run(x1, x2):
+    # one rms value for the entire trajectory
+    y = np.sum(np.square(x1-x2), axis=0)
+    return y
+
+
+def dist_diff_v_time(x1, x2, c, conf):
+    # one rms value for the entire trajectory
+    #y = np.sqrt(np.sum(np.sum(np.square(x1-x2), axis=2), axis=1))
+    y = np.zeros((x1.shape[0], 1))
+    for t in range(x1.shape[0]):
+        count = 0
+        for i in range(16):
+            if c[t,i] > conf:
+                dist = np.sum(np.square(x1[t,i,:]-x2[t,i,:]))
+                y[t, 0] += dist
+                count += 1
+        y[t, 0] = np.sqrt(y[t, 0]/count)
+
+    return y
+
+def clean_mrkr_data(time, mrkr, c, conf, vel_limit):
+    T = mrkr.shape[0]
+    N = 16 # num markers
+    new_c = np.copy(c)
+    last = np.zeros((16)) # remember the last good values
+    for t in range(1, T):
+        for n in range(N):
+            if c[t,n] > conf:
+                l = last[n]
+                d = mrkr[t,n,:]-mrkr[l,n,:]
+                vel = d.dot(d) / (time[t] - time[l])
+                if vel > vel_limit:
+                    new_c[t,n] = -1 # don't trust things that move too quick
+                else:
+                    last[n] = t
+            else:
+                new_c[t,n] = c[t,n]
+
+    return new_c
+        
 
 

@@ -39,14 +39,18 @@ class FileDarwin : public MyRobot {
         Eigen::MatrixXd data;
         std::vector<double> values;
 
+        bool input_wait;
+
     public:
         FileDarwin( mjData * d, double dt,
                 int _nu, int _ns,
-                std::string input_file) {
+                std::string input_file,
+                bool input_wait) {
 
             t=0;
             this->dt = dt;
             this->d = d;
+            this->input_wait = input_wait;
 
             printf("Loading File %s\n", input_file.c_str());
             infile.open(input_file, std::ifstream::in);
@@ -95,7 +99,7 @@ class FileDarwin : public MyRobot {
         bool get_sensors(double * time, double* sensor, double* conf) {
 
             *time = data.col(t)(0);
-            if (d->time < sensor_time ) {
+            if (input_wait && d->time < sensor_time ) {
               return false;
             }
             sensor_time = d->time + dt;// + t_noise(gen);
@@ -108,15 +112,17 @@ class FileDarwin : public MyRobot {
                 }
                 int o=(20+20+6+12);
                 // remap the data
-                for (int id=0; id<16; id++) {
-                    sensor[o+id*3+0] = snsr[o+id*3+0]; 
-                    sensor[o+id*3+1] = snsr[o+id*3+1]; 
-                    sensor[o+id*3+2] = snsr[o+id*3+2]; 
-                    //conf[id] = snsr[o+id*4+3];
-                }
-                o += 16*3;
-                for (int id=0; id<16; id++) {
-                    conf[id] = snsr[o+id];
+                if ((o + 16*3) <= ns) { // include phasespace or not
+                    for (int id=0; id<16; id++) {
+                        sensor[o+id*3+0] = snsr[o+id*3+0]; 
+                        sensor[o+id*3+1] = snsr[o+id*3+1]; 
+                        sensor[o+id*3+2] = snsr[o+id*3+2]; 
+                        //conf[id] = snsr[o+id*4+3];
+                    }
+                    o += 16*3;
+                    for (int id=0; id<16; id++) {
+                        conf[id] = snsr[o+id];
+                    }
                 }
             }
             else {
@@ -125,8 +131,10 @@ class FileDarwin : public MyRobot {
             }
 
             t = t+1; // advance time
-            if (t>=rows)
+            if (t>=rows) {
+                *time = -1;
                 return false;
+            }
 
             printf("Row: %d, time: %f\n", t, *time);
             return true;

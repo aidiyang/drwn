@@ -170,7 +170,7 @@ void save_states(std::ofstream &myfile, std::string filename, mjModel *m, mjData
   }
 }
 
-double * get_numeric_field(const mjModel* m, std::string s, int *size) {
+/*double * get_numeric_field(const mjModel* m, std::string s, int *size) {
   for (int i=0; i<m->nnumeric; i++) {
     std::string f = m->names + m->name_numericadr[i];
     //printf("%d %s %d\n", m->numeric_adr[i], f.c_str(), m->numeric_size[i]);
@@ -181,7 +181,7 @@ double * get_numeric_field(const mjModel* m, std::string s, int *size) {
     }
   }
   return 0;
-}
+}*/
 
 void do_work(int tid)
 {

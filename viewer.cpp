@@ -190,6 +190,7 @@ int main(int argc, const char** argv) {
   bool debug;
   bool real_robot;
   bool useUKF;
+  bool render_robot;
 
   try {
     po::options_description desc("Allowed options");

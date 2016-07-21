@@ -139,3 +139,6 @@ target_link_libraries(sim ${MUJOCO_LIBRARIES} )
 
 add_executable(mc "mcsim.cpp" )
 target_link_libraries(mc ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} )
+
+add_executable(testekf "testEKF.cpp" )
+target_link_libraries(testekf ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} )

@@ -11,7 +11,8 @@
 
 #include "darwin_hw/robot.h"
 
-#include "estimator.h"
+//#include "estimator.h"
+#include "ekf_estimator.h"
 
 #include <iostream>
 #include <fstream>
@@ -169,51 +170,52 @@ void print_state(const mjModel* m, const mjData* d) {
 
 int main(int argc, const char** argv) {
 
-    int num_threads=1;
-    int estimation_counts;
-    //bool engage; // for real robot?
-    std::string model_name;// = new std::string();
-    std::string output_file;// = new std::string();
-    std::string input_file;
-    double s_noise;
-    double c_noise;
-    double e_noise;
-    double alpha;
-    double beta;
-    double kappa;
-    double diag;
-    double Ws0;
-    double tol;
-    double s_time_noise=0.0;
-    //bool do_correct;
-    bool debug;
-    bool real_robot;
-    bool render_robot;
+  int num_threads=1;
+  int estimation_counts;
+  //bool engage; // for real robot?
+  std::string model_name;// = new std::string();
+  std::string output_file;// = new std::string();
+  std::string input_file;
+  double s_noise;
+  double c_noise;
+  double e_noise;
+  double alpha;
+  double beta;
+  double kappa;
+  double diag;
+  double Ws0;
+  double tol;
+  double s_time_noise=0.0;
+  //bool do_correct;
+  bool debug;
+  bool real_robot;
+  bool useUKF;
 
-    try {
-        po::options_description desc("Allowed options");
-        desc.add_options()
-            ("help", "Usage guide")
-            //("engage,e", po::value<bool>(&engage)->default_value(false), "Engage motors for live run.")
-            ("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
-            ("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
-            ("file,f", po::value<std::string>(&input_file)->default_value(""), "Use saved ctrl/sensor data as real robot.")
-            ("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
-            //("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
-            ("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
-            ("real,r", po::value<bool>(&real_robot)->default_value(false), "Use real robot.")
-            ("render,R", po::value<bool>(&render_robot)->default_value(true), "Render the visualizer.")
-            //("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
-            ("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
-            ("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
-            ("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
-            ("alpha,a", po::value<double>(&alpha)->default_value(0.001), "Alpha: UKF param")
-            ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
-            ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
-            ("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
-            ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
-            ("tol,i", po::value<double>(&tol)->default_value(-1.0), "Set Constraint Tolerance (default NONE).")
-            //("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
+  try {
+    po::options_description desc("Allowed options");
+    desc.add_options()
+      ("help", "Usage guide")
+      //("engage,e", po::value<bool>(&engage)->default_value(false), "Engage motors for live run.")
+      ("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
+      ("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
+      ("file,f", po::value<std::string>(&input_file)->default_value(""), "Use saved ctrl/sensor data as real robot.")
+      ("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
+      //("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
+      ("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
+      ("real,r", po::value<bool>(&real_robot)->default_value(false), "Use real robot.")
+      ("render,R", po::value<bool>(&render_robot)->default_value(true), "Render the visualizer.")
+      //("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
+      ("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
+      ("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
+      ("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
+      ("alpha,a", po::value<double>(&alpha)->default_value(0.001), "Alpha: UKF param")
+      ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
+      ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
+      ("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
+      ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
+      ("tol,i", po::value<double>(&tol)->default_value(-1.0), "Set Constraint Tolerance (default NONE).")
+      ("UKF,u", po::value<bool>(&useUKF)->default_value(true), "Use UKF or EKF")
+      //("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 #ifndef __APPLE__
             ("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
 #endif
@@ -363,7 +365,6 @@ int main(int argc, const char** argv) {
     if (render_robot == false) { // if we are not rendering just make the ukf
         est = new UKF(m, d, s_cov, p_cov,
                 alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
-
         est_data = est->get_state();
         if (real_robot) save_states(output_file, 0.0, NULL, est_data, est->get_stddev(), 0, 0, "w");
         else save_states(output_file, 0.0, d, est_data, est->get_stddev(), 0, 0, "w");
@@ -387,10 +388,15 @@ int main(int argc, const char** argv) {
                 break;
             case 2:
                 if (est) delete est;
-                printf("New UKF initialization\n");
+                if (useUKF) {
+                  printf("New UKF initialization\n");
 
-                est = new UKF(m, d, s_cov, p_cov,
-                        alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
+                  est = new UKF(m, d, s_cov, p_cov,
+                      alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
+                } else {
+                  printf("New EKF initialization\n");
+                  est = new EKF(m, d, e_noise, tol, diag, debug, num_threads);
+                }
 
                 est_data = est->get_state();
                 if (real_robot) save_states(output_file, 0.0, NULL, est_data, est->get_stddev(), 0, 0, "w");

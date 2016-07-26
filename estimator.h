@@ -136,7 +136,7 @@ class UKF : public Estimator {
       for (int i=0; i<my_threads; i++) {
         models[i] = mj_copyModel(NULL, m);
 
-        models[i]->opt.iterations = 20; // TODO to make things faster 
+        models[i]->opt.iterations = 25; // TODO to make things faster 
         models[i]->opt.tolerance = 0; 
 
         sigmas[i] = mj_makeData(this->m);
@@ -351,12 +351,11 @@ class UKF : public Estimator {
     };
 
     double add_time_noise() {
-
       double dt = 0;
       if (t_noise) {
-          static std::mt19937 t_rng(50505);
-          static std::normal_distribution<double> nd(0, *t_noise);
-          dt = nd(t_rng);
+        static std::mt19937 t_rng(50505);
+        static std::normal_distribution<double> nd(0, *t_noise);
+        dt = nd(t_rng);
       }
       return dt;
     }
@@ -365,8 +364,13 @@ class UKF : public Estimator {
       if (m_noise) {
         static std::mt19937 m_rng(12345);
         static std::normal_distribution<double> mass_r(0, *m_noise);
-          double newmass = mj_getTotalmass(m) + mass_r(m_rng);
-          mj_setTotalmass(t_m, newmass);
+        // TOTAL MASS
+        //double newmass = mj_getTotalmass(m) + mass_r(m_rng);
+        //mj_setTotalmass(t_m, newmass);
+        for (int i=0; i<t_m->nbody; i++) {
+          //t_m->body_mass[i] = m->body_mass[i] + mass_r(m_rng)/(double)m->nbody;
+          t_m->body_mass[i] = m->body_mass[i] + mass_r(m_rng);
+        }
       }
     }
 
@@ -491,18 +495,23 @@ class UKF : public Estimator {
       if (conf) { // our sensors have confidence intervals
         // TODO more than just phasespace markers?
         if (ns > (40+6+12)) { // we have phasespace markers
-          int ps_start = ns - 16;
+          int ps_start = ns - 16*3;
+          printf("ps %d ns %d\n", ps_start, ns);
           for (int j=0; j<16; j++) { // DIRTY HACKY HACK
-            int idx = ps_start + j;
-            // our conf threshold (basically not visible)
-            if (conf[j] < 3.0) { PzAdd(idx, idx) = 1e+2; }
-            else { PzAdd(idx, idx) = mrkr_conf; }
+            for (int i=0; i<3; i++) {
+              int idx = ps_start + j*3 + i;
+              // our conf threshold (basically not visible)
+              if (conf[j] < 0.0) { PzAdd(idx, idx) = 1e+100; }
+              else { PzAdd(idx, idx) = mrkr_conf; }
+            }
           }
+          //IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
+          //std::cout << "pzadd output:\n"<< PzAdd.block(ps_start, ps_start, ns-ps_start, ns-ps_start).format(CleanFmt) << std::endl;
         }
       }
       // Simulation options
       m->opt.timestep = dt; // input to this function
-      
+
       add_ctrl_noise(d->ctrl);
       m->opt.iterations = 100; 
       m->opt.tolerance = 1e-6; 
@@ -566,9 +575,9 @@ class UKF : public Estimator {
           add_snsr_noise(t_d->sensordata);
           mju_copy(&(gamma[i](0)), t_d->sensordata, ns);
 
-          if (j < nq) { // only copy position perturbed
-            //mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
-          }
+          //if (j < nq) { // only copy position perturbed
+          //  //mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
+          //}
 
           ///////////////////////////////////////////////////// symmetric point
           x[i+L] = x[0]-m_sqrt.col(i-1) + qhat;
@@ -601,9 +610,9 @@ class UKF : public Estimator {
           add_snsr_noise(t_d->sensordata);
           mju_copy(&(gamma[i+L](0)), t_d->sensordata, ns);
 
-          if (j < nq) { // only copy position perturbed states
-            //mju_copy(sigma_states[i+nq]->qpos, t_d->qpos, nq);
-          }
+          //if (j < nq) { // only copy position perturbed states
+          //  //mju_copy(sigma_states[i+nq]->qpos, t_d->qpos, nq);
+          //}
 
         }
         //double omp2 = omp_get_wtime()*1000.0;
@@ -669,11 +678,11 @@ class UKF : public Estimator {
       //for (int i=0; i<N; i++) {
       //  VectorXd z(gamma[i] - z_k);
       //  VectorXd x_i(x[i] - x_t);
-
       //  P_t += W_c[i] * (x_i * x_i.transpose()); // aprior covarian
       //  P_z += W_c[i] * (z * z.transpose());
       //  Pxz += W_c[i] * (x_i * z.transpose());
       //}
+
       for (int i=1; i<N; i++) {
         VectorXd z(gamma[i] - z_k);
         VectorXd x_i(x[i] - x_t);
@@ -714,7 +723,7 @@ class UKF : public Estimator {
     }
 
     void predict_correct_p2(double * ctrl, double dt, double* sensors, double* conf = 0) {
-      
+
       MatrixXd K = Pxz * P_z.inverse();
 
       VectorXd s = Map<VectorXd>(sensors, ns); // map our real z to vector
@@ -781,7 +790,7 @@ class UKF : public Estimator {
       }
       // Simulation options
       m->opt.timestep = dt;
-      
+
       bool INV_CHECK = false;
 
       if (INV_CHECK) {
@@ -1090,8 +1099,8 @@ class UKF : public Estimator {
       double t6 = omp_get_wtime()*1000.0;
 
       printf("\ncombo init %f, sqrt %f, mjsteps %f, merge %f\n",
-              t3-t2, t4-t3, t5-t4, t6-t5);
-      
+          t3-t2, t4-t3, t5-t4, t6-t5);
+
       /* Entropy Testing?
       */
       //IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");

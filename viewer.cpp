@@ -11,8 +11,8 @@
 
 #include "darwin_hw/robot.h"
 
-//#include "estimator.h"
-#include "ekf_estimator.h"
+#include "estimator.h"
+//#include "ekf_estimator.h"
 
 #include <iostream>
 #include <fstream>
@@ -242,7 +242,7 @@ int main(int argc, const char** argv) {
     }
 
     bool from_file = input_file.length() > 0;
-    bool from_hardware = from_file == false && real_robot;
+    bool from_hardware = (from_file == false) && real_robot;
 
     if(Ws0 > 1) {
         Ws0 = 1;
@@ -267,7 +267,30 @@ int main(int argc, const char** argv) {
     omp_set_dynamic(0);
 #endif
 
-    if (init_viz(model_name)) { return 1; }
+    if (render_robot) {
+      if (init_viz(model_name)) { return 1; }
+    }
+    else {
+      printf("MuJoCo Pro library version %.2lf\n\n", 0.01 * mj_version());
+      if (mjVERSION_HEADER != mj_version())
+        mju_error("Headers and library have different versions");
+
+      // activate MuJoCo license
+      mj_activate("mjkey.txt");
+
+      if (!model_name.empty()) {
+        //m = mj_loadModel(model_name.c_str(), 0, 0);
+        char error[1000] = "could not load binary model";
+        m = mj_loadXML(model_name.c_str(), 0, error, 1000);
+        if (!m) {
+          printf("%s\n", error);
+          return 1;
+        }
+
+        d = mj_makeData(m);
+        mj_forward(m, d);
+      }
+    }
     int nq = m->nq;
     int nv = m->nv;
     int nu = m->nu;
@@ -371,8 +394,10 @@ int main(int argc, const char** argv) {
         else save_states(output_file, 0.0, d, est_data, est->get_stddev(), 0, 0, "w");
     }
 
-    while( !closeViewer() ) {
+    bool exit = render_robot? true : !closeViewer();
+    while ( exit ) {
 
+      if (render_robot) {
         switch (viewer_signal()) { // signal for keyboard presses (triggers walking)
             case 1:
                 if (walking) {
@@ -396,7 +421,7 @@ int main(int argc, const char** argv) {
                       alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
                 } else {
                   printf("New EKF initialization\n");
-                  est = new EKF(m, d, e_noise, tol, diag, debug, num_threads);
+                  //est = new EKF(m, d, e_noise, tol, diag, debug, num_threads);
                 }
 
                 est_data = est->get_state();
@@ -407,9 +432,8 @@ int main(int argc, const char** argv) {
             default: 
                 break;
         }
-
+      }
         //double t_2 = now_t();
-
         std::future<void> t_predict;
 
         bool get_data_and_estimate = false;
@@ -418,8 +442,10 @@ int main(int argc, const char** argv) {
             get_data_and_estimate = (est!=NULL) && sense;
             if (sense == false // no data
                     && time < 0
-                    && render_robot == false) // not rendering
-                shouldCloseViewer(); // end of file
+                    && render_robot == false) {// not rendering
+              printf("Done with file, readying to exit.\n");
+              exit = false; //shouldCloseViewer(); // end of file
+            }
         }
         else if (from_hardware && est) {
             t_predict = std::async(std::launch::async, &Estimator::predict_correct_p1, est, ctrl, 0.0072, sensors, conf);
@@ -508,9 +534,10 @@ int main(int argc, const char** argv) {
                 estimation_counts--;
             }
             else if (estimation_counts == 0) {
-                shouldCloseViewer();
+              printf("Done with limited runtime.\n");
+              if (render_robot) shouldCloseViewer();
+              else exit = true;
             }
-
         }
         else {
             // allow time to progress
@@ -520,27 +547,29 @@ int main(int argc, const char** argv) {
             if (est) {
                 // render sigma points
                 // TODO rendering is slow on macs
-                if (from_hardware) {
-                    render_inplace = true;
-                }
-                else {
-                    render_inplace = false;
-                }
+                if (from_hardware) { render_inplace = true; }
+                else { render_inplace = false; }
                 render(window, est->get_sigmas(), render_inplace); // get state updated model / data, mj_steps
             }
             else {
                 std::vector<mjData*> a;
                 render(window, a, false);
             }
+            finalize();
+            exit = !closeViewer();
         }
-
-        finalize();
 
         //double t_1 = now_t();
         //printf("\n\t\t Loop time: %f ms\n", t_1-t_2);
     }
 
-    end_viz();
+    if (render_robot) {
+      end_viz();
+    }
+    else {
+      mj_deactivate();
+    }
+
     if (est && est_data) {
         if (real_robot) save_states(output_file, time, NULL, est_data, est->get_stddev(), 0, 0, "c");
         else save_states(output_file, time, d, est_data, est->get_stddev(), 0, 0, "c");
@@ -553,7 +582,7 @@ int main(int argc, const char** argv) {
     //  printf("%f ", qpos[id]);
     //}
 
-    printf("\n");
+    //printf("\n");
     delete[] qpos;
     delete[] qvel;
     delete[] ctrl;

@@ -87,7 +87,7 @@ const char help_content[] =
 char opt_title[1000] = "";
 char opt_content[1000];
 
-GLFWwindow *window;
+GLFWwindow *window = 0;
 
 //-------------------------------- utility functions ------------------------------------
 

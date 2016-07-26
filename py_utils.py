@@ -142,6 +142,21 @@ def dist_diff_v_time(x1, x2, c, conf):
 
     return y
 
+def dist_diff_v_time_limited(x1, x2, c, conf, cols):
+    # one rms value for the entire trajectory
+    #y = np.sqrt(np.sum(np.sum(np.square(x1-x2), axis=2), axis=1))
+    y = np.zeros((x1.shape[0], 1))
+    for t in range(x1.shape[0]):
+        count = 0
+        for i in cols:
+            if c[t,i] > conf:
+                dist = np.sum(np.square(x1[t,i,:]-x2[t,i,:]))
+                y[t, 0] += dist
+                count += 1
+        y[t, 0] = np.sqrt(y[t, 0]/count)
+
+    return y
+
 def clean_mrkr_data(time, mrkr, c, conf, vel_limit):
     T = mrkr.shape[0]
     N = 16 # num markers
@@ -162,5 +177,13 @@ def clean_mrkr_data(time, mrkr, c, conf, vel_limit):
 
     return new_c
         
+def clean_ctct_data(ctct, first):
+    i = np.mean(ctct[0:first,:], axis=0)
+    # z-axis values don't offset
+    i[2] = 0
+    i[8] = 0
+    new_c = np.copy(ctct) - i #apply offset
+
+    return new_c
 
 

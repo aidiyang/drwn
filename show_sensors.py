@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 
 from numpy.linalg import norm
 
+import py_utils as util
+
 if len(sys.argv) < 2:
     print "python [data.csv]"
     sys.exit
@@ -60,7 +62,7 @@ print "mrkr:\n", v_mrkr
 dt = np.ediff1d(t)
 mean_dt = np.mean(dt)
 print "Mean dt:", mean_dt
-print "Var  dt:", np.std(dt)
+print "std  dt:", np.std(dt)
 
 #sp_qpos = np.fft.fft(qpos, axis=0)
 #sp_qvel = np.fft.fft(qvel, axis=0)
@@ -107,18 +109,30 @@ print "Gyro mean:", np.mean(gyro, axis=0)
 alpha = 0.5
 accl = np.copy(snsr[:,40:43])
 saccl = low_pass(accl, alpha);
-snsr[:,40:43] = np.copy(saccl)
-
+#snsr[:,40:43] = np.copy(saccl)
 gyro = np.copy(snsr[:,43:46])
 sgyro = low_pass(gyro, alpha) 
-snsr[:,43:46] = np.copy(sgyro)
+#snsr[:,43:46] = np.copy(sgyro)
 
 ctct = np.copy(snsr[:,46:58])
-sctct = low_pass(ctct, alpha) 
+#sctct = low_pass(ctct, alpha) 
+sctct=util.clean_ctct_data(ctct, 20)
 snsr[:,46:58] = np.copy(sctct)
 
+new_c = util.clean_mrkr_data(t, ps, conf, 3, 0.01)
 
-new_data = np.hstack((t[:,None], ctrl, snsr, conf))
+print "Initial Contact values:"
+i_ctct = np.mean(ctct[0:20, :], axis=0)
+
+#m_ctct = np.mean(ctct[:, :], axis=0)
+#print "r ctct:", i_ctct[0:3]
+#print "l ctct:", i_ctct[6:9]
+#print "zmean ctct:", m_ctct[2] + m_ctct[8]
+#print "initz ctct:", i_ctct[2] + i_ctct[8]
+
+
+#new_data = np.hstack((t[:,None], ctrl, snsr, conf))
+new_data = np.hstack((t[:,None], ctrl, snsr, new_c))
 head = 'time,'+'ctrl,'*nu+'snsr,'*ns+'conf,'*16
 np.savetxt('clean_'+f, new_data, delimiter=',', header=head, fmt='%.8f',
         comments='')
@@ -191,9 +205,9 @@ axs[5,2].plot(t, ctct[:,2], color='red', lw=my_lw, alpha=my_alpha)
 axs[5,0].set_title('ctct-x') 
 axs[5,1].set_title('ctct-y')
 axs[5,2].set_title('ctct-z')
-axs[5,0].plot(t, sctct[:,0], color='red', ls='--', alpha=1.0)
-axs[5,1].plot(t, sctct[:,1], color='red', ls='--', alpha=1.0)
-axs[5,2].plot(t, sctct[:,2], color='red', ls='--', alpha=1.0)
+axs[5,0].plot(t, sctct[:,0], color='red', ls='-.', alpha=1.0)
+axs[5,1].plot(t, sctct[:,1], color='red', ls='-.', alpha=1.0)
+axs[5,2].plot(t, sctct[:,2], color='red', ls='-.', alpha=1.0)
 
 axs[5,0].plot(t, ctct[:,6], color='blue', lw=my_lw, alpha=my_alpha)
 axs[5,1].plot(t, ctct[:,7], color='blue', lw=my_lw, alpha=my_alpha)
@@ -212,9 +226,9 @@ axs[6,2].plot(t, ctct[:,5], color='red', lw=my_lw, alpha=my_alpha)
 axs[6,0].set_title('t ctct-x') 
 axs[6,1].set_title('t ctct-y')
 axs[6,2].set_title('t ctct-z')
-axs[6,0].plot(t, sctct[:,3], color='red', ls='--', alpha=1.0)
-axs[6,1].plot(t, sctct[:,4], color='red', ls='--', alpha=1.0)
-axs[6,2].plot(t, sctct[:,5], color='red', ls='--', alpha=1.0)
+axs[6,0].plot(t, sctct[:,3], color='red', ls='-.', alpha=1.0)
+axs[6,1].plot(t, sctct[:,4], color='red', ls='-.', alpha=1.0)
+axs[6,2].plot(t, sctct[:,5], color='red', ls='-.', alpha=1.0)
 
 axs[6,0].plot(t, ctct[:,9],  color='blue', lw=my_lw, alpha=my_alpha)
 axs[6,1].plot(t, ctct[:,10], color='blue', lw=my_lw, alpha=my_alpha)
@@ -238,3 +252,17 @@ plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 plt.show()
 
 
+#Initial Contact values: straight_walk.csv
+#[  3.60828500e+00   2.38952850e+00  -1.55573900e+01   1.00925960e-02
+#   3.30845850e-01   1.77191550e-01   2.52803600e+00  -2.66430235e-01
+#  -1.20418400e+01   1.25703350e-01  -1.09373215e-01   5.76890150e-02]
+
+#Initial Contact values: walk3.csv
+#[  3.18307050e+00   2.65368450e+00  -1.55325300e+01   8.52495275e-03
+#   3.11757550e-01   2.21288650e-01   1.98254450e+00   3.44876580e-02
+#  -1.18669600e+01   5.48431650e-02  -2.21487450e-01   8.67252700e-02]
+
+#Initial Contact values: no_walk3.csv
+#[  3.56836600e+00   2.78229250e+00  -1.63210950e+01  -3.72314050e-02
+#   2.99355000e-01   1.47520950e-01   2.89638250e+00   2.51768900e-01
+#  -1.20343500e+01   1.18159145e-02   4.38051300e-02   1.03155000e-01]

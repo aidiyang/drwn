@@ -6,15 +6,11 @@
 
 #include "mujoco.h"
 #include "glfw3.h"
-#include "stdlib.h"
+#include "stdio.h"
 #include "string.h"
-#include <mutex>
 
 
 //-------------------------------- global variables -------------------------------------
-
-// synchronization
-std::mutex gui_mutex;
 
 // model
 mjModel* m = 0;
@@ -27,22 +23,23 @@ char* g_name_list[1000];
 bool paused = false;
 bool showoption = false;
 bool showinfo = true;
+bool showfullscreen = false;
+bool slowmotion = false;
 bool showdepth = false;
 bool show_sensor = false;
 int showhelp = 1;                   // 0: none; 1: brief; 2: full
-int speedtype = 1;                  // 0: slow; 1: normal; 2: max
 
 // abstract visualization
-mjvObjects objects;
+mjvScene scn;
 mjvCamera cam;
 mjvOption vopt;
+mjvPerturb pert;
 char status[1000] = "";
 
 // OpenGL rendering
+int refreshrate;
+const int fontscale = mjFONTSCALE_150;
 mjrContext con;
-mjrOption ropt;
-double scale = 1;
-bool stereoavailable = false;
 float depth_buffer[5120*2880];        // big enough for 5K screen
 unsigned char depth_rgb[1280*720*3];  // 1/4th of screen
 
@@ -50,25 +47,20 @@ unsigned char depth_rgb[1280*720*3];  // 1/4th of screen
 bool button_left = false;
 bool button_middle = false;
 bool button_right =  false;
-int lastx = 0;
-int lasty = 0;
-int selbody = 0;
-int perturb = 0;
-mjtNum selpos[3] = {0, 0, 0};
-mjtNum refpos[3] = {0, 0, 0};
-mjtNum refquat[4] = {1, 0, 0, 0};
-int needselect = 0;                 // 0: none, 1: select, 2: center 
+double lastx = 0;
+double lasty = 0;
+int needselect = 0;                 // 0: none, 1: select, 2: center, 3: center and track 
+double window2buffer = 1;           // framebuffersize / windowsize (for scaled video modes)
 
 // help strings
 const char help_title[] = 
 "Help\n"
 "Option\n"
 "Info\n"
-"Depth map\n"
+"Depth\n"
+"Full screen\n"
 "Stereo\n"
-"Speed\n"
-"Frame\n"
-"Label\n"
+"Slow motion\n"
 "Pause\n"
 "Reset\n"
 "Forward\n"
@@ -81,10 +73,16 @@ const char help_title[] =
 "Sites\n"
 "Select\n"
 "Center\n"
+"Track\n"
 "Zoom\n"
-"Camera\n"
+"Translate\n"
+"Rotate\n"
 "Perturb\n"
-"Switch Cam";
+"Free Camera\n"
+"Camera\n"
+"Frame\n"
+"Label";
+
 
 const char help_content[] = 
 "F1\n"
@@ -93,24 +91,28 @@ const char help_content[] =
 "F4\n"
 "F5\n"
 "F6\n"
-"F7\n"
 "Enter\n"
 "Space\n"
 "BackSpace\n"
 "Right arrow\n"
 "Left arrow\n"
-"Page Down\n"
-"Page Up\n"
+"Down arrow\n"
+"Up arrow\n"
 "Ctrl A\n"
 "Ctrl L\n"
 "0 - 4\n"
 "Shift 0 - 4\n"
-"L double-click\n"
-"R double-click\n"
+"L dblclick\n"
+"R dblclick\n"
+"Ctrl R dblclick\n"
 "Scroll or M drag\n"
-"[Shift] L/R drag\n"
-"Ctrl [Shift] drag\n"
-"[ ]";
+"[Shift] R drag\n"
+"L drag\n"
+"Ctrl [Shift] L/R drag\n"
+"Esc\n"
+"[ ]\n"
+"; '\n"
+". /";
 
 char opt_title[1000] = "";
 char opt_content[1000];
@@ -126,16 +128,10 @@ void autoscale(GLFWwindow* window)
   cam.lookat[1] = m->stat.center[1];
   cam.lookat[2] = m->stat.center[2];
   cam.distance = 1.5 * m->stat.extent;
-  cam.camid = -1;
-  cam.trackbodyid = -1;
-  if( window )
-  {
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-    mjv_updateCameraPose(&cam, (mjtNum)width/(mjtNum)height);
-  }
-}
 
+  // set to free camera
+  cam.type = mjCAMERA_FREE;
+}
 
 
 // load mjb or xml model
@@ -174,19 +170,20 @@ void loadmodel(GLFWwindow* window, const char* filename, const char* xmlstring)
     lastfile[0] = 0;
 
   // re-create custom context
-  mjr_makeContext(m, &con, 150);
+  mjr_makeContext(m, &con, fontscale);
 
   // clear perturbation state
-  perturb = 0;
-  selbody = 0;
+  pert.active = 0;
+  pert.select = 0;
   needselect = 0;
 
-  // set title
+  // center and scale view, update scene
+  autoscale(window);
+  mjv_updateScene(m, d, &vopt, &pert, &cam, mjCAT_ALL, &scn);
+
+  // set window title to mode name
   if( window && m->names )
     glfwSetWindowTitle(window, m->names);
-
-  // center and scale view
-  autoscale(window);
 
   // save list of body names
   for (int i=0; i<m->nbody; i++) {
@@ -198,7 +195,7 @@ void loadmodel(GLFWwindow* window, const char* filename, const char* xmlstring)
 }
 
 
-//--------------------------------- callbacks -------------------------------------------
+//--------------------------------- GLFW callbacks --------------------------------------
 
 // keyboard
 void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods)
@@ -212,8 +209,6 @@ void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods)
   // do not act on release
   if( act==GLFW_RELEASE )
     return;
-
-  gui_mutex.lock();
 
   switch( key )
   {
@@ -231,27 +226,24 @@ void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods)
       showinfo = !showinfo;
       break;
 
-    case GLFW_KEY_F4:                   // depthmap
+    case GLFW_KEY_F4:                   // depth
       showdepth = !showdepth;
       break;
 
-    case GLFW_KEY_F5:                   // stereo
-      if( stereoavailable )
-        ropt.stereo = !ropt.stereo;
+    case GLFW_KEY_F5:                   // toggle full screen
+      showfullscreen = !showfullscreen;
+      if( showfullscreen )
+        glfwMaximizeWindow(window);
+      else
+        glfwRestoreWindow(window);
       break;
 
-    case GLFW_KEY_F6:                   // cycle over frame rendering modes
-      vopt.frame = (vopt.frame+1) % mjNFRAME;
+    case GLFW_KEY_F6:                   // stereo
+      scn.stereo = (scn.stereo==mjSTEREO_NONE ? mjSTEREO_QUADBUFFERED : mjSTEREO_NONE);
       break;
 
-    case GLFW_KEY_F7:                   // cycle over labeling modes
-      vopt.label = (vopt.label+1) % mjNLABEL;
-      break;
-
-    case GLFW_KEY_ENTER:                // speed
-      speedtype += 1;
-      if( speedtype>2 )
-        speedtype = 0;
+    case GLFW_KEY_ENTER:                // slow motion
+      slowmotion = !slowmotion;
       break;
 
     case GLFW_KEY_SPACE:                // pause
@@ -277,13 +269,13 @@ void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods)
       }
       break;
 
-    case GLFW_KEY_PAGE_DOWN:            // step forward 100
+    case GLFW_KEY_DOWN:                 // step forward 100
       if( paused )
         for( n=0; n<100; n++ )
           mj_step(m,d);
       break;
 
-    case GLFW_KEY_PAGE_UP:              // step back 100
+    case GLFW_KEY_UP:                   // step back 100
       if( paused )
       {
         m->opt.timestep = -m->opt.timestep;
@@ -293,17 +285,50 @@ void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods)
       }
       break;
 
-    case GLFW_KEY_LEFT_BRACKET:         // previous camera
-      if( cam.camid>-1 )
-        cam.camid--;
+    case GLFW_KEY_ESCAPE:               // free camera
+      cam.type = mjCAMERA_FREE;
       break;
 
-    case GLFW_KEY_RIGHT_BRACKET:        // next camera
-      if( cam.camid<m->ncam-1 )
-        cam.camid++;
+    case '[':                           // previous fixed camera or free
+      if( m->ncam && cam.type==mjCAMERA_FIXED )
+      {
+        if( cam.fixedcamid>0 )
+          cam.fixedcamid--;
+        else
+          cam.type = mjCAMERA_FREE;
+      }
       break;
 
-    default:
+    case ']':                           // next fixed camera
+      if( m->ncam )
+      {
+        if( cam.type!=mjCAMERA_FIXED )
+        {
+          cam.type = mjCAMERA_FIXED;
+          cam.fixedcamid = 0;
+        }
+        else if( cam.fixedcamid<m->ncam-1 )
+          cam.fixedcamid++;
+      }
+      break;
+
+    case ';':                           // cycle over frame rendering modes
+      vopt.frame = mjMAX(0, vopt.frame-1);
+      break;
+
+    case '\'':                          // cycle over frame rendering modes
+      vopt.frame = mjMIN(mjNFRAME-1, vopt.frame+1);
+      break;
+
+    case '.':                           // cycle over label rendering modes
+      vopt.label = mjMAX(0, vopt.label-1);
+      break;
+
+    case '/':                           // cycle over label rendering modes
+      vopt.label = mjMIN(mjNLABEL-1, vopt.label+1);
+      break;
+
+    default:                            // toggle flag
       // control keys
       if( mods & GLFW_MOD_CONTROL )
       {
@@ -327,7 +352,7 @@ void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods)
       // toggle rendering flag
       for( int i=0; i<mjNRNDFLAG; i++ )
         if( key==mjRNDSTRING[i][2][0] )
-          ropt.flags[i] = !ropt.flags[i];
+          scn.flags[i] = !scn.flags[i];
 
       // toggle geom/site group
       for( int i=0; i<mjNGROUP; i++ )
@@ -339,8 +364,6 @@ void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods)
             vopt.geomgroup[i] = !vopt.geomgroup[i];
         }
   }
-
-  gui_mutex.unlock();
 }
 
 
@@ -357,20 +380,15 @@ void mouse_button(GLFWwindow* window, int button, int act, int mods)
   button_right =  (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT)==GLFW_PRESS);
 
   // update mouse position
-  double x, y;
-  glfwGetCursorPos(window, &x, &y);
-  lastx = (int)(scale*x);
-  lasty = (int)(scale*y);
+  glfwGetCursorPos(window, &lastx, &lasty);
 
   // require model
   if( !m )
     return;
 
-  gui_mutex.lock();
-
   // set perturbation
   int newperturb = 0;
-  if( (mods & GLFW_MOD_CONTROL) && selbody>0 )
+  if( act==GLFW_PRESS && (mods & GLFW_MOD_CONTROL) && pert.select>0 )
   {
     // right: translate;  left: rotate
     if( button_right )
@@ -379,25 +397,23 @@ void mouse_button(GLFWwindow* window, int button, int act, int mods)
       newperturb = mjPERT_ROTATE;
 
     // perturbation onset: reset reference
-    if( newperturb && !perturb )
-    {
-      int id = paused ? m->body_rootid[selbody] : selbody;
-      mju_copy3(refpos, d->xpos+3*id);
-      mju_copy(refquat, d->xquat+4*id, 4);
-    }
+    if( newperturb && !pert.active )
+      mjv_initPerturb(m, d, &scn, &pert);
   }
-  perturb = newperturb;
+  pert.active = newperturb;
 
   // detect double-click (250 msec)
   if( act==GLFW_PRESS && glfwGetTime()-lastclicktm<0.25 && button==lastbutton )
   {
     if( button==GLFW_MOUSE_BUTTON_LEFT )
       needselect = 1;
+    else if( mods & GLFW_MOD_CONTROL )
+      needselect = 3;
     else
       needselect = 2;
 
     // stop perturbation on select
-    perturb = 0;
+    pert.active = 0;
   }
 
   // save info
@@ -406,8 +422,6 @@ void mouse_button(GLFWwindow* window, int button, int act, int mods)
     lastbutton = button;
     lastclicktm = glfwGetTime();
   }
-
-  gui_mutex.unlock();
 }
 
 
@@ -419,10 +433,10 @@ void mouse_move(GLFWwindow* window, double xpos, double ypos)
     return;
 
   // compute mouse displacement, save
-  float dx = (int)(scale*xpos) - (float)lastx;
-  float dy = (int)(scale*ypos) - (float)lasty;
-  lastx = (int)(scale*xpos);
-  lasty = (int)(scale*ypos);
+  double dx = xpos - lastx;
+  double dy = ypos - lasty;
+  lastx = xpos;
+  lasty = ypos;
 
   // require model
   if( !m )
@@ -430,7 +444,7 @@ void mouse_move(GLFWwindow* window, double xpos, double ypos)
 
   // get current window size
   int width, height;
-  glfwGetFramebufferSize(window, &width, &height);
+  glfwGetWindowSize(window, &width, &height);
 
   // get shift key state
   bool mod_shift = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)==GLFW_PRESS ||
@@ -445,21 +459,11 @@ void mouse_move(GLFWwindow* window, double xpos, double ypos)
   else
     action = mjMOUSE_ZOOM;
 
-  gui_mutex.lock();
-
-  // perturbation
-  if( perturb )
-  {
-    if( selbody>0 )
-      mjv_moveObject(action, dx, dy, &cam.pose, 
-          (float)width, (float)height, refpos, refquat);
-  }
-
-  // camera control
+  // move perturb or camera
+  if( pert.active )
+    mjv_movePerturb(m, d, action, dx/height, dy/height, &scn, &pert);
   else
-    mjv_moveCamera(action, dx, dy, &cam, (float)width, (float)height);
-
-  gui_mutex.unlock();
+    mjv_moveCamera(m, action, dx/height, dy/height, &scn, &cam);
 }
 
 
@@ -470,14 +474,8 @@ void scroll(GLFWwindow* window, double xoffset, double yoffset)
   if( !m )
     return;
 
-  // get current window size
-  int width, height;
-  glfwGetFramebufferSize(window, &width, &height);
-
-  // scroll
-  gui_mutex.lock();
-  mjv_moveCamera(mjMOUSE_ZOOM, 0, (float)(-20*yoffset), &cam, (float)width, (float)height);
-  gui_mutex.unlock();
+  // scroll: emulate vertical mouse motion = 5% of window height
+  mjv_moveCamera(m, mjMOUSE_ZOOM, 0, -0.05*yoffset, &scn, &cam);
 }
 
 
@@ -486,11 +484,7 @@ void drop(GLFWwindow* window, int count, const char** paths)
 {
   // make sure list is non-empty
   if( count>0 )
-  {
-    gui_mutex.lock();
     loadmodel(window, paths[0], 0);
-    gui_mutex.unlock();
-  }
 }
 
 
@@ -520,27 +514,42 @@ void makeoptionstring(const char* name, char key, char* buf)
 
 
 // advance simulation
-void advance(void)
+void simulation(void)
 {
-  // perturbations
-  if( selbody>0 )
-  {
-    // fixed object: edit
-    if( m->body_jntnum[selbody]==0 && m->body_parentid[selbody]==0 )
-      mjv_mouseEdit(m, d, selbody, perturb, refpos, refquat);
+  // no model
+  if( !m )
+    return;
 
-    // movable object: set mouse perturbation
-    else
-      mjv_mousePerturb(m, d, selbody, perturb, refpos, refquat, 
-          d->xfrc_applied+6*selbody);
+  // paused
+  else if( paused )
+  {
+    // apply pose perturbations, run mj_forward
+    mjv_applyPerturbPose(m, d, &pert, 1);       // move mocap and dynamic bodies
+    mj_forward(m, d);
   }
 
-  // advance simulation
-  mj_step(m, d);
+  // running
+  else
+  {
+    // slow motion factor: 10x
+    mjtNum factor = (slowmotion ? 10 : 1);
 
-  // clear perturbation
-  if( selbody>0 )
-    mju_zero(d->xfrc_applied+6*selbody, 6);
+    // advance effective simulation time by 1/refreshrate
+    mjtNum startsimtm = d->time;
+    while( (d->time-startsimtm)*factor < 1.0/refreshrate )
+    {
+      // clear old perturbations, apply new
+      mju_zero(d->xfrc_applied, 6*m->nbody);
+      if( pert.select>0 )
+      {
+        mjv_applyPerturbPose(m, d, &pert, 0);  // move mocap bodies only
+        mjv_applyPerturbForce(m, d, &pert);
+      }
+
+      // run mj_step and count
+      mj_step(m, d);
+    }
+  }
 }
 
 
@@ -550,80 +559,57 @@ void render(GLFWwindow* window)
   // past data for FPS calculation
   static double lastrendertm = 0;
 
-  // get current window rectangle
+  // get current framebuffer rectangle
   mjrRect rect = {0, 0, 0, 0};
   glfwGetFramebufferSize(window, &rect.width, &rect.height);
-
-  double duration = 0;
-  gui_mutex.lock();
 
   // no model: empty screen
   if( !m )
   {
-    mjr_rectangle(rect, 0, 0, rect.width, rect.height, 0.2, 0.3, 0.4, 1);
-    mjr_overlay(rect, mjGRID_TOPLEFT, 0, "Drag-and-drop model file here", 0, &con);
-    gui_mutex.unlock();
+    mjr_rectangle(rect, 0.2f, 0.3f, 0.4f, 1);
+    mjr_overlay(mjFONT_NORMAL, mjGRID_TOPLEFT, rect, "Drag-and-drop model file here", 0, &con);
+
+    // swap buffers
+    glfwSwapBuffers(window); 
     return;
   }
 
-  // start timers
-  double starttm = glfwGetTime();
-  mjtNum startsimtm = d->time;
-
-  // paused
-  if( paused )
-  {
-    // edit
-    mjv_mouseEdit(m, d, selbody, perturb, refpos, refquat);
-
-    // recompute to refresh rendering
-    mj_forward(m, d);
-
-    // 15 msec delay
-    while( glfwGetTime()-starttm<0.015 );
-  }
-
-  // running
-  else
-  {
-    // simulate for 15 msec of CPU time
-    int n = 0;
-    while( glfwGetTime()-starttm<0.015 )
-    {
-      // step at specified speed
-      if( (speedtype==0 && n==0) || (speedtype==1 && d->time-startsimtm<0.016) || speedtype==2 )
-      {
-        advance();
-        n++;
-      }
-
-      // simulation already done: compute duration
-      else if( duration==0 && n )
-        duration = 1000*(glfwGetTime() - starttm)/n;
-
-    }
-
-    // compute duration if not already computed
-    if( duration==0 && n )
-      duration = 1000*(glfwGetTime() - starttm)/n;
-  }
+  // advance simulation
+  simulation();
 
   // update simulation statistics
-  if( !paused ) {
-    sprintf(status, "%.1f\n%d (%d)\n%.2f\n%.0f          \n%.2f\n%.2f (%2.0f it)\n%d\n%d\n%d",
-        d->time, d->nefc, d->ncon, 
-        duration, 1.0/(glfwGetTime()-lastrendertm),
+  if( !paused )
+  {
+    // camera string
+    char camstr[20];
+    if( cam.type==mjCAMERA_FREE )
+      strcpy(camstr, "Free");
+    else if( cam.type==mjCAMERA_TRACKING )
+      strcpy(camstr, "Tracking");
+    else
+      sprintf(camstr, "Fixed %d", cam.fixedcamid);
+
+    // status
+    sprintf(status, "%-20.1f\n%d (%d)\n%.0f\n%.2f\n%.2f (%02d it)\n%.1f %.1f\n%s\n%s\n%s",
+        d->time, 
+        d->nefc, 
+        d->ncon, 
+        1.0/(glfwGetTime()-lastrendertm),
         d->energy[0]+d->energy[1],
-        mju_log10(mju_max(mjMINVAL, d->solverstat[1])),
-        d->solverstat[0],
-        cam.camid, vopt.frame, vopt.label );
+        mju_log10(mju_max(mjMINVAL, d->solver_trace[mjMAX(0,mjMIN(d->solver_iter-1,mjNTRACE-1))])),
+        d->solver_iter, 
+        mju_log10(mju_max(mjMINVAL,d->solver_fwdinv[0])),
+        mju_log10(mju_max(mjMINVAL,d->solver_fwdinv[1])),
+        camstr, 
+        mjFRAMESTRING[vopt.frame], 
+        mjLABELSTRING[vopt.label] );
 
     if (show_sensor) {
       int ns=0;
       int c=0;
       for (int i = 0; i < m->nsensor; i++) {
         int type = m->sensor_type[i];
-        double var = 0;
+        //double var = 0;
         switch (type) {
           case 1:  if (c!=1) printf("\nAccelerometer: "); c=1;      break;   //Accelerometer
           case 2:  if (c!=2) printf("\nGyro: ");          c=2;      break;   //Gyro
@@ -648,69 +634,74 @@ void render(GLFWwindow* window)
       }
     }
   }
+
+  // timing satistics
   lastrendertm = glfwGetTime();
 
-  // create geoms and lights
-  mjv_makeGeoms(m, d, &objects, &vopt, mjCAT_ALL, selbody, 
-      (perturb & mjPERT_TRANSLATE) ? refpos : 0, 
-      (perturb & mjPERT_ROTATE) ? refquat : 0, selpos); 
-  mjv_makeLights(m, d, &objects);
-
-  // update camera
-  mjv_setCamera(m, d, &cam);
-  mjv_updateCameraPose(&cam, (mjtNum)rect.width/(mjtNum)rect.height);
+  // update scene
+  mjv_updateScene(m, d, &vopt, &pert, &cam, mjCAT_ALL, &scn);
 
   // selection
   if( needselect )
   {
     // find selected geom
     mjtNum pos[3];
-    int selgeom = mjr_select(rect, &objects, lastx, rect.height - lasty, 
-        pos, 0, &ropt, &cam.pose, &con);
+    int selgeom = mjr_select(rect, &scn, &con, 
+        (int)(window2buffer*lastx), (int)(rect.height-window2buffer*lasty), pos, NULL);
 
-    // set lookat point
-    if( needselect==2 )
+    // find corresponding body if any
+    int selbody = 0;
+    if( selgeom>=0 && selgeom<scn.ngeom && scn.geoms[selgeom].objtype==mjOBJ_GEOM )
     {
-      if( selgeom >= 0 )
+      selbody = m->geom_bodyid[scn.geoms[selgeom].objid];
+      if( selbody<0 || selbody>=m->nbody )
+        selbody = 0;
+    }
+
+    // set lookat point, start tracking is requested
+    if( needselect==2 || needselect==3 )
+    {
+      if( selgeom>=0 )
         mju_copy3(cam.lookat, pos);
+
+      // switch to tracking camera
+      if( needselect==3 && selbody )
+      {
+        cam.type = mjCAMERA_TRACKING;
+        cam.trackbodyid = selbody;
+        cam.fixedcamid = -1;
+      }
     }
 
     // set body selection
     else
     {
-      if( selgeom>=0 && objects.geoms[selgeom].objtype==mjOBJ_GEOM )
+      if( selbody )
       {
         // record selection
-        selbody = m->geom_bodyid[objects.geoms[selgeom].objid];
+        pert.select = selbody;
         printf("Body Name: %s\n", b_name_list[selbody]);
 
-        // clear if invalid
-        if( selbody<0 || selbody>=m->nbody )
-          selbody = 0;
-
-        // otherwise compute selpos
-        else
-        {
-          mjtNum tmp[3];
-          mju_sub3(tmp, pos, d->xpos+3*selbody);
-          mju_mulMatTVec(selpos, d->xmat+9*selbody, tmp, 3, 3);
-        }
+        // compute localpos
+        mjtNum tmp[3];
+        mju_sub3(tmp, pos, d->xpos+3*pert.select);
+        mju_mulMatTVec(pert.localpos, d->xmat+9*pert.select, tmp, 3, 3);
       }
       else
-        selbody = 0;
+        pert.select = 0;
     }
 
     needselect = 0;
   }
 
-  // render rgb
-  mjr_render(0, rect, &objects, &ropt, &cam.pose, &con);
+  // render
+  mjr_render(rect, &scn, &con);
 
   // show depth map
   if( showdepth )
   {
     // get the depth buffer
-    mjr_getBackbuffer(0, depth_buffer, rect, &con);  // not working with 5k ???
+    mjr_readPixels(NULL, depth_buffer, rect, &con);
 
     // convert to RGB, subsample by 4
     for( int r=0; r<rect.height; r+=4 )
@@ -725,24 +716,27 @@ void render(GLFWwindow* window)
       }
 
     // show in bottom-right corner
-    mjr_showBuffer(depth_rgb, rect.width/4, rect.height/4, (3*rect.width)/4, 0, &con);
+    mjrRect bottomright = {(3*rect.width)/4, 0,  rect.width/4, rect.height/4};
+    mjr_drawPixels(depth_rgb, NULL, bottomright, &con);
   }
 
   // show overlays
   if( showhelp==1 )
-    mjr_overlay(rect, mjGRID_TOPLEFT, 0, "Help  ", "F1  ", &con);
+    mjr_overlay(mjFONT_NORMAL, mjGRID_TOPLEFT, rect, "Help  ", "F1  ", &con);
   else if( showhelp==2 )
-    mjr_overlay(rect, mjGRID_TOPLEFT, 0, help_title, help_content, &con);
+    mjr_overlay(mjFONT_NORMAL, mjGRID_TOPLEFT, rect, help_title, help_content, &con);
 
+  // show info
   if( showinfo )
   {
     if( paused )
-      mjr_overlay(rect, mjGRID_BOTTOMLEFT, 0, "PAUSED", 0, &con);
+      mjr_overlay(mjFONT_NORMAL, mjGRID_BOTTOMLEFT, rect, "PAUSED", 0, &con);
     else
-      mjr_overlay(rect, mjGRID_BOTTOMLEFT, 0, 
-          "Time\nSize\nCPU\nFPS\nEngy\nStat\nCam\nFrame\nLabel", status, &con);
+      mjr_overlay(mjFONT_NORMAL, mjGRID_BOTTOMLEFT, rect, 
+          "Time\nSize\nFPS\nEnergy\nSolver\nFwdInv\nCamera\nFrame\nLabel", status, &con);
   }
 
+  // show options
   if( showoption )
   {
     int i;
@@ -770,7 +764,7 @@ void render(GLFWwindow* window)
     opt_content[0] = 0;
     for( i=0; i<mjNRNDFLAG; i++)
     {
-      strcat(opt_content, ropt.flags[i] ? " + " : "   ");
+      strcat(opt_content, scn.flags[i] ? " + " : "   ");
       strcat(opt_content, "\n");
     }
     for( i=0; i<mjNVISFLAG; i++)
@@ -781,12 +775,12 @@ void render(GLFWwindow* window)
     }
 
     // show
-    mjr_overlay(rect, mjGRID_TOPRIGHT, 0, opt_title, opt_content, &con);
+    mjr_overlay(mjFONT_NORMAL, mjGRID_TOPRIGHT, rect, opt_title, opt_content, &con);
   }
 
-  gui_mutex.unlock();
+  // swap buffers
+  glfwSwapBuffers(window); 
 }
-
 
 
 //-------------------------------- main function ----------------------------------------
@@ -794,26 +788,29 @@ void render(GLFWwindow* window)
 int main(int argc, const char** argv)
 {
   // print version, check compatibility
-  printf("MuJoCo Pro library version %.2lf\n\n", 0.01*mj_version());
+  printf("MuJoCo Pro library version %.2lf\n", 0.01*mj_version());
   if( mjVERSION_HEADER!=mj_version() )
     mju_error("Headers and library have different versions");
 
   // activate MuJoCo license
   mj_activate("mjkey.txt");
 
-  // init GLFW, set multisampling
+  // init GLFW
   if (!glfwInit())
     return 1;
+
+  // get refreshrate
+  refreshrate = glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate;
+
+  // multisampling
   glfwWindowHint(GLFW_SAMPLES, 4);
 
   // try stereo if refresh rate is at least 100Hz
   GLFWwindow* window = 0;
-  if( glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate>=100 )
+  if( refreshrate>=100 )
   {
     glfwWindowHint(GLFW_STEREO, 1);
     window = glfwCreateWindow(1200, 900, "Simulate", NULL, NULL);
-    if( window )
-      stereoavailable = true;
   }
 
   // no stereo: try mono
@@ -827,25 +824,23 @@ int main(int argc, const char** argv)
     glfwTerminate();
     return 1;
   }
+
+  // make context current, request v-sync on swapbuffers
   glfwMakeContextCurrent(window);
+  glfwSwapInterval(1);
 
-  // determine retina scaling
+  // save window-to-framebuffer pixel scaling (needed for OSX scaling)
   int width, width1, height;
-  glfwGetFramebufferSize(window, &width, &height);
-  glfwGetWindowSize(window, &width1, &height);
-  scale = (double)width/(double)width1;
+  glfwGetWindowSize(window, &width, &height);
+  glfwGetFramebufferSize(window, &width1, &height);
+  window2buffer = (double)width1 / (double)width;
 
-  // init MuJoCo rendering
-  mjv_makeObjects(&objects, 1000);
+  // init MuJoCo rendering, get OpenGL info
+  mjv_makeScene(&scn, 1000);
   mjv_defaultCamera(&cam);
   mjv_defaultOption(&vopt);
-  mjr_defaultOption(&ropt);
   mjr_defaultContext(&con);
-  mjr_makeContext(m, &con, 200);
-
-  // load model if filename given as argument
-  if( argc==2 )
-    loadmodel(window, argv[1], 0);
+  mjr_makeContext(m, &con, fontscale);
 
   // set GLFW callbacks
   glfwSetKeyCallback(window, keyboard);
@@ -853,6 +848,11 @@ int main(int argc, const char** argv)
   glfwSetMouseButtonCallback(window, mouse_button);
   glfwSetScrollCallback(window, scroll);
   glfwSetDropCallback(window, drop);
+  glfwSetWindowRefreshCallback(window, render);
+
+  // load model if filename given as argument
+  if( argc==2 )
+    loadmodel(window, argv[1], 0);
 
   // main loop
   while( !glfwWindowShouldClose(window) )
@@ -860,8 +860,7 @@ int main(int argc, const char** argv)
     // simulate and render
     render(window);
 
-    // finalize
-    glfwSwapBuffers(window);
+    // handle events (this calls all callbacks)
     glfwPollEvents();
   }
 
@@ -869,7 +868,7 @@ int main(int argc, const char** argv)
   mj_deleteData(d);
   mj_deleteModel(m);
   mjr_freeContext(&con);
-  mjv_freeObjects(&objects);
+  mjv_freeScene(&scn);
 
   // terminate
   glfwTerminate();

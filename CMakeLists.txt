@@ -29,15 +29,19 @@ find_package(Boost 1.55 COMPONENTS program_options random filesystem system)
 set(MUJOCO_INCLUDE_DIRS 
    #"${PROJECT_SOURCE_DIR}/source/mujoco"
    #"/opt/mujoco122"
-   "/opt/mujoco131/include"
+   #"/opt/mujoco131/include"
+   "/opt/mjfast/include"
 )
 set(MUJOCO_LIBRARY_DIRS
   #"/opt/mujoco/"
-	"/opt/mujoco131/bin/"
+  #"/opt/mujoco131/bin/"
+	"/opt/mjfast/bin/"
 )
 set(MUJOCO_LIBRARIES
 	"glfw"
 	"mujoco"
+  "glew"
+  "GL"
 )
 
 include_directories(

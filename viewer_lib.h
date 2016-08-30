@@ -267,8 +267,8 @@ void keyboard(GLFWwindow * window, int key, int scancode, int act, int mods)
       if (mods & GLFW_MOD_CONTROL) {
         if (key == GLFW_KEY_A)
           autoscale(window);
-        else if (key == GLFW_KEY_S)
-          show_sensor = !show_sensor;
+        //else if (key == GLFW_KEY_S)
+        //  show_sensor = !show_sensor;
         else if (key == GLFW_KEY_Q)
           glfwSetWindowShouldClose(window, GL_TRUE);
         else if (key == GLFW_KEY_S)
@@ -280,14 +280,37 @@ void keyboard(GLFWwindow * window, int key, int scancode, int act, int mods)
           if (d) {
             printf("qpos(%d):\t", m->nq);
             for (int i = 0; i < m->nq; i++)
-              printf("%1.2f ", d->qpos[i]);
+              printf("%1.2f, ", d->qpos[i]);
             printf("\nqvel(%d):\t", m->nv);
             for (int i = 0; i < m->nv; i++)
-              printf("%1.2f ", d->qvel[i]);
-            printf("\nsensors(%d):\t", m->nsensordata);
-            for (int i = 0; i < m->nsensordata; i++)
-              printf("%1.2f ", d->sensordata[i]);
-            printf("\n");
+              printf("%1.2f, ", d->qvel[i]);
+            int ns=0;
+            int c=0;
+            for (int i = 0; i < m->nsensor; i++) {
+              int type = m->sensor_type[i];
+              double var = 0;
+              switch (type) {
+                case 1:  if (c!=1) printf("\nAccelerometer: "); c=1;      break;   //Accelerometer
+                case 2:  if (c!=2) printf("\nGyro: ");          c=2;      break;   //Gyro
+                case 3:  if (c!=3) printf("\nForce: ");         c=3;      break;   //Force
+                case 4:  if (c!=4) printf("\nTorque: ");        c=4;      break;   //Torque
+                case 5:  if (c!=5) printf("\nJointPos: ");      c=5;      break;   //JointPos
+                case 6:  if (c!=6) printf("\nJointVel: ");      c=6;      break;   //JointVel
+                case 7:  if (c!=7) printf("\nTendonPos: ");     c=7;      break;   //TendonPos
+                case 8:  if (c!=8) printf("\nTendonVel: ");     c=8;      break;   //TendonVel
+                case 9:  if (c!=9) printf("\nActuatorPos: ");   c=9;      break;   //ActuatorPos
+                case 10: if (c!=10) printf("\nActuatorVel: ");   c=10;      break;   //ActuatorVel
+                case 11: if (c!=11) printf("\nActuatorFrc: ");   c=11;      break;  //ActuatorFrc
+                case 12: if (c!=12) printf("\nSitePos: ");       c=12;      break;  //SitePos
+                case 13: if (c!=13) printf("\nSiteQuat: ");      c=13;      break;  //SiteQuat
+                case 14: if (c!=14) printf("\nMagnetometer: ");  c=14; break;  //Magnetometer (WTF?)
+                default:  break;
+              }
+              for (int j=ns; j<(ns+m->sensor_dim[i]); j++) {
+                printf(" %4.4f ", d->sensordata[j]);
+              }
+              ns += m->sensor_dim[i];
+            }
           }
         } else if (key == GLFW_KEY_L && lastfile[0])
           loadmodel(window, lastfile, 0);
@@ -522,6 +545,7 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool render_inplac
   //mjtNum startsimtm = d->time;
 
   if (paused) {
+    //TODO Uncomment this stuffto get paused control back
     // edit
     mjv_mouseEdit(m, d, selbody, perturb, refpos, refquat);
 
@@ -537,7 +561,7 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool render_inplac
       increment = 0;
     }
     // 15 msec delay
-    while (glfwGetTime() - starttm < 0.015) ;
+    //while (glfwGetTime() - starttm < 0.015) ;
   }
   //else if (step) 
   else
@@ -589,11 +613,58 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool render_inplac
   }
   lastrendertm = glfwGetTime();
 
-  // create geoms and lights
-  mjv_makeGeoms(m, d, &objects, &vopt, mjCAT_ALL, selbody, (perturb & mjPERT_TRANSLATE) ? refpos : 0, (perturb & mjPERT_ROTATE) ? refquat : 0, selpos);
-  mjv_makeLights(m, d, &objects);
+  if (render_inplace) {
+    // set this d to be the model from estimation
+    mju_copy(d->qpos, frame[0]->qpos, m->nq);
+    mju_copy(d->qvel, frame[0]->qvel, m->nv);
+    //mj_kinematics(m, d);
+    mj_forward(m, d);
+    // create geoms and lights
+    mjv_makeGeoms(m, d, &objects, &vopt, mjCAT_ALL, selbody, (perturb & mjPERT_TRANSLATE) ? refpos : 0, (perturb & mjPERT_ROTATE) ? refquat : 0, selpos);
+    mjv_makeLights(m, d, &objects);
 
-  // update camera
+
+  }
+  else {
+    // create geoms and lights
+    mjv_makeGeoms(m, d, &objects, &vopt, mjCAT_ALL, selbody, (perturb & mjPERT_TRANSLATE) ? refpos : 0, (perturb & mjPERT_ROTATE) ? refquat : 0, selpos);
+    mjv_makeLights(m, d, &objects);
+
+
+    if (frame.size()) {
+      for (unsigned int idx = 0; idx<frame.size(); idx++) {
+        //mj_forward(m, frame[idx]);
+        mj_kinematics(m, frame[idx]);
+        //mjv_makeGeoms(m, frame, &objects2, &vopt, mjCAT_ALL, selbody, 
+        mjv_makeGeoms(m, frame[idx], &objects2, &vopt, mjCAT_DYNAMIC, selbody, 
+            (perturb & mjPERT_TRANSLATE) ? refpos : 0, 
+            (perturb & mjPERT_ROTATE) ? refquat : 0, selpos);
+        //mjv_makeLights(m, d2, &objects);
+
+        mjvGeom *p = objects.geoms;
+        mjvGeom *p2 = objects2.geoms;
+        for (int i = 0; i < objects2.ngeom; i++) {
+          //objects->geoms[objects->ngeom + i] = objects2->geoms[i]; 
+          if (idx == 0) {
+            p2[i].rgba[0] = 0.0f;
+            p2[i].rgba[1] = 0.0f;
+            p2[i].rgba[2] = 1.0f;
+            p2[i].rgba[3] = 1.0f;
+          } else {
+            p2[i].rgba[0] = 0.0f;
+            p2[i].rgba[1] = 1.0f;
+            p2[i].rgba[2] = 0.0f;
+            p2[i].rgba[3] = 0.15f;
+          }
+          memcpy(p + (objects.ngeom + i), p2 + i, sizeof(mjvGeom));
+          objects.geomorder[objects.ngeom + i] = objects2.geomorder[i];	// ptrs 
+        }
+        objects.ngeom += objects2.ngeom;
+      }
+    }
+  }
+
+    // update camera
   mjv_setCamera(m, d, &cam);
   mjv_updateCameraPose(&cam, (mjtNum) rect.width / (mjtNum) rect.height);
 
@@ -630,41 +701,6 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool render_inplac
     }
 
     needselect = 0;
-  }
-
-  if (render_inplace) {
-    // set this d to be the model from estimation
-  }
-  if (frame.size()) {
-    for (unsigned int idx = 0; idx<frame.size(); idx++) {
-      //mj_forward(m, frame[idx]);
-      mj_kinematics(m, frame[idx]);
-      //mjv_makeGeoms(m, frame, &objects2, &vopt, mjCAT_ALL, selbody, 
-      mjv_makeGeoms(m, frame[idx], &objects2, &vopt, mjCAT_DYNAMIC, selbody, 
-          (perturb & mjPERT_TRANSLATE) ? refpos : 0, 
-          (perturb & mjPERT_ROTATE) ? refquat : 0, selpos);
-      //mjv_makeLights(m, d2, &objects);
-
-      mjvGeom *p = objects.geoms;
-      mjvGeom *p2 = objects2.geoms;
-      for (int i = 0; i < objects2.ngeom; i++) {
-        //objects->geoms[objects->ngeom + i] = objects2->geoms[i]; 
-        if (idx == 0) {
-          p2[i].rgba[0] = 0.0f;
-          p2[i].rgba[1] = 0.0f;
-          p2[i].rgba[2] = 1.0f;
-          p2[i].rgba[3] = 0.5f;
-        } else {
-          p2[i].rgba[0] = 0.0f;
-          p2[i].rgba[1] = 1.0f;
-          p2[i].rgba[2] = 0.0f;
-          p2[i].rgba[3] = 0.15f;
-        }
-        memcpy(p + (objects.ngeom + i), p2 + i, sizeof(mjvGeom));
-        objects.geomorder[objects.ngeom + i] = objects2.geomorder[i];	// ptrs 
-      }
-      objects.ngeom += objects2.ngeom;
-    }
   }
 
   // render rgb
@@ -795,7 +831,7 @@ int init_viz(std::string model_name)
   // no stereo: try mono
   if (!window) {
     glfwWindowHint(GLFW_STEREO, 0);
-    window = glfwCreateWindow(1200, 900, "Simulate", NULL, NULL);
+    window = glfwCreateWindow(1400, 900, "Simulate", NULL, NULL);
   }
   if (!window) {
     glfwTerminate();

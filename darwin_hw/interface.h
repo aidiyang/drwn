@@ -83,14 +83,17 @@ class DarwinRobot : public MyRobot {
 
       NMARKER = 16;
 
-      double imu_alpha = 0.5;
+      double imu_alpha = 0.2;
 
       table_rotation = Matrix3d::Identity();
       init_pos = Matrix3d::Identity();
       offset = new Vector3d[NMARKER];
 
-      std::future<bool> init3, init4; 
-      auto init2 = std::async(std::launch::async, &DarwinRobot::init_phasespace, this, ps_server, use_rigid, use_markers);
+      std::future<bool> init2, init3, init4; 
+      if (use_ps) {
+        printf("Initializing Phasespace\n");
+        init2 = std::async(std::launch::async, &DarwinRobot::init_phasespace, this, ps_server, use_rigid, use_markers);
+      }
       //if (use_ps) {
       //  printf("Initializing Phasespace\n");
       //  init2 = std::async(std::launch::async, &DarwinRobot::init_phasespace, this, ps_server, use_rigid, use_markers);
@@ -253,7 +256,7 @@ class DarwinRobot : public MyRobot {
         if(cm730->m_BulkReadData[CM730::ID_CM].error == 0) {
           fb_gyro_array[buf_idx] = cm730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_GYRO_Y_L);
           rl_gyro_array[buf_idx] = cm730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_GYRO_X_L);
-          printf("%d: %d %d\n", buf_idx, fb_gyro_array[buf_idx], rl_gyro_array[buf_idx]);
+          //printf("%d: %d %d\n", buf_idx, fb_gyro_array[buf_idx], rl_gyro_array[buf_idx]);
           buf_idx++;
         }
       }
@@ -306,26 +309,32 @@ class DarwinRobot : public MyRobot {
 
       // try to asynchronously get the data
       if (sensor) {
+        double r[6];
+        double l[6];
+
         std::future<int> body_data;
+        std::future<bool> ati_data;
         if (use_cm730) {
           body_data = std::async(std::launch::async, &CM730::BulkRead, cm730);
+        }
+        if (use_ati) {
+          ati_data = std::async(std::launch::async, &ContactSensors::getData, ati, r, l);
         }
 
         double a[3];
         double g[3];
-        //double t1 = GetCurrentTimeMS();
         int idx = 40; // should these be automatic?
         if (use_imu && imu->getData(a, g)) { // should be in m/s^2 and rad/sec
           if (use_accel) { sensor[idx+0]=a[0]; sensor[idx+1]=a[1]; sensor[idx+2]=a[2]; idx += 3; }
           if (use_gyro) { sensor[idx+0]=g[0]; sensor[idx+1]=g[1]; sensor[idx+2]=g[2]; idx += 3; }
         }
-        //double t2 = GetCurrentTimeMS();
-        //printf("IMU Sensor Time: %f ms\n", t2-t1);
 
-        double r[6];
-        double l[6];
-        //t1 = GetCurrentTimeMS();
-        if (use_ati && ati->getData(r, l)) {
+        //double t1 = GetCurrentTimeMS();
+        if (use_ati) {
+         //if ( ati->getData(r, l))
+         //{
+         if ( ati_data.get()) {
+           //
           sensor[idx+0] = r[0]; // right force x
           sensor[idx+1] = -1.0*r[1]; // right force y
           sensor[idx+2] = r[2]; // right force z
@@ -340,9 +349,9 @@ class DarwinRobot : public MyRobot {
           sensor[idx+4] = l[4]; // left torque y
           sensor[idx+5] = l[5]; // left torque z
           idx += 6;
+         }
         }
-        //t2 = GetCurrentTimeMS();
-        //printf("ATI Sensor Time: %f ms\n", t2-t1);
+        //printf("\ncontact time: %f\n", GetCurrentTimeMS() - t1);//, init_time, GetCurrentTimeMS() - init_time);
 
         //double pose[8];
         double markers[NMARKER*4]; // 16 markers * (x, y, z, confidence)

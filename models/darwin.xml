@@ -9,12 +9,12 @@
         margin="0.001" solref=".02 1" solimp=".8 .8 .01" material="meshmat"/>
       <geom material="meshmat" margin='0.0000000001' />
 
-      <flag constraint="disable"/>
 soft:
         margin="0.001" solref="1 1" solimp=".001 .001 .01" material="meshmat"/>
    -->
 
-    <option	timestep="0.002" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
+    <option	timestep="0.002" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 0" >
+      <flag constraint="disable"/>
     </option>
 
     <default>
@@ -70,19 +70,33 @@ soft:
          1e-0 1e-7 1e-0 1e-0 1e-7 1e-5 1e-4 1e-5 1e-4 1e-5 1e-3 1e-2 1e-4 1e-5 1e-2"/>
          -->
     <custom>
-        <numeric name="snsr_covar" size="15" data="
+        <numeric name="snsr_covar" size="29" data="
         1e+2
-        1e-6
-        1e+1
-        1e+1
-        1e-7
         1e-3
+        1e+1
+        1e-6
+        1e-2
+        1e-1
         1e-0
-        1e-0
-        1e-0
+        1e-7
+        1e-6
         1e-0
         1e-0
         1e-8 1e-0 1e-0 1e-0
+        1e-8
+        1e-9
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
         "
         />
 <!-- Accelerometer -->
@@ -105,7 +119,7 @@ soft:
       <numeric name="t_rot2" size="9" data=" 
         1 2 2 0 1 0 2 2 1"/>
       <numeric name="covar_diag" size="26" data="
-          1e-100
+          1e-10
           1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
       <!--
       <numeric name="time_var" size='1' data='0.00032' />
@@ -348,7 +362,6 @@ soft:
     </worldbody>
 
     <sensor>
-      <!--
       <jointpos joint="rootx" />
       <jointpos joint="rooty" />
       <jointpos joint="rootz" />
@@ -356,6 +369,7 @@ soft:
       <jointpos joint="roota" />
       <jointpos joint="rootb" />
 
+      <!--
       <jointvel joint="rootx" />
       <jointvel joint="rooty" />
       <jointvel joint="rootz" />
@@ -433,23 +447,23 @@ soft:
       <force  name="left_f"    site="left_ati" />
       <torque name="left_t"    site="left_ati" />
 
-      <sitepos name="mocap_t1"       site="ps_t0" />
-      <sitepos name="mocap_t2"       site="ps_t1" />
-      <sitepos name="mocap_t3"       site="ps_t2" />
-      <sitepos name="mocap_t4"       site="ps_t3" />
-      <sitepos name="mocap_t5"       site="ps_t4" />
-      <sitepos name="mocap_t6"       site="ps_t5" />
-      <sitepos name="mocap_t7"       site="ps_t6" />
-      <sitepos name="mocap_t8"       site="ps_t7" />
+      <framepos name="mocap_t1" objtype="site"    objname="ps_t0" />
+      <framepos name="mocap_t2" objtype="site"    objname="ps_t1" />
+      <framepos name="mocap_t3" objtype="site"    objname="ps_t2" />
+      <framepos name="mocap_t4" objtype="site"    objname="ps_t3" />
+      <framepos name="mocap_t5" objtype="site"    objname="ps_t4" />
+      <framepos name="mocap_t6" objtype="site"    objname="ps_t5" />
+      <framepos name="mocap_t7" objtype="site"    objname="ps_t6" />
+      <framepos name="mocap_t8" objtype="site"    objname="ps_t7" />
 
-      <sitepos name="mocap1"       site="ps8" />
-      <sitepos name="mocap2"       site="ps9" />
-      <sitepos name="mocap3"       site="ps10" />
-      <sitepos name="mocap4"       site="ps11" />
-      <sitepos name="mocap5"       site="ps12" />
-      <sitepos name="mocap6"       site="ps13" />
-      <sitepos name="mocap7"       site="ps14" />
-      <sitepos name="mocap8"       site="ps15" />
+      <framepos name="mocap1"   objtype="site"    objname="ps8" />
+      <framepos name="mocap2"   objtype="site"    objname="ps9" />
+      <framepos name="mocap3"   objtype="site"    objname="ps10" />
+      <framepos name="mocap4"   objtype="site"    objname="ps11" />
+      <framepos name="mocap5"   objtype="site"    objname="ps12" />
+      <framepos name="mocap6"   objtype="site"    objname="ps13" />
+      <framepos name="mocap7"   objtype="site"    objname="ps14" />
+      <framepos name="mocap8"   objtype="site"    objname="ps15" />
 
       <!--
       <sitepos name="mocap"       site="imu" />
@@ -507,13 +521,13 @@ soft:
       -->
 
       <!--
-      <motor name='j_rootx'       joint='rootx' gear='1' ctrlrange='-1 1' /> 
-      <motor name='j_rooty'       joint='rooty' gear='1' ctrlrange='-1 1' /> 
-      <motor name='j_rootz'       joint='rootz' gear='1' ctrlrange='-1 1' /> 
+      <motor name='j_rootx'       joint='rootx' gear='10' ctrlrange='-1 1' /> 
+      <motor name='j_rooty'       joint='rooty' gear='10' ctrlrange='-1 1' /> 
+      <motor name='j_rootz'       joint='rootz' gear='10' ctrlrange='-1 1' /> 
 
-      <motor name='j_roota'       joint='roota' gear='1' ctrlrange='-1 1' /> 
-      <motor name='j_rootb'       joint='rootb' gear='1' ctrlrange='-1 1' /> 
-      <motor name='j_rootc'       joint='rootc' gear='1' ctrlrange='-1 1' /> 
+      <motor name='j_roota'       joint='roota' gear='10' ctrlrange='-1 1' /> 
+      <motor name='j_rootb'       joint='rootb' gear='10' ctrlrange='-1 1' /> 
+      <motor name='j_rootc'       joint='rootc' gear='10' ctrlrange='-1 1' /> 
                                                 
 
       <position name='0_r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>

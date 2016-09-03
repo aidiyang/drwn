@@ -36,6 +36,23 @@ double fall_qvel[26] = {
 
 bool walking = false;
 
+/*
+#include <chrono>
+double omp_get_wtime() {
+  std::chrono::time_point<std::chrono::high_resolution_clock> t
+    = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double, std::milli> d=t.time_since_epoch();
+  return d.count() / 1000.0 ; // returns milliseconds
+}
+int omp_get_thread_num() { return 0; }
+int omp_get_num_threads() { return 1; }
+int omp_get_num_procs() { return 1; }
+void omp_set_dynamic(int a) {  }
+void omp_set_num_threads(int a) {  }
+*/
+
+
 double now_t() {
   std::chrono::time_point<std::chrono::high_resolution_clock> t
     = std::chrono::high_resolution_clock::now();
@@ -146,18 +163,18 @@ void save_states(std::string filename, double time,
 
 }
 
-//double * get_numeric_field(const mjModel* m, std::string s, int *size) {
-//  for (int i=0; i<m->nnumeric; i++) {
-//    std::string f = m->names + m->name_numericadr[i];
-//    //printf("%d %s %d\n", m->numeric_adr[i], f.c_str(), m->numeric_size[i]);
-//    if (s.compare(f) == 0) {
-//      if (size)
-//        *size = m->numeric_size[i];
-//      return m->numeric_data + m->numeric_adr[i];
-//    }
-//  }
-//  return 0;
-//}
+double * get_numeric_field(const mjModel* m, std::string s, int *size) {
+  for (int i=0; i<m->nnumeric; i++) {
+    std::string f = m->names + m->name_numericadr[i];
+    //printf("%d %s %d\n", m->numeric_adr[i], f.c_str(), m->numeric_size[i]);
+    if (s.compare(f) == 0) {
+      if (size)
+        *size = m->numeric_size[i];
+      return m->numeric_data + m->numeric_adr[i];
+    }
+  }
+  return 0;
+}
 
 void print_state(const mjModel* m, const mjData* d) {
   for (int i=0; i<m->nq; i++) {
@@ -401,7 +418,7 @@ int main(int argc, const char** argv) {
     for (int i=0; i<100; i++)
       mj_step(m, d);
   }
-  robot->set_controls(ctrl, NULL, NULL);
+  robot->set_controls(ctrl, 20, NULL, NULL);
 
   Estimator * est = 0;
 
@@ -573,7 +590,7 @@ int main(int argc, const char** argv) {
       if (nu >= 20) {
         walker->Process(time-prev_time, 0, ctrl);
       }
-      robot->set_controls(ctrl, NULL, NULL);
+      robot->set_controls(ctrl, 20, NULL, NULL);
 
       prev_time = time;
       if (est && estimation_counts > 0) {
@@ -605,6 +622,7 @@ int main(int argc, const char** argv) {
         std::vector<mjData*> a;
         render(window, a, false);
       }
+
       finalize();
       exit = !closeViewer();
     }

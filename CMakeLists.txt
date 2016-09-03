@@ -28,14 +28,13 @@ find_package(Boost 1.55 COMPONENTS program_options random filesystem system)
 
 set(MUJOCO_INCLUDE_DIRS 
    #"${PROJECT_SOURCE_DIR}/source/mujoco"
-   #"/opt/mujoco122"
-   #"/opt/mujoco131/include"
-   "/opt/mjfast/include"
+   "/opt/mujoco140/include"
+   #"/opt/mjfast/include"
 )
 set(MUJOCO_LIBRARY_DIRS
   #"/opt/mujoco/"
-  #"/opt/mujoco131/bin/"
-	"/opt/mjfast/bin/"
+  "/opt/mujoco140/bin/"
+	#"/opt/mjfast/bin/"
 )
 set(MUJOCO_LIBRARIES
 	"glfw"
@@ -82,7 +81,7 @@ list(APPEND MY_LINKER_LIBS ${Boost_LIBRARIES}) # boost
 #    ${PYTHON_LIBRARIES}
 #)
 
-option(MUJOCO_SIMULATOR_PARALLEL "OpenMP for parallel Mujoco." on)
+#option(MUJOCO_SIMULATOR_PARALLEL "OpenMP for parallel Mujoco." on)
 option(USE_EIGEN_MKL "Use MKL for Eigen backend." off)
 if (USE_EIGEN_MKL)
   add_definitions(-DUSE_EIGEN_MKL)
@@ -95,11 +94,11 @@ if(UNIX OR APPLE)
 endif()
 
 if (APPLE)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=c++11 -O3")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=c++11 -Ofast")
    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/mac_bin)
    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/mac_bin)
 else()
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=c++11 -fopenmp -O2")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=c++11 -fopenmp -Ofast")
    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 endif()
@@ -118,10 +117,11 @@ if (NOT APPLE)
    # Darwin Code
    subdirs(darwin_hw)
    # Viewer Rendering
-   add_executable(viewer "viewer.cpp" )
+   add_executable(viewer "viewer.cpp" "ukf.cpp" )
    #target_link_libraries(viewer ${MUJOCO_LIBRARIES} )
    if(USE_EIGEN_MKL)
-     target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} darwin_hw mkl_intel_lp64 mkl_co		remkl_gnu_thread pthread m dl)
+     target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} ${MKL_LIBRARIES}
+       darwin_hw )
    else()
      target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} darwin_hw
        ${DARWIN_INCLUDES} )

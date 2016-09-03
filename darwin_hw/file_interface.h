@@ -141,7 +141,7 @@ class FileDarwin : public MyRobot {
         }
 
         // get controls from file data and put into u variable
-        bool set_controls(double * u, int *pgain, int *dgain) {
+        bool set_controls(double * u, int nu, int *pgain, int *dgain) {
             // converts controls to darwin positions
             double *ctrl = &((data.col(t))(1));
 

@@ -15,43 +15,37 @@
     </default>
 
     <custom>
-        <numeric name="snsr_covar" size="15" data="
-        1e-2
-        1e-3
+        <numeric name="snsr_covar" size="29" data="
+        1e+2
+        1e-6
+        1e+1
+        1e+1
         1e-4
         1e-3
+        1e-0
         1e-7
-        1e-5
+        1e-4
         1e-0
         1e-0
-        1e-0
-        1e-0
-        1e-0
-        1e-2
-        1e-0
-        1e-0
-        1e-0
+        1e-2 1e-0 1e-0 1e-0 
+        1e-8
+        1e-12
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
+        1e-8
         "
         />
-        <!--
-        -->
-<!-- Accelerometer -->
-<!-- Gyro          -->
-<!-- Force         -->
-<!-- Torque        -->
-<!-- JointPos      -->
-<!-- JointVel      -->
-<!-- TendonPos     -->
-<!-- TendonVel     -->
-<!-- ActuatorPos   -->
-<!-- ActuatorVel   -->
-<!-- ActuatorFrc   -->
-<!-- SitePos       -->
-<!-- SiteQuat      -->
-<!-- Magnetometer  -->
-<!-- Default       -->
       <numeric name="covar_diag" size="4" data="
-        1e+1 
+        1e-10
         1e+1 
 
         1e-2
@@ -72,14 +66,14 @@
       <geom material="boring" pos="0 0 -0.1" size=".5 .5 .5" type="plane"/>
       <body pos="0 0 0">
         <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" range="-1 1" />
-        <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="true" range="-1 1" />
+        <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" range="-1 1" />
         <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" range="-1 1" />
 
+        <!--
         <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" />
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" />
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" />
 
-        <!--
         <site name="force" pos="0 0 0" type="sphere" size="0.05" rgba="1 1 0 0.5" />
         -->
         <site name="imu" pos="0 0 0" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
@@ -89,25 +83,27 @@
     </worldbody>
 
     <sensor>
-      <sitepos name="mocap"       site="imu" />
 
-      <accelerometer name="accel" site="imu" />
-      <gyro name="gyro"           site="imu" />
+      <framepos name="mocap" objtype='site' objname="imu" />
       <!--
       <jointpos joint="rootx" />
+      <jointpos joint="rooty" />
       <jointpos joint="rootz" />
       <jointvel joint="rootx" />
-      <jointvel joint="rootz" />
-
-      <jointpos joint="rooty" />
       <jointvel joint="rooty" />
-
+      <jointvel joint="rootz" />
+      <accelerometer name="accel" site="imu" />
+      <gyro name="gyro"           site="imu" />
       <force  name="force"        site="imu" />
       -->
     </sensor>
 
     <actuator>
       <motor name='right_movement' joint='rootx'/>
+      <motor name='rt_movement' joint='rooty'/>
+      <motor name='rht_movement' joint='rootz'/>
+      <!--
+      -->
     </actuator>
 
   </mujoco>

@@ -139,7 +139,7 @@ void zero_position(MyRobot *d, double* ctrl, double* sensors, int nu) {
       double diff = init[i] - sensors[i]; // end - start
       ctrl[i] += diff / (double)max_t;
     }
-    d->set_controls(ctrl, NULL, NULL);
+    d->set_controls(ctrl, nu, NULL, NULL);
     printf(".");
     fflush(stdout);
 
@@ -148,7 +148,7 @@ void zero_position(MyRobot *d, double* ctrl, double* sensors, int nu) {
     //std::chrono::milliseconds interval(3000/max_t);
     //std::this_thread::sleep_for(interval);
   }
-  d->set_controls(init, NULL, NULL); // force final position
+  d->set_controls(init, nu, NULL, NULL); // force final position
   printf(" done.\n");
 }
 

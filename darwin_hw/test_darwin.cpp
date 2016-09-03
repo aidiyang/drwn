@@ -246,7 +246,7 @@ int main (int argc, char* argv[]) {
 
     walker->Process(time-prev_time, gyro, ctrl);
     //walker->Process(time-prev_time, NULL, ctrl);
-    d->set_controls(ctrl, NULL, NULL);
+    d->set_controls(ctrl, nu, NULL, NULL);
 
     if (log) save_states(myfile, output_file, nu, nsensordata, NMARKERS, time, ctrl, sensors, conf, "a");
 

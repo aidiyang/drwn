@@ -72,6 +72,16 @@ def snsr_breakout(snsr):
             'mrkr':mrkr,
             'ps':ps}
 
+def get_pure_mrkr(f): # from outputs that are not mine
+    df = pd.read_csv(f, sep=',')
+    mrkr = df.filter(regex='mrkr').values
+    # all x all y all z
+    conf = df.filter(regex='conf').values
+    print "Mrkr shape", mrkr.shape
+    print "Conf shape", conf.shape
+
+    return {'mrkr': mrkr, 'conf': conf}
+
 def get_real_data(f, max_t):
     df = pd.read_csv(f, sep=',')
     t = df['time']

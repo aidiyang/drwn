@@ -24,7 +24,7 @@ est_qpos = df.filter(regex='est_p').values
 est_qvel = df.filter(regex='est_v').values
 est_ctrl = df.filter(regex='est_c').values
 est_snsr = df.filter(regex='est_s').values
-est_mrkr = est_snsr[:,58:]
+est_mrkr = est_snsr[:,58:(58+16*3)]
 est_mrkr = est_mrkr.reshape(len(est_mrkr), 16,3)
 
 nq = est_qpos.shape[1]

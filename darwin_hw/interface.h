@@ -135,7 +135,7 @@ class DarwinRobot : public MyRobot {
     }
 
     ~DarwinRobot() {
-      delete this->my_cm730;
+      //delete this->my_cm730;
       delete this->cm730;
       delete this->imu;
       delete this->ps;
@@ -416,10 +416,10 @@ class DarwinRobot : public MyRobot {
     }
 
     // mujoco controls to darwin centric controls
-    bool set_controls(double * u, int *p, int *d) {
+    bool set_controls(double * u, int nu, int *p, int *d) {
       // converts controls to darwin positions
       int current[JointData::NUMBER_OF_JOINTS];
-      for (int joint=0; joint<20; joint++) {
+      for (int joint=0; joint<nu; joint++) {
         current[joint+1]=radian2joint(u[joint]);
       }
 

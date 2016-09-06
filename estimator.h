@@ -5,6 +5,7 @@
 #include <iostream>
 #include <random>
 #include <functional>
+#include <future>
 
 #ifndef __APPLE__
 #include <omp.h>
@@ -118,6 +119,9 @@ class UKF : public Estimator {
     mjData* get_stddev();
     //std::vector<mjData*> get_sigmas() {return sigma_states; };
 
+    void sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl, 
+        Eigen::VectorXd *x, Eigen::MatrixXd *m_sqrt, int s, int e);
+
   private:
     int L; // state size
     int N; // num sigma points
@@ -156,6 +160,8 @@ class UKF : public Estimator {
     double mrkr_conf;
 
     mjData * prev_d;
+
+    std::future<void> *sigma_handles;
 
     std::vector<mjData *> sigmas;
     std::vector<mjModel *> models;

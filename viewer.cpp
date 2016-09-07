@@ -1,4 +1,5 @@
 
+#include "util_func.h"
 #include "viewer_lib.h"
 #include "darwin_hw/drwn_walker.h"
 #include "darwin_hw/sim_interface.h"
@@ -6,7 +7,7 @@
 
 #ifndef __APPLE__
 #include "darwin_hw/interface.h"
-#include <omp.h>
+//#include <omp.h>
 #endif
 
 #include "darwin_hw/robot.h"
@@ -35,31 +36,6 @@ double fall_qvel[26] = {
   -0.00, -0.00, -0.00, -0.02, 0.00, 0.03, 0.00, 0.01, -0.01, 0.00, -0.00, -0.00, -0.00, -0.00, 0.00, 0.00, -0.00, 0.00, 0.00, -0.00, 0.00, 0.00, -0.00, -0.00, -0.01, 0.00};
 
 bool walking = false;
-
-/*
-#include <chrono>
-double omp_get_wtime() {
-  std::chrono::time_point<std::chrono::high_resolution_clock> t
-    = std::chrono::high_resolution_clock::now();
-
-  std::chrono::duration<double, std::milli> d=t.time_since_epoch();
-  return d.count() / 1000.0 ; // returns milliseconds
-}
-int omp_get_thread_num() { return 0; }
-int omp_get_num_threads() { return 1; }
-int omp_get_num_procs() { return 1; }
-void omp_set_dynamic(int a) {  }
-void omp_set_num_threads(int a) {  }
-*/
-
-
-double now_t() {
-  std::chrono::time_point<std::chrono::high_resolution_clock> t
-    = std::chrono::high_resolution_clock::now();
-
-  std::chrono::duration<double, std::milli> d=t.time_since_epoch();
-  return d.count(); // returns milliseconds
-}
 
 std::ofstream myfile;
 void save_states(std::string filename, double time,
@@ -163,18 +139,6 @@ void save_states(std::string filename, double time,
 
 }
 
-double * get_numeric_field(const mjModel* m, std::string s, int *size) {
-  for (int i=0; i<m->nnumeric; i++) {
-    std::string f = m->names + m->name_numericadr[i];
-    //printf("%d %s %d\n", m->numeric_adr[i], f.c_str(), m->numeric_size[i]);
-    if (s.compare(f) == 0) {
-      if (size)
-        *size = m->numeric_size[i];
-      return m->numeric_data + m->numeric_adr[i];
-    }
-  }
-  return 0;
-}
 
 void print_state(const mjModel* m, const mjData* d) {
   for (int i=0; i<m->nq; i++) {
@@ -242,7 +206,7 @@ int main(int argc, const char** argv) {
       ("UKF,u", po::value<bool>(&useUKF)->default_value(true), "Use UKF or EKF")
       //("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 #ifndef __APPLE__
-      ("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
+      ("threads,t", po::value<int>(&num_threads)->default_value(std::thread::hardware_concurrency()>>1), "Number of OpenMP threads to use.")
 #endif
       //("i_gain,i", po::value<int>(&i_gain)->default_value(0), "I gain of PiD controller, 0-32")
       //("d_gain,d", po::value<int>(&d_gain)->default_value(0), "D gain of PiD controller, 0-32")
@@ -288,10 +252,10 @@ int main(int argc, const char** argv) {
   if (from_file) printf("Using real data from file!!!\n");
 
   // Start Initializations
-#ifndef __APPLE__
-  omp_set_dynamic(0);
-  omp_set_num_threads(num_threads);
-#endif
+//#ifndef __APPLE__
+//  omp_set_dynamic(0);
+//  omp_set_num_threads(num_threads);
+//#endif
 
   if (render_robot) {
     if (init_viz(model_name)) { return 1; }
@@ -367,7 +331,7 @@ int main(int argc, const char** argv) {
       robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers, use_raw,
           use_accel, use_gyro, use_ati, p_gain, ps_server, p);
 
-      double * rot=get_numeric_field(m, "t_rot", NULL);
+      double * rot=util::get_numeric_field(m, "t_rot", NULL);
       if (rot) {
         robot->set_frame_rotation(rot);
       }
@@ -427,8 +391,8 @@ int main(int argc, const char** argv) {
   mjData * est_data = 0;
   bool render_inplace = false;
 
-  double * s_cov = get_numeric_field(m, "snsr_covar", NULL);
-  double * p_cov = get_numeric_field(m, "covar_diag", NULL);
+  double * s_cov = util::get_numeric_field(m, "snsr_covar", NULL);
+  double * p_cov = util::get_numeric_field(m, "covar_diag", NULL);
 
   if (render_robot == false) { // if we are not rendering just make the ukf
     est = new UKF(m, d, s_cov, p_cov,
@@ -440,7 +404,7 @@ int main(int argc, const char** argv) {
 
   std::future<void> t_predict;
 
-  //double render_t = now_t();
+  //double render_t = util::now_t();
   bool exit = render_robot ? true : !closeViewer();
   while ( exit ) {
 
@@ -480,7 +444,7 @@ int main(int argc, const char** argv) {
           break;
       }
     }
-    //double t_2 = now_t();
+    //double t_2 = util::now_t();
     double thread_t=0;
 
     bool get_data_and_estimate = false;
@@ -495,15 +459,15 @@ int main(int argc, const char** argv) {
       }
     }
     else if (from_hardware && est) {
-      thread_t = now_t();
+      thread_t = util::now_t();
       t_predict = std::async(std::launch::async, &Estimator::predict_correct_p1, est, ctrl, 0.0131, sensors, conf);
-      double t1 = now_t();
+      double t1 = util::now_t();
       get_data_and_estimate = robot->get_sensors(&time, sensors, conf);
-      double t2 = now_t();
+      double t2 = util::now_t();
       printf("Sensor time : %f\n", t2-t1);
     }
     else if (from_hardware && !est) {
-      thread_t = now_t();
+      thread_t = util::now_t();
       get_data_and_estimate = robot->get_sensors(&time, sensors, conf);
     }
     else {
@@ -513,7 +477,7 @@ int main(int argc, const char** argv) {
 
     // simulate and render
     //printf("time: %f\t", d->time);
-    //printf("time to get sensors: %f\n", now_t() - thread_t);
+    //printf("time to get sensors: %f\n", util::now_t() - thread_t);
     if (get_data_and_estimate) {
 
       printf("robot hw time: %f\n", time);
@@ -529,7 +493,7 @@ int main(int argc, const char** argv) {
       printf("low passed dt: %f\n", lp_dt);
 
       //////////////////////////////////
-      double t0 = now_t();
+      double t0 = util::now_t();
       //if (est) est->predict(ctrl, time-prev_time);
       if (est) {
         if (from_hardware) {
@@ -544,7 +508,7 @@ int main(int argc, const char** argv) {
       lp_dt = a * lp_dt + (1-a)*((time-prev_time));
 
       //////////////////////////////////
-      double t1 = now_t();
+      double t1 = util::now_t();
       //if (est) est->correct(sensors);
       printf("prev time: %f\n", prev_time);
       //if (est) est->predict_correct(ctrl, time-prev_time, sensors, conf);
@@ -552,7 +516,7 @@ int main(int argc, const char** argv) {
         est->predict_correct_p2(ctrl, time-prev_time, sensors, conf);
       }
 
-      double t2 = now_t();
+      double t2 = util::now_t();
 
       if (from_hardware) 
         printf("\n\t\t estimator predict %f ms, correct %f ms, total %f ms\n",
@@ -607,8 +571,8 @@ int main(int argc, const char** argv) {
     }
 
     if (render_robot) {
-      //printf("Render time %f\n", now_t() - render_t);
-      //render_t=now_t();
+      //printf("Render time %f\n", util::now_t() - render_t);
+      //render_t=util::now_t();
       if (est) {
         // render sigma points
         // TODO rendering is slow on macs
@@ -627,7 +591,7 @@ int main(int argc, const char** argv) {
       exit = !closeViewer();
     }
 
-    //double t_1 = now_t();
+    //double t_1 = util::now_t();
     //printf("\n\t\t Loop time: %f ms\n", t_1-t_2);
   }
 

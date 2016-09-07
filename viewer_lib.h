@@ -867,7 +867,7 @@ int init_viz(std::string model_name)
   // no stereo: try mono
   if (!window) {
     glfwWindowHint(GLFW_STEREO, 0);
-    window = glfwCreateWindow(1400, 900, "Est Viewer", NULL, NULL);
+    window = glfwCreateWindow(1400, 900, "Simulate", NULL, NULL);
   }
   if (!window) {
     glfwTerminate();

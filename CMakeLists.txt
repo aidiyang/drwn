@@ -28,13 +28,13 @@ find_package(Boost 1.55 COMPONENTS program_options random filesystem system)
 
 set(MUJOCO_INCLUDE_DIRS 
    #"${PROJECT_SOURCE_DIR}/source/mujoco"
-   "/opt/mujoco140/include"
-   #"/opt/mjfast/include"
+   #"/opt/mujoco140/include"
+   "/opt/mjfast/include"
 )
 set(MUJOCO_LIBRARY_DIRS
   #"/opt/mujoco/"
-  "/opt/mujoco140/bin/"
-	#"/opt/mjfast/bin/"
+  #"/opt/mujoco140/bin/"
+	"/opt/mjfast/bin/"
 )
 set(MUJOCO_LIBRARIES
 	"glfw"
@@ -90,15 +90,15 @@ endif()
 #option(ENABLE_SOCKET_STREAMING "Set Mujoco Viewer to support data streaming" off)
 
 if(UNIX OR APPLE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -Wall")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -Wall -pthread")
 endif()
 
 if (APPLE)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=c++11 -Ofast")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=c++11")
    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/mac_bin)
    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/mac_bin)
 else()
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=c++11 -fopenmp -Ofast")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 endif()
@@ -117,7 +117,7 @@ if (NOT APPLE)
    # Darwin Code
    subdirs(darwin_hw)
    # Viewer Rendering
-   add_executable(viewer "viewer.cpp" "ukf.cpp" )
+   add_executable(viewer "viewer.cpp" "ukf.cpp" "util_func.cpp" )
    #target_link_libraries(viewer ${MUJOCO_LIBRARIES} )
    if(USE_EIGEN_MKL)
      target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} ${MKL_LIBRARIES}
@@ -128,12 +128,17 @@ if (NOT APPLE)
    endif()
    #target_include_directories(viewer PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 else()
-  add_library(sim_only "darwin_hw/drwn_walker.cpp"
+  add_library(sim_only "darwin_hw/drwn_walker.cpp" "util_func.cpp" 
     "darwin_hw/Vector.cpp" "darwin_hw/Matrix.cpp" "darwin_hw/MX28.cpp"
     "darwin_hw/Point.cpp" "darwin_hw/JointData.cpp" )
   add_executable(viewer "viewer.cpp" )
   target_link_libraries(viewer sim_only ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} )
 endif()
+
+add_executable(test_est "test_est.cpp" "ukf.cpp" "darwin_hw/drwn_walker.cpp" "util_func.cpp" 
+    "darwin_hw/Vector.cpp" "darwin_hw/Matrix.cpp" "darwin_hw/MX28.cpp"
+    "darwin_hw/Point.cpp" "darwin_hw/JointData.cpp" )
+target_link_libraries(test_est ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} )
 
 #add_executable(speed_test "multithread.cpp" )
 #target_link_libraries(speed_test ${MUJOCO_LIBRARIES} )

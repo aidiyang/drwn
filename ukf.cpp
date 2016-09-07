@@ -1,13 +1,5 @@
 #include "estimator.h"
-#include <string.h>
-#include <iostream>
-#include <random>
-#include <functional>
-
-#ifndef __APPLE__
-#include <omp.h>
-#endif
-#include <math.h>
+#include "util_func.h"
 
 #ifdef USE_EIGEN_MKL
 #define EIGEN_USE_MKL_ALL
@@ -27,20 +19,10 @@
 
 using namespace Eigen;
 
-//#include <boost/random.hpp>
-//#include <boost/random/normal_distribution.hpp>
-double * UKF::get_numeric_field(const mjModel* m, std::string s, int *size) {
-  for (int i=0; i<m->nnumeric; i++) {
-    std::string f = m->names + m->name_numericadr[i];
-    //printf("%d %s %d\n", m->numeric_adr[i], f.c_str(), m->numeric_size[i]);
-    if (s.compare(f) == 0) {
-      if (size)
-        *size = m->numeric_size[i];
-      return m->numeric_data + m->numeric_adr[i];
-    }
-  }
-  return 0;
-}
+
+int omp_get_thread_num() { return 0; }
+int omp_get_num_threads() { return 1; }
+
 
 UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
     double _alpha, double _beta, double _kappa,
@@ -74,8 +56,8 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
   sigmas.resize(threads);
   models.resize(threads);
 
-  omp_set_dynamic(0);
-  omp_set_num_threads(threads);
+  //omp_set_dynamic(0);
+  //omp_set_num_threads(threads);
 
   stddev = mj_makeData(this->m);
 
@@ -83,8 +65,8 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
   for (int i=0; i<my_threads; i++) {
     models[i] = mj_copyModel(NULL, m);
 
-    //models[i]->opt.iterations = 25; // TODO to make things faster 
-    //models[i]->opt.tolerance = 1e-6; 
+    models[i]->opt.iterations = 25; // TODO to make things faster 
+    models[i]->opt.tolerance = 0; 
 
     sigmas[i] = mj_makeData(this->m);
     mj_copyData(sigmas[i], this->m, this->d); // data initialization
@@ -270,8 +252,9 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
     }
   }
 
-  m_noise = UKF::get_numeric_field(m, "mass_var", NULL);
-  t_noise = UKF::get_numeric_field(m, "time_var", NULL);
+  m_noise = util::get_numeric_field(m, "mass_var", NULL);
+  t_noise = util::get_numeric_field(m, "time_var", NULL);
+
   if (m_noise) printf("Total Mass Var: %f\n", (*m_noise) * this->noise);
   if (t_noise) printf("Time Var: %f\n", (*t_noise) * this->noise);
 
@@ -279,15 +262,12 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
 };
 
 UKF::~UKF() {
-  delete[] x;
   delete[] W_s;
   delete[] W_theta;
   delete[] W_c;
-  //delete[] p_state;
+  delete[] x;
   delete[] gamma;
   delete[] snsr_ptr;
-  //delete[] W_s;
-  //delete[] W_c;
   delete[] sigma_handles;
 
   for (int i=0; i<my_threads; i++) {
@@ -295,8 +275,10 @@ UKF::~UKF() {
     mj_deleteModel(models[i]);
   }
   for (int i=1; i<(2*nq+1); i++) {
+    // sigma_state[0] = d main model, deleted in estimator.h
     mj_deleteData(sigma_states[i]);
   }
+  mj_deleteData(stddev);
 
   delete[] rd_vec;
   delete[] ct_vec;
@@ -428,16 +410,13 @@ double UKF::handle_constraint(mjData* t_d, mjData* d, double tol,
 }
 
 void UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
-    VectorXd *x, MatrixXd *sqrt_matrix, int s, int e) {
-  MatrixXd m_sqrt = *sqrt_matrix;
-  for (int j=s; j<e; j++)
-  {
+    VectorXd *x, MatrixXd *m_sqrt, int s, int e) {
+  
+  for (int j=s; j<e; j++) {
     // step through all the perturbation cols and collect the data
     int i = j+1;
-    //double scale;
-
     ///////////////////////////////////////////////////// sigma point
-    x[i+0] = x[0]+m_sqrt.col(i-1);// + qhat;
+    x[i+0] = x[0]+m_sqrt->col(i-1);// + qhat;
 
     t_d->time = d->time;
 
@@ -449,23 +428,13 @@ void UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
 
     add_model_noise(t_m);
     fast_forward(t_m, t_d, j, 1); // skip sensor
-    //mj_forward(t_m, t_d);
-
-    //if (tol > 0 ) {
-    //  VectorXd first_sqrt = m_sqrt.col(i-1);
-    //  scale = handle_constraint(t_d, d, center_tol+tol, &(x[i+0]), &(x[0]), &(first_sqrt));
-    //  W_theta[i] *= scale;
-    //}
-    //else { scale = 1.0; }
 
     t_m->opt.timestep = m->opt.timestep + add_time_noise();
     mj_Euler(t_m, t_d);
 
     get_data(t_d, &(x[i+0]));
 
-    //mj_forward(t_m, t_d); // at new position; can't assume we didn't move
     fast_forward(t_m, t_d, 0, 0); // dont skip sensor
-
 
     //add_snsr_noise(t_d->sensordata);
     mju_copy(&(gamma[i](0)), t_d->sensordata, ns);
@@ -475,7 +444,7 @@ void UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
     }
 
     ///////////////////////////////////////////////////// symmetric point
-    x[i+L] = x[0]-m_sqrt.col(i-1);// + qhat;
+    x[i+L] = x[0]-m_sqrt->col(i-1);// + qhat;
 
     t_d->time = d->time;
     set_data(t_d, &(x[i+L]));
@@ -485,21 +454,12 @@ void UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
 
     add_model_noise(t_m);
     fast_forward(t_m, t_d, j, 1);
-    //mj_forward(t_m, t_d);
-
-    //if (tol > 0 ) {
-    //  VectorXd other_sqrt = -1*m_sqrt.col(i-1);
-    //  scale = handle_constraint(t_d, d, center_tol+tol, &(x[i+L]), &(x[0]), &(other_sqrt));
-    //  W_theta[i] *= scale;
-    //}
-    //else { scale = 1.0; }
 
     t_m->opt.timestep = m->opt.timestep + add_time_noise();
     mj_Euler(t_m, t_d);
 
     get_data(t_d, &(x[i+L]));
 
-    //mj_forward(t_m, t_d); // at new position; can't assume we didn't move
     fast_forward(t_m, t_d, 0, 0); // dont skip sensor
 
     //add_snsr_noise(t_d->sensordata);
@@ -514,7 +474,7 @@ void UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
 
 void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* conf) {
 
-  double t2 = omp_get_wtime()*1000.0;
+  double t2 = util::now_t();
   //int end = (nq > 26) ? 26 : nq;
 
   //set_data(d, &(x_t)); // did this in _p2 step
@@ -522,7 +482,7 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
 
   get_data(d, &(x[0])); //x[0] = x_t;
 
-  //double t3 = omp_get_wtime()*1000.0;
+  //double t3 = util::now_t();
 
 #ifdef SYMMETRIC_SQUARE_ROOT
   MatrixXd m_sqrt = ((L+lambda)*(P_t)).sqrt(); // symmetric; blows up
@@ -532,12 +492,12 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
   MatrixXd m_sqrt = chol.matrixL(); // chol
 #endif
 
-  //double t4 = omp_get_wtime()*1000.0;
+  //double t4 = util::now_t();
   if (conf) { // our sensors have confidence intervals
     // TODO more than just phasespace markers?
     if (ns > (40+6+12)) { // we have phasespace markers
       int ps_start = ns - 16*3;
-      printf("ps %d ns %d\n", ps_start, ns);
+      //printf("ps %d ns %d\n", ps_start, ns);
       for (int j=0; j<16; j++) { // DIRTY HACKY HACK
         for (int i=0; i<3; i++) {
           int idx = ps_start + j*3 + i;
@@ -546,47 +506,41 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
           else { PzAdd(idx, idx) = mrkr_conf; }
         }
       }
-      IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
-      std::cout << "pzadd output:\n"<< PzAdd.block(ps_start, ps_start, ns-ps_start, ns-ps_start).format(CleanFmt) << std::endl;
+      //IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
+      //std::cout << "pzadd output:\n"<< PzAdd.block(ps_start, ps_start, ns-ps_start, ns-ps_start).format(CleanFmt) << std::endl;
     }
   }
   // Simulation options
   m->opt.timestep = dt; // input to this function
-
-  //add_ctrl_noise(d->ctrl);
-
   m->opt.iterations = 100; 
   m->opt.tolerance = 1e-6; 
-  mj_forward(m, d); // solve for center point accurately
 
-  //double center_tol = constraint_violated(d);
+  mj_forwardSkip(m, d, 0, 1); // skip sensors
 
   //for (int i=1; i<N; i++) { W_theta[i] = sqrt(L+lambda); }
 
   // set tolerance to be low, run 50, 100 iterations for mujoco solver
   // copy qacc for sigma points with some higher tolerance
+  double times[my_threads];
   for (int i=0; i<my_threads; i++) {
     int s = i * L / my_threads;
     int e = (i + 1 ) * L / my_threads;
     if (i == my_threads-1) e = L;
 
-    sigma_handles[i] = std::async(std::launch::async, &UKF::sigma_samples, this,
+    times[i] = util::now_t();
+    sigma_handles[i] = std::async(std::launch::async,
+        &UKF::sigma_samples, this,
         models[i], sigmas[i], d, ctrl, x, &m_sqrt, s, e);
-  }
-  for (int i=0; i<my_threads; i++) {
-    sigma_handles[i].get();
+    //printf("Thread %d : %d sigmas\n", i, e-s);
   }
 
   // step for the central point
-  //mj_forward(m, d);
   mj_Euler(m, d); // step
 
   get_data(d, &(x[0]));
   //get_data(d, &(x_minus)); // pre-correction
 
   fast_forward(m, d, 0, 0); // dont skip sensor
-  //mj_forward(m, d);
-  //mj_sensor(m, d); // sensor values at new positions
   //gamma[0] = Map<VectorXd>(d->sensordata, ns);
   //add_snsr_noise(d->sensordata);
   mju_copy(&(gamma[0](0)), d->sensordata, ns);
@@ -594,7 +548,7 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
   mju_copy(sigma_states[0]->qpos, d->qpos, nq);
   //mju_copy(sigma_states[0]->ctrl, d->ctrl, nu);
 
-  //double t5 = omp_get_wtime()*1000.0;
+  //double t5 = util::now_t();
 
   ////////////////// Weights scaled according to constraints
   //double S_theta = 0.0;
@@ -616,6 +570,15 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
   //printf("\nScaled Weights:\n");
   //for (int i=0; i<N; i++) { sum += W_s[i]; printf("%1.3f ", W_s[i]); }
   //printf("\nScaled Weights Sum: %f\n", sum);
+ 
+  // finish up sigma point processing
+  for (int i=0; i<my_threads; i++) {
+    sigma_handles[i].get();
+    times[i] = util::now_t() - times[i];
+  }
+  //for (int i=0; i<my_threads; i++) {
+  //  printf("Thread %d : %f \n", i, times[i]);
+  //}
 
   // aprior mean
   x_t.setZero();
@@ -673,13 +636,13 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
   //  VectorXd x_i(x[i] - x_t);
   //  P_t_aug += W_c[i] * (x_i * x_i.transpose()); // aprior covarian
   //}
-  //double t6 = omp_get_wtime()*1000.0;
+  //double t6 = util::now_t();
 
   //printf("\ncombo init %f, sqrt %f, mjsteps %f, merge %f\n",
   //        t3-t2, t4-t3, t5-t4, t6-t5);
-  //double t2 = omp_get_wtime()*1000.0;
+  //double t2 = util::now_t();
 
-  printf("\ncombo est %f\n", omp_get_wtime()*1000.0-t2);
+  printf("\ncombo est %f\n", util::now_t()-t2);
 }
 
 void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* conf) {
@@ -691,14 +654,12 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
   x_t = x_t + (K*(s-z_k));
   P_t = P_t - (K * P_z * K.transpose());
 
-
   set_data(d, &(x_t)); // set corrected state into mujoco data struct
   mju_copy(d->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
-#if 1
-  fast_forward(m, d, 0, 0); // dont skip sensor
-  //mj_forward(m, d); // fwd at new estimate
-  //mj_sensor(m, d);
-#endif
+
+//#if 1
+  //fast_forward(m, d, 0, 0); // dont skip sensor
+//#endif
 
   int end = (nq > 26) ? 26 : nq;
   if (NUMBER_CHECK) {
@@ -720,7 +681,7 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
 
 void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* conf) {
 
-  double t2 = omp_get_wtime()*1000.0;
+  double t2 = util::now_t();
   int end = (nq > 26) ? 26 : nq;
 
   set_data(d, &(x_t));
@@ -728,7 +689,7 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
 
   get_data(d, &(x[0])); //x[0] = x_t;
 
-  double t3 = omp_get_wtime()*1000.0;
+  double t3 = util::now_t();
 
 #ifdef SYMMETRIC_SQUARE_ROOT
   MatrixXd m_sqrt = ((L+lambda)*(P_t)).sqrt(); // symmetric; blows up
@@ -738,7 +699,7 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
 #endif
   // compilation time.... 
 
-  double t4 = omp_get_wtime()*1000.0;
+  double t4 = util::now_t();
 
   if (NUMBER_CHECK) {
     IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
@@ -802,7 +763,7 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
   // copy qacc for sigma points with some higher tolerance
 #pragma omp parallel
   {
-    //double omp1 = omp_get_wtime()*1000.0;
+    //double omp1 = util::now_t();
     int tid = omp_get_thread_num();
     int t = omp_get_num_threads();
     int s = tid * L / t;
@@ -941,7 +902,7 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
       }
 
     }
-    //double omp2 = omp_get_wtime()*1000.0;
+    //double omp2 = util::now_t();
     //printf("p thread: %d chunk: %d-%d Time: %f\n", tid, s, e, omp2-omp1);
   }
 
@@ -962,7 +923,7 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
   //copy_state(sigma_states[0], d); // for visualizations
   //mju_copy(sigma_states[0]->ctrl, d->ctrl, nu);
 
-  double t5 = omp_get_wtime()*1000.0;
+  double t5 = util::now_t();
 
   ////////////////// Weights scaled according to constraints
   //double S_theta = 0.0;
@@ -1075,7 +1036,7 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
   //mju_copy(prev_d->qacc, d->qacc, nv); // set controls for the center point
   //mj_forward(m, prev_d);
 
-  double t6 = omp_get_wtime()*1000.0;
+  double t6 = util::now_t();
 
   printf("\ncombo init %f, sqrt %f, mjsteps %f, merge %f\n",
       t3-t2, t4-t3, t5-t4, t6-t5);
@@ -1123,422 +1084,22 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
   }
 }
 
-/*
-   void UKF::predict_correct_2stage(double * ctrl, double dt, double* sensors, double* conf) {
-
-   int end = (nq > 26) ? 26 : nq;
-
-   set_data(d, &(x_t));
-   mju_copy(d->ctrl, ctrl, nu); // set controls for the center point
-
-   get_data(d, &(x[0])); //x[0] = x_t;
-
-
-   LLT<MatrixXd> chol((L+lambda)*(P_t));
-   MatrixXd m_sqrt = chol.matrixL(); // chol
-//MatrixXd sqrt2 = ((L+lambda)*(P_t)).m_sqrt(); // symmetric; blows up
-// compilation time.... 
-
-if (NUMBER_CHECK) {
-IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
-std::cout << "p_t start:\n"<< P_t.block(0,0,end,end).format(CleanFmt) << std::endl;
-std::cout << "sqrt output:\n"<< m_sqrt.block(0,0,end,end).format(CleanFmt) << std::endl;
-}
-
-if (conf) { // our sensors have confidence intervals
-// TODO more than just phasespace markers?
-if (ns > (40+6+12)) { // we have phasespace markers
-int ps_start = ns - 16;
-for (int j=0; j<16; j++) { // DIRTY HACKY HACK
-int idx = ps_start + j;
-// our conf threshold (basically not visible)
-if (conf[j] < 3.0) { PzAdd(idx, idx) = 1e+2; }
-else { PzAdd(idx, idx) = mrkr_conf; }
-}
-}
-}
-
-// Simulation options
-m->opt.timestep = dt;
-
-bool INV_CHECK = false;
-
-if (INV_CHECK) {
-printf("%d: ", 0);
-printf("   b-state: ");
-for (int i=0; i<nq; i++) printf("%1.4f ", d->qpos[i]);
-for (int i=0; i<nv; i++) printf("%1.4f ", d->qvel[i]);
-printf("\tb-qacc: ");
-for (int i=0; i<nv; i++) printf("%1.4f ", d->qacc[i]);
-}
-
-add_ctrl_noise(d->ctrl);
-mj_forward(m, d); // solve for center point accurately
-
-if (INV_CHECK) {
-printf("  \tinv: ");
-for (int i=0; i<nv; i++) printf("%1.4f ", d->qfrc_constraint[i]);
-printf("\ta-qacc: ");
-for (int i=0; i<nv; i++) printf("%1.4f ", d->qacc[i]);
-printf("\n");
-}
-
-double center_tol = constraint_violated(d);
-
-//m->opt.iterations = 15; 
-//m->opt.tolerance = 0; 
-for (int i=1; i<N; i++) { W_theta[i] = sqrt(L+lambda); }
-
-// set tolerance to be low, run 50, 100 iterations for mujoco solver
-// copy qacc for sigma points with some higher tolerance
-#pragma omp parallel
-{
-int tid = omp_get_thread_num();
-int t = omp_get_num_threads();
-int s = tid * L / t;
-int e = (tid + 1 ) * L / t;
-if (tid == t-1) e = L;
-
-mjData *t_d = sigmas[tid];
-mjModel*t_m = models[tid];
-
-//printf("p thread: %d chunk: %d-%d \n", tid, s, e);
-for (int j=s; j<e; j++) {
-  // step through all the perturbation cols and collect the data
-  int i = j+1;
-  double scale;
-
-  ///////////////////////////////////////////////////// sigma point
-  x[i+0] = x[0]+m_sqrt.col(i-1) + qhat;
-
-  t_d->time = d->time;
-  set_data(t_d, &(x[i+0]));
-  //mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
-  if (!ctrl_state) mju_copy(t_d->ctrl, ctrl, nu); // set controls for this t
-  add_ctrl_noise(t_d->ctrl);
-
-  if (INV_CHECK) {
-    printf("%d: ", i);
-    printf("   b-state: ");
-    for (int k=0; k<nq; k++) printf("%1.4f ", t_d->qpos[k]);
-    for (int k=0; k<nv; k++) printf("%1.4f ", t_d->qvel[k]);
-    printf("\tb-qacc: ");
-    for (int k=0; k<nv; k++) printf("%1.4f ", t_d->qacc[k]);
-  }
-
-  //fast_forward(t_d, j);
-  mj_forward(t_m, t_d);
-
-  if (INV_CHECK) {
-    printf("\tinv: ");
-    for (int k=0; k<nv; k++) printf("%1.4f ", t_d->qfrc_constraint[k]);
-    printf("\ta-qacc: ");
-    for (int k=0; k<nv; k++) printf("%1.4f ", t_d->qacc[k]);
-  }
-
-  if (tol > 0 ) {
-    VectorXd first_sqrt = m_sqrt.col(i-1);
-    scale = handle_constraint(t_d, d, center_tol+tol, &(x[i+0]), &(x[0]), &(first_sqrt));
-    W_theta[i] *= scale;
-  }
-  else { scale = 1.0; }
-
-  t_m->opt.timestep = m->opt.timestep + add_time_noise();
-  mj_Euler(t_m, t_d);
-
-  if (INV_CHECK) {
-    printf(" s: %f ", scale);
-    printf("\tinv: ");
-    for (int k=0; k<nv; k++) printf("%1.4f ", t_d->qfrc_constraint[k]);
-  }
-
-  get_data(t_d, &(x[i+0]));
-
-  mj_forward(t_m, t_d); // at new position; can't assume we didn't move
-  //mj_sensor(t_m, t_d);
-
-  if (INV_CHECK) {
-    printf("\n");
-  }
-
-
-  add_snsr_noise(t_d->sensordata);
-  mju_copy(&(gamma[i](0)), t_d->sensordata, ns);
-
-  if (j < nq) { // only copy position perturbed
-    //mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
-  }
-
-  ///////////////////////////////////////////////////// symmetric point
-  x[i+L] = x[0]-m_sqrt.col(i-1) + qhat;
-
-  t_d->time = d->time;
-  set_data(t_d, &(x[i+L]));
-  if (!ctrl_state) mju_copy(t_d->ctrl, ctrl, nu); // set controls for this t
-  add_ctrl_noise(t_d->ctrl);
-  //mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
-
-  if (INV_CHECK) {
-    printf("%d: ", i+L);
-    printf("   b-state: ");
-    for (int k=0; k<nq; k++) printf("%1.4f ", t_d->qpos[k]);
-    for (int k=0; k<nv; k++) printf("%1.4f ", t_d->qvel[k]);
-    printf("\tb-qacc: ");
-    for (int k=0; k<nv; k++) printf("%1.4f ", t_d->qacc[k]);
-  }
-
-  //fast_forward(t_d, j);
-  mj_forward(t_m, t_d);
-
-  if (INV_CHECK) {
-    printf("\tinv: ");
-    for (int k=0; k<nv; k++) printf("%1.4f ", t_d->qfrc_constraint[k]);
-    printf("\ta-qacc: ");
-    for (int k=0; k<nv; k++) printf("%1.4f ", t_d->qacc[k]);
-  }
-
-  if (tol > 0 ) {
-    VectorXd other_sqrt = -1*m_sqrt.col(i-1);
-    scale = handle_constraint(t_d, d, center_tol+tol, &(x[i+L]), &(x[0]), &(other_sqrt));
-    W_theta[i] *= scale;
-  }
-  else { scale = 1.0; }
-
-  t_m->opt.timestep = m->opt.timestep + add_time_noise();
-  mj_Euler(t_m, t_d);
-
-  if (INV_CHECK) {
-    printf(" s: %f ", scale);
-    printf("\tinv: ");
-    for (int k=0; k<nv; k++) printf("%1.4f ", t_d->qfrc_constraint[k]);
-  }
-
-  get_data(t_d, &(x[i+L]));
-
-  mj_forward(t_m, t_d); // at new position; can't assume we didn't move
-  //mj_sensor(t_m, t_d);
-
-  if (INV_CHECK) {
-    printf("\n");
-  }
-
-  add_snsr_noise(t_d->sensordata);
-  mju_copy(&(gamma[i+L](0)), t_d->sensordata, ns);
-
-  if (j < nq) { // only copy position perturbed states
-    //mju_copy(sigma_states[i+nq]->qpos, t_d->qpos, nq);
-  }
-}
-}
-// step for the central point
-mj_Euler(m, d); // step
-
-get_data(d, &(x[0]));
-get_data(d, &(x_minus)); // pre-correction
-
-// even weighting
-W_s[0] = 1.0/N;
-W_c[0] = 1.0/N;
-for (int i=1; i<N; i++) { W_s[i] = 1.0/N; W_c[i] = W_s[i]; }
-
-// aprior mean
-x_t.setZero();
-for (int i=0; i<N; i++) { x_t += W_s[i]*x[i]; }
-//for (int i=1; i<N; i++) { x_t += x[i]; }
-//x_t = W_s[0]*x[0] + (W_s[1])*x_t;
-
-
-P_t.setZero();
-for (int i=0; i<N; i++) {
-  VectorXd x_i(x[i] - x_t);
-  P_t += W_c[i] * (x_i * x_i.transpose());
-}
-
-set_data(d, &(x_t)); // set new central point
-
-mj_forward(m, d);
-//mj_sensor(m, d); // sensor values at new positions
-mju_copy(&(gamma[0](0)), d->sensordata, ns);
-
-mju_copy(sigma_states[0]->qpos, d->qpos, nq);
-
-LLT<MatrixXd> chol2((L+lambda)*(P_t));
-m_sqrt = chol2.matrixL(); // chol
-#pragma omp parallel
-{
-  int tid = omp_get_thread_num();
-  int t = omp_get_num_threads();
-  int s = tid * L / t;
-  int e = (tid + 1 ) * L / t;
-  if (tid == t-1) e = L;
-
-  mjData *t_d = sigmas[tid];
-  mjModel*t_m = models[tid];
-
-  for (int j=s; j<e; j++) {
-    // step through all the perturbation cols and collect the data
-    int i = j+1;
-    double scale;
-
-    ///////////////////////////////////////////////////// sigma point
-    x[i+0] = x[0]+m_sqrt.col(i-1) + qhat;
-
-    t_d->time = d->time;
-    set_data(t_d, &(x[i+0]));
-    mju_copy(t_d->ctrl, ctrl, nu); // set controls for this t
-    add_ctrl_noise(t_d->ctrl);
-
-    mj_forward(t_m, t_d);
-
-    //mj_sensor(t_m, t_d);
-
-    add_snsr_noise(t_d->sensordata);
-    mju_copy(&(gamma[i](0)), t_d->sensordata, ns);
-
-    ///////////////////////////////////////////////////// symmetric point
-    x[i+L] = x[0]-m_sqrt.col(i-1) + qhat;
-
-    t_d->time = d->time;
-    set_data(t_d, &(x[i+L]));
-    mju_copy(t_d->ctrl, ctrl, nu); // set controls for this t
-    add_ctrl_noise(t_d->ctrl);
-
-    mj_forward(t_m, t_d);
-
-    t_m->opt.timestep = m->opt.timestep + add_time_noise();
-    mj_Euler(t_m, t_d);
-
-
-    get_data(t_d, &(x[i+L]));
-
-    mj_forward(t_m, t_d); // at new position; can't assume we didn't move
-    //mj_sensor(t_m, t_d);
-
-    if (INV_CHECK) {
-      printf("\n");
-    }
-
-    add_snsr_noise(t_d->sensordata);
-    mju_copy(&(gamma[i+L](0)), t_d->sensordata, ns);
-
-    if (j < nq) { // only copy position perturbed states
-      //mju_copy(sigma_states[i+nq]->qpos, t_d->qpos, nq);
-    }
-
-    ///////////////////////////////////////////////////// symmetric point
-    t_d->time = d->time;
-    set_data(t_d, &(x[i+L]));
-    mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
-
-  }
-}
-
-VectorXd z_k = shat; //VectorXd::Zero(ns);
-for (int i=0; i<N; i++) { z_k += W_s[i]*gamma[i]; }
-//for (int i=1; i<N; i++) { z_k += gamma[i]; }
-//z_k = W_s[0]*gamma[0] + (W_s[1])*z_k;
-
-if (NUMBER_CHECK) {
-  IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
-  printf("Correct: After Step time %f\n", sigma_states[0]->time);
-  std::cout << "\nz_k hat:\n"<< (z_k).transpose().format(CleanFmt) << std::endl;
-}
-
-P_z.setZero();
-Pxz.setZero();
-for (int i=0; i<N; i++) {
-  VectorXd z(gamma[i] - z_k);
-  VectorXd x_i(x[i] - x_t);
-
-  P_z += W_c[i] * (z * z.transpose());
-  Pxz += W_c[i] * (x_i * z.transpose());
-}
-
-if (NUMBER_CHECK) {
-  IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
-  std::cout << "Prediction output:\nx_t\n"<< x_t.transpose().format(CleanFmt) << std::endl;
-  std::cout << "Prediction output:\nP_t\n"<< P_t.block(0,0,end,end).format(CleanFmt) << std::endl;
-}
-
-P_z = P_z + PzAdd;
-
-MatrixXd K = Pxz * P_z.inverse();
-VectorXd s = Map<VectorXd>(sensors, ns); // map our real z to vector
-
-x_t = x_t + (K*(s-z_k));
-P_t = P_t - (K * P_z * K.transpose());
-
-//P_t = P_t + PtAdd; 
-
-set_data(d, &(x_t)); // set central point corrected
-mju_copy(d->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
-
-//std::cout << "\ncorrect x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
-//std::cout << "\nother   x_t:\n"<< x_t_aug.transpose().format(CleanFmt) << std::endl;
-
-// MAKING A PREVIOUS DATA
-//set_data(prev_d, &(x_t)); // the 'previous' estimate's mjData
-//mju_copy(prev_d->ctrl, d->ctrl, nu); // set controls for the center point
-//mju_copy(prev_d->qacc, d->qacc, nv); // set controls for the center point
-//mj_forward(m, prev_d);
-
-IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
-
-std::cout << "\ndelta:\n"<< (s-z_k).transpose().format(CleanFmt) << std::endl;
-std::cout << "\ncorrection:\n"<< (K*(s-z_k)).transpose().format(CleanFmt) << std::endl;
-std::cout << "\np_t :\n"<< P_t.diagonal().transpose().format(CleanFmt) << std::endl;
-std::cout << "\np_z :\n"<< P_z.diagonal().transpose().format(CleanFmt) << std::endl;
-
-//double dk = 0.95;
-//MatrixXd F = x_t - qhat;
-//qhat = (1-dk)*qhat + dk*(x_t - x_minus);
-//dk = 0.5;
-//shat = (1-dk)*shat + dk*(s-z_k);
-//shat.setZero();
-//qhat.setZero();
-// x_t = F*x_minus + qhat;
-//Q = (1-dk) * Q + dk*(K*V*V.transpose()*K.transpose() + P_t );
-
-//std::cout << "\nqhat:\n"<< qhat.transpose().format(CleanFmt) << std::endl;
-
-//double a2 = abs(P_t.determinant());
-//double b2 = pow(2*3.14159265*exp(1), (double)L);
-//double entropy = 0.5*log(b2 * a2);
-//printf("\n\ne %f\ta: %1.32f\tb: %f\tEntropy: %f\n\n", a2*b2, a2, b2, entropy);
-
-if (NUMBER_CHECK) {
-  IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
-  std::cout << "Kalman Gain:\n"<< K.block(0,0,end,end).format(CleanFmt) << std::endl;
-  std::cout << "\nPz  :\n"<< P_z.block(0,0,end,end).format(CleanFmt) << std::endl;
-  std::cout << "\nPz^-1:\n"<< P_z.inverse().block(0,0,end,end).format(CleanFmt) << std::endl;
-  std::cout << "\nPxz :\n"<< Pxz.block(0,0,end,end).format(CleanFmt) << std::endl;
-  std::cout << "\ncorrect p_t :\n"<< P_t.block(0,0,end,end).format(CleanFmt) << std::endl;
-  std::cout << "\ncorrect x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
-  std::cout << "\nraw sensors:\n"<< (s).transpose().format(CleanFmt) << std::endl;
-  std::cout << "\nz_k hat:\n"<< (z_k).transpose().format(CleanFmt) << std::endl;
-  std::cout << "\ndelta:\n"<< (s-z_k).transpose().format(CleanFmt) << std::endl;
-  std::cout << "Predict and Correct COMBO\n";
-}
-}
-*/
-
 void UKF::predict(double * ctrl, double dt) {
 
   IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
 
-  double t2 = omp_get_wtime()*1000.0;
+  double t2 = util::now_t();
 
   m->opt.timestep = dt; // smoother way of doing this?
 
 
-
-  double t3 = omp_get_wtime()*1000.0;
+  double t3 = util::now_t();
 
   //P_t = MatrixXd::Identity(L,L) * 1e-3;
   LLT<MatrixXd> chol((L+lambda)*(P_t));
   MatrixXd sqrt = chol.matrixL(); // chol
 
-  double t4 = omp_get_wtime()*1000.0;
+  double t4 = util::now_t();
 
   if (NUMBER_CHECK) {
     std::cout<<"\n\nPrevious Prediction x_t:\n"<<x_t.transpose().format(CleanFmt)<<"\n";
@@ -1629,7 +1190,7 @@ void UKF::predict(double * ctrl, double dt) {
     }
   }
 
-  double t5 = omp_get_wtime()*1000.0;
+  double t5 = util::now_t();
 
   x_t.setZero();
   for (int i=0; i<N; i++) {
@@ -1659,7 +1220,7 @@ void UKF::predict(double * ctrl, double dt) {
   mju_copy(d->qpos, &(x_t(0)), nq);
   mju_copy(d->qvel, &(x_t(nq)), nv);
 
-  double t6 = omp_get_wtime()*1000.0;
+  double t6 = util::now_t();
 
   printf("\npredict init %f, sqrt %f, mjsteps %f, merge %f\n",
       t3-t2, t4-t3, t5-t4, t6-t5);
@@ -1672,19 +1233,19 @@ void UKF::predict(double * ctrl, double dt) {
 void UKF::correct(double* sensors) {
 
   IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
-  double t2 = omp_get_wtime()*1000.0;
+  double t2 = util::now_t();
 
   mju_copy(d->qpos, &(x_t(0)), nq);
   mju_copy(d->qvel, &(x_t(nq)), nv);
   if (ctrl_state) mju_copy(d->ctrl, &(x_t(nq+nv)), nu);
 
-  double t3 = omp_get_wtime()*1000.0;
+  double t3 = util::now_t();
 
   //P_t = MatrixXd::Identity(L,L) * 1e-3;
   LLT<MatrixXd> chol((L+lambda)*(P_t));
   MatrixXd sqrt = chol.matrixL(); // chol
 
-  double t4 = omp_get_wtime()*1000.0;
+  double t4 = util::now_t();
 
   // TODO set solver iterations and tolerance
   mju_copy(sigma_states[0]->qpos, d->qpos, nq);
@@ -1748,7 +1309,7 @@ void UKF::correct(double* sensors) {
     }
   }
 
-  double t5 = omp_get_wtime()*1000.0;
+  double t5 = util::now_t();
 
   VectorXd z_k = VectorXd::Zero(ns);
   for (int i=0; i<N; i++) {
@@ -1802,7 +1363,7 @@ void UKF::correct(double* sensors) {
   mju_copy(d->qpos, &(x_t(0)), nq); // center point
   mju_copy(d->qvel, &(x_t(nq)), nv);
 
-  double t6 = omp_get_wtime()*1000.0;
+  double t6 = util::now_t();
 
   printf("\n\ncorrect copy %f, sqrt %f, mjsteps %f, merge %f\n",
       t3-t2, t4-t3, t5-t4, t6-t5);

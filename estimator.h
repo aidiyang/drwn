@@ -8,7 +8,7 @@
 #include <future>
 
 #ifndef __APPLE__
-#include <omp.h>
+//#include <omp.h>
 #endif
 #include <math.h>
 
@@ -111,13 +111,8 @@ class UKF : public Estimator {
     void predict_correct_p2(double * ctrl, double dt, double* sensors, double* conf = 0); 
 
     double * get_numeric_field(const mjModel* m, std::string s, int *size);
-    //void predict_correct_2stage(double * ctrl, double dt, double* sensors, double* conf = 0);
-    //void predict(double * ctrl, double dt); 
-    //void correct(double* sensors); 
 
-    //mjData* get_state() {return this->d; };
     mjData* get_stddev();
-    //std::vector<mjData*> get_sigmas() {return sigma_states; };
 
     void sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl, 
         Eigen::VectorXd *x, Eigen::MatrixXd *m_sqrt, int s, int e);
@@ -136,7 +131,6 @@ class UKF : public Estimator {
     double * W_s;
     double * W_theta;
     double * W_c;
-    double * p_state;
     double * snsr_ptr;
 
     std::normal_distribution<> * rd_vec; 
@@ -158,8 +152,6 @@ class UKF : public Estimator {
     Eigen::MatrixXd PzAdd;
     Eigen::MatrixXd PtAdd;
     double mrkr_conf;
-
-    mjData * prev_d;
 
     std::future<void> *sigma_handles;
 

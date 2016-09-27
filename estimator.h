@@ -8,6 +8,7 @@
 #include <omp.h>
 #endif
 #include <math.h>
+#include <cmath>
 
 #ifdef USE_EIGEN_MKL
 #define EIGEN_USE_MKL_ALL
@@ -122,7 +123,7 @@ class UKF : public Estimator {
       //sigma_states = new mjData*[N];
       //sigmas = new mjData*[32];
       //sigma_states.resize(N);
-      sigma_states.resize(nq); // only useful to visualize qpos perturbed
+      sigma_states.resize(nq+1); // only useful to visualize qpos perturbed
 
       my_threads = threads;
       sigmas.resize(threads);
@@ -148,7 +149,7 @@ class UKF : public Estimator {
       //raw.resize(N);
       x = new VectorXd[N];
       gamma = new VectorXd[N];
-      for (int i=0; i<nq; i++) {
+      for (int i=0; i<nq+1; i++) {
         if (i==0) {
           sigma_states[i] = this->d;
         }
@@ -237,8 +238,8 @@ class UKF : public Estimator {
       if (P_covar) {
         // HACK TODO fix this; assumes nq is the same as nv
         for (int i=0; i<nq; i++) {
-          PtAdd(i,i) = P_covar[i];
-          PtAdd(i+nq,i+nq) = P_covar[i];
+          PtAdd(i,i) = P_covar[0];
+          PtAdd(i+nq,i+nq) = P_covar[0];
 
           P_t(i,i) = P_covar[i];
           P_t(i+nq,i+nq) = P_covar[i];
@@ -282,7 +283,6 @@ class UKF : public Estimator {
       for (int i = 0; i < m->nsensor; i++) {
         int type = m->sensor_type[i];
         double var = 0;
-        bool skip = false;
         switch (type) {
           case 1:  var = snsr_ptr[0]; break;   //Accelerometer
           case 2:  var = snsr_ptr[1]; break;   //Gyro
@@ -295,7 +295,7 @@ class UKF : public Estimator {
           case 9:  var = snsr_ptr[8]; break;   //ActuatorPos
           case 10: var = snsr_ptr[9]; break;   //ActuatorVel
           case 11: var = snsr_ptr[10]; break;  //ActuatorFrc
-          case 12: var = snsr_ptr[11]; skip=true; break;  //SitePos
+          case 12: var = snsr_ptr[11]; break;  //SitePos
           case 13: var = snsr_ptr[12]; break;  //SiteQuat
           case 14: var = snsr_ptr[13]; break;  //Magnetometer (WTF?)
           default: var = snsr_ptr[14]; break;
@@ -389,7 +389,7 @@ class UKF : public Estimator {
       static std::mt19937 s_rng(494949);
       // make a vector ns in length with appropriate sigmas / variances
 
-      for (int i=0; i<ns; i++) {
+      for (int i=0; i<(ns-16*3); i++) {
         double r = rd_vec[i](s_rng);
         //printf("%1.2f ", r);
         noise[i] += r;
@@ -496,16 +496,18 @@ class UKF : public Estimator {
         // TODO more than just phasespace markers?
         if (ns > (40+6+12)) { // we have phasespace markers
           int ps_start = ns - 16*3;
-          printf("ps %d ns %d\n", ps_start, ns);
+          //printf("ps %d ns %d\n", ps_start, ns);
           for (int j=0; j<16; j++) { // DIRTY HACKY HACK
             for (int i=0; i<3; i++) {
               int idx = ps_start + j*3 + i;
               // our conf threshold (basically not visible)
-              if (conf[j] < 0.0) { PzAdd(idx, idx) = 1e+100; }
+              //if (conf[j] < 0.0) { PzAdd(idx, idx) = 1e+100; }
+              if (j != 2) { PzAdd(idx, idx) = 1e+100; }
               else { PzAdd(idx, idx) = mrkr_conf; }
             }
           }
           //IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
+          //std::cout << "pzadd 1st block:\n"<< PzAdd.block(0, 0, ps_start, ps_start).format(CleanFmt) << std::endl;
           //std::cout << "pzadd output:\n"<< PzAdd.block(ps_start, ps_start, ns-ps_start, ns-ps_start).format(CleanFmt) << std::endl;
         }
       }
@@ -575,9 +577,9 @@ class UKF : public Estimator {
           add_snsr_noise(t_d->sensordata);
           mju_copy(&(gamma[i](0)), t_d->sensordata, ns);
 
-          //if (j < nq) { // only copy position perturbed
-          //  //mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
-          //}
+          if (j < nq) { // only copy position perturbed
+            mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
+          }
 
           ///////////////////////////////////////////////////// symmetric point
           x[i+L] = x[0]-m_sqrt.col(i-1) + qhat;
@@ -666,7 +668,7 @@ class UKF : public Estimator {
       x_t = W_s[0]*x[0] + (W_s[1])*x_t;
       // TODO  can optimize more if all the weights are the same
 
-      z_k = shat; //VectorXd::Zero(ns);
+      z_k = VectorXd::Zero(ns); // shat;
       //for (int i=0; i<N; i++) { z_k += W_s[i]*gamma[i]; }
       for (int i=1; i<N; i++) { z_k += gamma[i]; }
       z_k = W_s[0]*gamma[0] + (W_s[1])*z_k;
@@ -693,12 +695,11 @@ class UKF : public Estimator {
       }
       VectorXd x_i(x[0] - x_t);
       VectorXd z(gamma[0] - z_k);
-      P_t = W_c[0]*(x_i * x_i.transpose()) + W_c[1]*P_t;
+      P_t = W_c[0]*(x_i * x_i.transpose()) + W_c[1]*P_t; // + PtAdd;
       P_z = W_c[0]*(z * z.transpose())     + W_c[1]*P_z + PzAdd;
       Pxz = W_c[0]*(x_i * z.transpose())   + W_c[1]*Pxz;
 
       //P_z = P_z + PzAdd;
-
 
       // other method of combining estimates
       // TODO different method for X_1 by multiplying with kalman gain each
@@ -728,9 +729,21 @@ class UKF : public Estimator {
 
       VectorXd s = Map<VectorXd>(sensors, ns); // map our real z to vector
 
+      VectorXd prev_xt = x_t;
       x_t = x_t + (K*(s-z_k));
       P_t = P_t - (K * P_z * K.transpose());
+      //double mean = std::abs(P_t.mean());
+      //std::cout<<"P_T average:\n"<<mean<<std::endl;
+      //if (mean > 1) {
+      //  printf("\n\nCovariance blowup!!\n\n");
+      //  std::cout<<"P_Tadd average:\n"<<PtAdd.mean()<<std::endl;
 
+      //  // don't allow for correction
+      //  P_t = PtAdd;
+      //  std::cout<<"x_t :\n"<<x_t.transpose()<<std::endl;
+      //  std::cout<<"prev:\n"<<prev_xt.transpose()<<std::endl;
+      //  x_t = prev_xt; // undo-correction
+      //}
       set_data(d, &(x_t)); // set corrected state into mujoco data struct
       mju_copy(d->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
 #if 1
@@ -840,7 +853,7 @@ class UKF : public Estimator {
           double scale;
 
           ///////////////////////////////////////////////////// sigma point
-          x[i+0] = x[0]+m_sqrt.col(i-1) + qhat;
+          x[i+0] = x[0]+m_sqrt.col(i-1);// + qhat;
 
           t_d->time = d->time;
           set_data(t_d, &(x[i+0]));
@@ -902,7 +915,7 @@ class UKF : public Estimator {
           }
 
           ///////////////////////////////////////////////////// symmetric point
-          x[i+L] = x[0]-m_sqrt.col(i-1) + qhat;
+          x[i+L] = x[0]-m_sqrt.col(i-1);// + qhat;
 
           t_d->time = d->time;
           set_data(t_d, &(x[i+L]));
@@ -1124,7 +1137,7 @@ class UKF : public Estimator {
 
       //std::cout << "\nqhat:\n"<< qhat.transpose().format(CleanFmt) << std::endl;
 
-      //double a2 = abs(P_t.determinant());
+      //double a2 = fabs(P_t.determinant());
       //double b2 = pow(2*3.14159265*exp(1), (double)L);
       //double entropy = 0.5*log(b2 * a2);
       //printf("\n\ne %f\ta: %1.32f\tb: %f\tEntropy: %f\n\n", a2*b2, a2, b2, entropy);
@@ -1521,7 +1534,7 @@ class UKF : public Estimator {
 
       //std::cout << "\nqhat:\n"<< qhat.transpose().format(CleanFmt) << std::endl;
 
-      //double a2 = abs(P_t.determinant());
+      //double a2 = fabs(P_t.determinant());
       //double b2 = pow(2*3.14159265*exp(1), (double)L);
       //double entropy = 0.5*log(b2 * a2);
       //printf("\n\ne %f\ta: %1.32f\tb: %f\tEntropy: %f\n\n", a2*b2, a2, b2, entropy);
@@ -1843,7 +1856,7 @@ class UKF : public Estimator {
          std::cout << "\ndelta:\n"<< (s-z_k).transpose().format(CleanFmt) << std::endl;
          std::cout << "\ncorrection:\n"<< (K*(s-z_k)).transpose().format(CleanFmt) << std::endl;
          std::cout << "\np_t :\n"<< P_t.diagonal().transpose().format(CleanFmt) << std::endl;
-         double a = abs(P_t.determinant());
+         double a = fabs(P_t.determinant());
          double b = pow(2*3.14159265*exp(1), (double)L);
          double entropy = 0.5*log(b * a);
          printf("\n\ne %f\ta: %1.32f\tb: %f\tEntropy: %f\n\n", a*b, a, b, entropy);
@@ -1861,6 +1874,8 @@ class UKF : public Estimator {
     mjData* get_stddev() {
       VectorXd var = P_t.diagonal();
       if (NUMBER_CHECK) {
+        IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
+        std::cout << "\ncorrect x_t:\n"<< x_t.transpose().format(CleanFmt) << std::endl;
         std::cout<<"P_T diag:\n";
         std::cout<< var.transpose() << std::endl;
         std::cout<<"\nP_z diag:\n";

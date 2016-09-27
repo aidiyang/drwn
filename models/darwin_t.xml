@@ -71,10 +71,10 @@ soft:
          -->
     <custom>
         <numeric name="snsr_covar" size="15" data="
-        1e-2
+        1e-3
         1e-6
         1e-1
-        1e-1
+        1e-0
         1e-7
         1e-3
         1e-0
@@ -104,7 +104,6 @@ soft:
         1 0 0 0 1 0 0 0 1"/>
       <numeric name="t_rot2" size="9" data=" 
         1 2 2 0 1 0 2 2 1"/>
-
       <numeric name="covar_diag" size="26" data="
           1e-100
           1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
@@ -203,7 +202,7 @@ soft:
             <joint axis="0 0 1" name="head_tilt" pos="0 0 0" range="-.4363323 .959931089" type="hinge"/>
             <!--<geom class="hands" mesh="head_coll" type="mesh" contype="6" conaffinity="0" />  TODO fix contact later -->
             <geom mesh="head_coll" type="mesh" contype="0" conaffinity="0" />
-            <geom class="hands" type='sphere' size='.05' pos='0 -0.018 0' rgba='1 0 0 0.4' />
+            <geom class="hands" type='sphere' mass='0' size='.05' pos='0 -0.018 0' rgba='1 0 0 0.4' />
           </body>
         </body>
 
@@ -224,11 +223,7 @@ soft:
               <geom contype='0' conaffinity='6' mesh="arm_metal_lowres" pos='.021 0.0055 -0.081' euler='0 -1.57 0' type="mesh"/>
               <site class="ps_marker" name="ps15" pos="0.017 -0.08 0.0171" />
               <site class="ps_marker" name="ps14" pos="-0.0021 -0.055 0.009" euler="1.571 1.571 0" />
-              <body name="handtip_l" pos=".0 0 .0" euler="0 0 0" >
-                <!--<geom class="hands" type='box' size='0.006 0.001 0.015' pos='.016 -0.116 -0.002' euler='0 -1.57 0' rgba='1 0 0 1'/>
-                     -->
-                <geom class="hands" type='sphere' size='0.001 ' pos='.016 -0.116 -0.002' euler='0 -1.57 0' rgba='1 0 0 1'/>
-              </body>
+                <geom class="hands" type='sphere' mass='0' size='0.001 ' pos='.016 -0.116 -0.002' euler='0 -1.57 0' rgba='1 0 0 1'/>
             </body>
           </body>
         </body>
@@ -249,11 +244,7 @@ soft:
               <geom contype='0' conaffinity='6' mesh="arm_metal_lowres" pos='.012 0.0055 0.081' euler='0 1.57 0' type="mesh"/>
               <site class="ps_marker" name="ps13" pos="0.017 -0.08 -0.0171" />
               <site class="ps_marker" name="ps12" pos="-0.0021 -0.055 -0.009" euler="1.571 1.571 0" />
-              <body name="handtip_r" pos=".0 0 .0" euler="0 0 0" >
-                <!--<geom class="hands" type='box' size='0.006 0.001 0.015' pos='.016 -0.116 0.002' euler='0 -1.57 0' rgba='1 0 0 1'/>
-                     -->
-                <geom class="hands" type='sphere' size='0.001 ' pos='.016 -0.116 0.002' euler='0 -1.57 0' rgba='1 0 0 1'/>
-              </body>
+                <geom class="hands" type='sphere' mass='0' size='0.001 ' pos='.016 -0.116 0.002' euler='0 -1.57 0' rgba='1 0 0 1'/>
             </body>
           </body>
         </body>
@@ -274,7 +265,7 @@ soft:
               <body name="tibia_l" pos="-0.093 0 0">
                 <inertial diaginertia="0.115891 0.0933882 0.043901" mass="0.0703098" pos="-0.053955 0.006548 -0.000592" quat="0.456916 0.538297 -0.548699 0.447654"/>
                 <joint axis="0 0 1" name="l_knee" pos="0 0 0" range="-2.2689280276  .1047197551" type="hinge"/>
-                <geom contype='0' conaffinity='0' mesh="tibia_naked" pos='0.145 0 0.037' euler='1.57 0 -1.57' type="mesh"/>
+                <geom mesh="tibia_naked" pos='0.145 0 0.037' euler='1.57 0 -1.57' type="mesh"/>
 
                 <body name="ankle1_l" pos="-0.093 0 0" quat="0 1 0 0">
                   <inertial diaginertia="0.120855 0.109532 0.0411304" mass="0.167108" pos="-0.000214 -0.018536 0.013873" quat="0.997965 0.0519065 0.00385358 -0.0368208"/>
@@ -322,7 +313,7 @@ soft:
               <body name="tibia_r" pos="0.093 0 0">
                 <inertial diaginertia="0.115891 0.0933882 0.043901" mass="0.0703098" pos="0.053955 0.006548 -0.000592" quat="0.456916 0.538297 -0.548699 0.447654"/>
                 <joint axis="0 0 1" name="r_knee" pos="0 0 0" range="-.1047197551  2.2689280276" type="hinge"/>
-                <geom contype='0' conaffinity='0' mesh="tibia_naked" pos='-0.145 0 -0.037' euler='1.57 0 1.57' type="mesh"/>
+                <geom mesh="tibia_naked" pos='-0.145 0 -0.037' euler='1.57 0 1.57' type="mesh"/>
 
                 <body name="ankle1_r" pos="0.093 0 0" quat="0 1 0 0">
                   <inertial diaginertia="0.120855 0.109532 0.0411304" mass="0.167108" pos="-0.000214 -0.018536 -0.013873" quat="0.997965 0.0519065 0.00385358 -0.0368208"/>

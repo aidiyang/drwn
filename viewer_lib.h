@@ -267,8 +267,8 @@ void keyboard(GLFWwindow * window, int key, int scancode, int act, int mods)
       if (mods & GLFW_MOD_CONTROL) {
         if (key == GLFW_KEY_A)
           autoscale(window);
-        else if (key == GLFW_KEY_S)
-          show_sensor = !show_sensor;
+        //else if (key == GLFW_KEY_S)
+        //  show_sensor = !show_sensor;
         else if (key == GLFW_KEY_Q)
           glfwSetWindowShouldClose(window, GL_TRUE);
         else if (key == GLFW_KEY_S)
@@ -280,14 +280,37 @@ void keyboard(GLFWwindow * window, int key, int scancode, int act, int mods)
           if (d) {
             printf("qpos(%d):\t", m->nq);
             for (int i = 0; i < m->nq; i++)
-              printf("%1.2f ", d->qpos[i]);
+              printf("%1.2f, ", d->qpos[i]);
             printf("\nqvel(%d):\t", m->nv);
             for (int i = 0; i < m->nv; i++)
-              printf("%1.2f ", d->qvel[i]);
-            printf("\nsensors(%d):\t", m->nsensordata);
-            for (int i = 0; i < m->nsensordata; i++)
-              printf("%1.2f ", d->sensordata[i]);
-            printf("\n");
+              printf("%1.2f, ", d->qvel[i]);
+            int ns=0;
+            int c=0;
+            for (int i = 0; i < m->nsensor; i++) {
+              int type = m->sensor_type[i];
+              double var = 0;
+              switch (type) {
+                case 1:  if (c!=1) printf("\nAccelerometer: "); c=1;      break;   //Accelerometer
+                case 2:  if (c!=2) printf("\nGyro: ");          c=2;      break;   //Gyro
+                case 3:  if (c!=3) printf("\nForce: ");         c=3;      break;   //Force
+                case 4:  if (c!=4) printf("\nTorque: ");        c=4;      break;   //Torque
+                case 5:  if (c!=5) printf("\nJointPos: ");      c=5;      break;   //JointPos
+                case 6:  if (c!=6) printf("\nJointVel: ");      c=6;      break;   //JointVel
+                case 7:  if (c!=7) printf("\nTendonPos: ");     c=7;      break;   //TendonPos
+                case 8:  if (c!=8) printf("\nTendonVel: ");     c=8;      break;   //TendonVel
+                case 9:  if (c!=9) printf("\nActuatorPos: ");   c=9;      break;   //ActuatorPos
+                case 10: if (c!=10) printf("\nActuatorVel: ");   c=10;      break;   //ActuatorVel
+                case 11: if (c!=11) printf("\nActuatorFrc: ");   c=11;      break;  //ActuatorFrc
+                case 12: if (c!=12) printf("\nSitePos: ");       c=12;      break;  //SitePos
+                case 13: if (c!=13) printf("\nSiteQuat: ");      c=13;      break;  //SiteQuat
+                case 14: if (c!=14) printf("\nMagnetometer: ");  c=14; break;  //Magnetometer (WTF?)
+                default:  break;
+              }
+              for (int j=ns; j<(ns+m->sensor_dim[i]); j++) {
+                printf(" %4.4f ", d->sensordata[j]);
+              }
+              ns += m->sensor_dim[i];
+            }
           }
         } else if (key == GLFW_KEY_L && lastfile[0])
           loadmodel(window, lastfile, 0);
@@ -522,11 +545,12 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool render_inplac
   //mjtNum startsimtm = d->time;
 
   if (paused) {
-    // edit
-    mjv_mouseEdit(m, d, selbody, perturb, refpos, refquat);
+    // TODO Uncomment this stuffto get paused control back
+    //// edit
+    //mjv_mouseEdit(m, d, selbody, perturb, refpos, refquat);
 
-    // recompute to refresh rendering
-    mj_forward(m, d);
+    //// recompute to refresh rendering
+    //mj_forward(m, d);
 
     if (increment) {
       printf("Step\n");
@@ -536,8 +560,8 @@ void render(GLFWwindow * window, std::vector<mjData *> frame, bool render_inplac
       }
       increment = 0;
     }
-    // 15 msec delay
-    while (glfwGetTime() - starttm < 0.015) ;
+    //// 15 msec delay
+    //while (glfwGetTime() - starttm < 0.015) ;
   }
   //else if (step) 
   else

@@ -1,0 +1,1 @@
+/usr/bin/c++    -fPIC -Wall -lpthread -std=c++11 -fopenmp -O2 -O3 -DNDEBUG    CMakeFiles/sim.dir/simulate.cpp.o  -o ../bin/sim  -L/opt/intel/mkl/lib/intel64  -L/opt/mujoco131/bin -rdynamic -lglfw -lmujoco -Wl,-rpath,/opt/intel/mkl/lib/intel64:/opt/mujoco131/bin 

@@ -1,8 +1,9 @@
 #!/bin/bash
 
-nonoise="1e-12"
+nonoise="1e-22"
 d_noise="1e-4"
-data_f="clean_straight_walk.csv"
+#data_f="clean_straight_walk.csv"
+data_f="clean_fallen_3.csv"
 #data_f="walk3.csv"
 
 ./viewer -m ../models/darwin.xml    -r1 -f $data_f -R0 -d $nonoise -i -1 -t 1 -o nonoise.csv >/dev/null &

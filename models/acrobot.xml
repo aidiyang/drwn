@@ -1,0 +1,50 @@
+<mujoco model='acrobot'>
+    <compiler inertiafromgeom='true' coordinate='local'/>
+    
+    <default>
+        <joint damping='.05'/>
+        <geom contype='0'/>
+    </default>
+    
+    <option timestep='0.02' integrator='RK4'>
+        <!--<flags warmstart='disable'/>-->
+    </option>
+    
+    <size nstack='3000'/>
+    
+    <worldbody>
+        <camera pos='0 0 0' fovy = '20'/>
+        <geom name='floor' pos='0 0 -4.0' size='40 40 40' type='plane' rgba='0.8 0.9 0.8 1' />
+        <geom name='rail' type='capsule' pos='0 0 0' quat='0 0 0.707 0.707' size='0.02 1'
+              rgba='0 0.7 0.7 1' />
+        <body name='top' pos='0 0 0'>
+            <joint name = 'actuator' type = 'hinge' pos='0 0 0' axis = '0 1 0' />
+            <geom name='arm' type='capsule' fromto='0 0 0 0 0 .6' size='.05'
+                      rgba='0 0.7 0.7 1' />
+                      <body name='bottom' pos='0 0 .6'>
+                          <geom name='leg' type='capsule' fromto='0 0 0 0 0 .6' size='.05' 
+                                rgba='0.3 0.3 0.7 1'/>
+                          <joint name = 'waist' type = 'hinge' pos= '0 0 0' axis = '0 1 0' />
+                      </body>
+            <!--<body name='bottom' pos='0 0 -1'>
+                <joint name = 'hinge' type = 'hinge' pos= '0 0 -0.5' axis = '0 1 0' />
+                <geom name = 'arm2' type = 'capsule' size='0.045 .5' />
+            </body>-->
+        </body>
+    </worldbody>
+    
+    <actuator>
+        <motor name='spin' joint='waist'/>
+    </actuator>
+    
+    
+</mujoco>
+    
+                      
+            
+
+
+
+
+
+

@@ -52,13 +52,15 @@ fig = plt.figure()
 
 ax = fig.add_subplot(111, projection='3d')
 
-h = 20
-l = 3
+h = 200
+l = 0
 
-bools = np.vstack((conf[:,0]>l, conf[:,0]<h))
-print bools.shape
-bools = np.all(bools, axis=0)
-print bools.shape
+#print np.max(t)
+#bools = np.vstack((conf[:,0]>l, conf[:,0]<h, t[:]>7))
+#print bools
+#bools = np.all(bools, axis=0)
+#print bools.shape
+#print bools
 
 dt_tol=1000.001
 #for i in range(0,16):
@@ -94,17 +96,19 @@ dt_tol=1000.001
 #    print i, " took ", c, " iterations"
 #    ax.plot(x, y, zs=z, marker='.')
 
-new_c = util.clean_mrkr_data(t, mrkr, conf, 0, 0.01)
+new_c = util.clean_mrkr_data(t, mrkr, conf, 3, 0.1, 2)
 
 for i in range(0,16):
-    bools = np.all(np.vstack((new_c[:,i]>l, new_c[:,i]<h)), axis=0)
+    #bools = np.all(np.vstack((new_c[:,i]>l, new_c[:,i]<h)), axis=0)
+    bools = new_c[:,i]>l
     #bools = np.any(new_c[:,i]>l) 
     x = mrkr[bools,i,0]
     y = mrkr[bools,i,1]
     z = mrkr[bools,i,2]
     
     print i, "num good:", x.shape 
-    if (z.shape):
+    if (z.shape[0] > bools.shape[0]/2):
+        print '\tused', i
         ax.plot(x, y, zs=z, marker='.')
 
 #ax.set_xlim3d(-0.06, 0.08)

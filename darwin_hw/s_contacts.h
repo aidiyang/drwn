@@ -422,7 +422,7 @@ close:
       //  Bit 3: Internal stream clock frequency = b0: 4 MHz
       //  Bit 1: Divide Clock by 256 = b0
 
-      scanInterval = 1150;
+      scanInterval = 1250;
       sendBuff[12] = (uint8) (scanInterval & (0x00FF));     //scan interval (low byte)
       sendBuff[13] = (uint8) (scanInterval / 256);  //scan interval (high byte)
 

@@ -1,0 +1,8 @@
+/home/jdao/Work/drwn/build/darwin_hw/CMakeFiles/calibrate_ps.dir
+/home/jdao/Work/drwn/build/darwin_hw/CMakeFiles/darwin_hw.dir
+/home/jdao/Work/drwn/build/darwin_hw/CMakeFiles/dxl_monitor.dir
+/home/jdao/Work/drwn/build/CMakeFiles/sim.dir
+/home/jdao/Work/drwn/build/darwin_hw/CMakeFiles/test_darwin.dir
+/home/jdao/Work/drwn/build/darwin_hw/CMakeFiles/test_eigen.dir
+/home/jdao/Work/drwn/build/CMakeFiles/testekf.dir
+/home/jdao/Work/drwn/build/CMakeFiles/viewer.dir

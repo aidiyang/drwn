@@ -11,8 +11,8 @@
 
 #include "darwin_hw/robot.h"
 
-#include "estimator.h"
-//#include "ekf_estimator.h"
+//#include "estimator.h"
+#include "ekf_estimator.h"
 
 #include <iostream>
 #include <fstream>
@@ -29,6 +29,11 @@ double init_qpos[26] = {
 double init_qvel[26] = { 0.00, -0.00, -0.01, 0.00, -0.00, 0.00, 0.00, -0.01, 0.01, 0.01, -0.01, -0.01, -0.01, 0.01,
     0.00, -0.01, 0.00, -0.02, 0.09, -0.03, -0.00, 0.00, -0.00, 0.01, -0.03, 0.04 };
 
+double fall_qpos[26] = {
+  0.40, -0.00, -0.31, 0.25, 1.63, -0.19, 0.00, -0.41, 0.74, 0.30, -0.50, -0.84, -0.29, 0.50, 0.00, -0.01, 0.62, -0.94, -0.52, -0.01, 0.01, 0.00, -0.60, 0.95, 0.52, 0.01};
+double fall_qvel[26] = {
+  -0.00, -0.00, -0.00, -0.02, 0.00, 0.03, 0.00, 0.01, -0.01, 0.00, -0.00, -0.00, -0.00, -0.00, 0.00, 0.00, -0.00, 0.00, 0.00, -0.00, 0.00, 0.00, -0.00, -0.00, -0.01, 0.00};
+
 bool walking = false;
 
 double now_t() {
@@ -44,6 +49,8 @@ void save_states(std::string filename, double time,
         mjData * real, mjData * est, mjData * stddev,
         double t1, double t2,
         std::string mode = "w") {
+  //int nu = m->nu;
+  int nu = 20;
     if (mode=="w") {
         // create file
         myfile.open(filename, std::ofstream::out);
@@ -54,7 +61,7 @@ void save_states(std::string filename, double time,
                 myfile<<"qpos,";
             for (int i=0; i<m->nv; i++) 
                 myfile<<"qvel,";
-            for (int i=0; i<m->nu; i++) 
+            for (int i=0; i<nu; i++) 
                 myfile<<"ctrl,";
             for (int i=0; i<m->nsensordata; i++) 
                 myfile<<"snsr,";
@@ -64,7 +71,7 @@ void save_states(std::string filename, double time,
             myfile<<"est_p,";
         for (int i=0; i<m->nv; i++) 
             myfile<<"est_v,";
-        for (int i=0; i<m->nu; i++) 
+        for (int i=0; i<nu; i++) 
             myfile<<"est_c,";
         for (int i=0; i<m->nsensordata; i++) 
             myfile<<"est_s,";
@@ -73,7 +80,7 @@ void save_states(std::string filename, double time,
             myfile<<"stddev_p,";
         for (int i=0; i<m->nv; i++) 
             myfile<<"stddev_v,";
-        for (int i=0; i<m->nu; i++) 
+        for (int i=0; i<nu; i++) 
             myfile<<"stddev_c,";
         for (int i=0; i<m->nsensordata; i++) 
             myfile<<"stddev_s,";
@@ -101,7 +108,7 @@ void save_states(std::string filename, double time,
                 my_ss<<real->qpos[i]<<",";
             for (int i=0; i<m->nv; i++) 
                 my_ss<<real->qvel[i]<<",";
-            for (int i=0; i<m->nu; i++) 
+            for (int i=0; i<nu; i++) 
                 my_ss<<real->ctrl[i]<<",";
             for (int i=0; i<m->nsensordata; i++) 
                 my_ss<<real->sensordata[i]<<",";
@@ -112,7 +119,7 @@ void save_states(std::string filename, double time,
                 my_ss<<est->qpos[i]<<",";
             for (int i=0; i<m->nv; i++) 
                 my_ss<<est->qvel[i]<<",";
-            for (int i=0; i<m->nu; i++) 
+            for (int i=0; i<nu; i++) 
                 my_ss<<est->ctrl[i]<<",";
             for (int i=0; i<m->nsensordata; i++) 
                 my_ss<<est->sensordata[i]<<",";
@@ -123,7 +130,7 @@ void save_states(std::string filename, double time,
                 my_ss<<stddev->qpos[i]<<",";
             for (int i=0; i<m->nv; i++) 
                 my_ss<<stddev->qvel[i]<<",";
-            for (int i=0; i<m->nu; i++) 
+            for (int i=0; i<nu; i++) 
                 my_ss<<stddev->ctrl[i]<<",";
             for (int i=0; i<m->nsensordata; i++) 
                 my_ss<<stddev->sensordata[i]<<",";
@@ -170,53 +177,53 @@ void print_state(const mjModel* m, const mjData* d) {
 
 int main(int argc, const char** argv) {
 
-  int num_threads=1;
-  int estimation_counts;
-  //bool engage; // for real robot?
-  std::string model_name;// = new std::string();
-  std::string output_file;// = new std::string();
-  std::string input_file;
-  double s_noise;
-  double c_noise;
-  double e_noise;
-  double alpha;
-  double beta;
-  double kappa;
-  double diag;
-  double Ws0;
-  double tol;
-  double s_time_noise=0.0;
-  //bool do_correct;
-  bool debug;
-  bool real_robot;
-  bool useUKF;
-  bool render_robot;
+    int num_threads=1;
+    int estimation_counts;
+    //bool engage; // for real robot?
+    std::string model_name;// = new std::string();
+    std::string output_file;// = new std::string();
+    std::string input_file;
+    double s_noise;
+    double c_noise;
+    double e_noise;
+    double alpha;
+    double beta;
+    double kappa;
+    double diag;
+    double Ws0;
+    double tol;
+    double s_time_noise=0.0;
+    //bool do_correct;
+    bool debug;
+    bool real_robot;
+    bool useUKF;
+    bool render_robot;
 
-  try {
-    po::options_description desc("Allowed options");
-    desc.add_options()
-      ("help", "Usage guide")
-      //("engage,e", po::value<bool>(&engage)->default_value(false), "Engage motors for live run.")
-      ("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
-      ("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
-      ("file,f", po::value<std::string>(&input_file)->default_value(""), "Use saved ctrl/sensor data as real robot.")
-      ("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
-      //("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
-      ("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
-      ("real,r", po::value<bool>(&real_robot)->default_value(false), "Use real robot.")
-      ("render,R", po::value<bool>(&render_robot)->default_value(true), "Render the visualizer.")
-      //("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
-      ("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
-      ("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
-      ("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
-      ("alpha,a", po::value<double>(&alpha)->default_value(0.001), "Alpha: UKF param")
-      ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
-      ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
-      ("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
-      ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
-      ("tol,i", po::value<double>(&tol)->default_value(-1.0), "Set Constraint Tolerance (default NONE).")
-      ("UKF,u", po::value<bool>(&useUKF)->default_value(true), "Use UKF or EKF")
-      //("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
+    try {
+        po::options_description desc("Allowed options");
+        desc.add_options()
+            ("help", "Usage guide")
+            //("engage,e", po::value<bool>(&engage)->default_value(false), "Engage motors for live run.")
+            ("model,m", po::value<std::string>(&model_name)->required(), "Model file to load.")
+            ("output,o", po::value<std::string>(&output_file)->default_value("out.csv"), "Where to save output of logged data to csv.")
+            ("file,f", po::value<std::string>(&input_file)->default_value(""), "Use saved ctrl/sensor data as real robot.")
+            ("timesteps,c", po::value<int>(&estimation_counts)->default_value(-1), "Number of times to allow estimator to run before quitting.")
+            //("do_correct,d", po::value<bool>(&do_correct)->default_value(true), "Do correction step in estimator.")
+            ("debug,n", po::value<bool>(&debug)->default_value(false), "Do correction step in estimator.")
+            ("real,r", po::value<bool>(&real_robot)->default_value(false), "Use real robot.")
+            ("render,R", po::value<bool>(&render_robot)->default_value(true), "Render the visualizer.")
+            //("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
+            ("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
+            ("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
+            ("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
+            ("alpha,a", po::value<double>(&alpha)->default_value(0.001), "Alpha: UKF param")
+            ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
+            ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
+            ("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
+            ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
+            ("tol,i", po::value<double>(&tol)->default_value(-1.0), "Set Constraint Tolerance (default NONE).")
+            ("UKF,u", po::value<bool>(&useUKF)->default_value(true), "Use UKF or EKF")
+            //("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 #ifndef __APPLE__
             ("threads,t", po::value<int>(&num_threads)->default_value(omp_get_num_procs()>>1), "Number of OpenMP threads to use.")
 #endif
@@ -268,32 +275,32 @@ int main(int argc, const char** argv) {
 #endif
 
     if (render_robot) {
-      if (init_viz(model_name)) { return 1; }
+        if (init_viz(model_name)) { return 1; }
     }
     else {
-      printf("MuJoCo Pro library version %.2lf\n\n", 0.01 * mj_version());
-      if (mjVERSION_HEADER != mj_version())
-        mju_error("Headers and library have different versions");
+        printf("MuJoCo Pro library version %.2lf\n\n", 0.01 * mj_version());
+        if (mjVERSION_HEADER != mj_version())
+            mju_error("Headers and library have different versions");
 
-      // activate MuJoCo license
-      mj_activate("mjkey.txt");
+        // activate MuJoCo license
+        mj_activate("mjkey.txt");
 
-      if (!model_name.empty()) {
-        //m = mj_loadModel(model_name.c_str(), 0, 0);
-        char error[1000] = "could not load binary model";
-        m = mj_loadXML(model_name.c_str(), 0, error, 1000);
-        if (!m) {
-          printf("%s\n", error);
-          return 1;
+        if (!model_name.empty()) {
+            //m = mj_loadModel(model_name.c_str(), 0, 0);
+            char error[1000] = "could not load binary model";
+            m = mj_loadXML(model_name.c_str(), 0, error, 1000);
+            if (!m) {
+                printf("%s\n", error);
+                return 1;
+            }
+
+            d = mj_makeData(m);
+            mj_forward(m, d);
         }
-
-        d = mj_makeData(m);
-        mj_forward(m, d);
-      }
     }
     int nq = m->nq;
     int nv = m->nv;
-    int nu = m->nu;
+    int nu = 20;//m->nu;
     int nsensordata = m->nsensordata;
 
 
@@ -321,7 +328,7 @@ int main(int argc, const char** argv) {
             //if (m->sensor_type[i] == mjSENS_TORQUE) use_ati = true;
         }
         int* p_gain = new int[nu]; 
-        for (int i=0; i<m->nu; i++) { // use sensors based on mujoco model
+        for (int i=0; i<nu; i++) { // use sensors based on mujoco model
             p_gain[i] = (int) m->actuator_gainprm[i*mjNGAIN];
             //printf("%d\n", p_gain[i]);
         }
@@ -332,7 +339,7 @@ int main(int argc, const char** argv) {
         if (use_rigid || use_markers) printf("Using Phasespace Tracking\n");
 
         if (from_file) {
-            robot = new FileDarwin(d, dt, m->nu, m->nsensordata, input_file, render_robot);
+            robot = new FileDarwin(d, dt, nu, m->nsensordata, input_file, render_robot);
         }
         else {
             robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers, use_raw,
@@ -347,7 +354,7 @@ int main(int argc, const char** argv) {
     }
     else
 #endif
-        robot = new SimDarwin(m, d, 2*dt, s_noise, s_time_noise, c_noise);
+        robot = new SimDarwin(m, d, dt, s_noise, s_time_noise, c_noise);
 
 
     double time = 0.0;
@@ -367,8 +374,16 @@ int main(int argc, const char** argv) {
         walker->Initialize(ctrl);
     }
     if (from_file) {
+      if (input_file.find("fallen") < input_file.length()) { // fallen initial condition
+          printf("Loading fallen initial position.\n");
+        for (int i=0; i<nu; i++) d->ctrl[i] = ctrl[i];
+        for (int i=0; i<nq; i++) d->qpos[i] = fall_qpos[i];
+      }
+      else {
+          printf("Loading crouched initial position.\n");
         for (int i=0; i<nu; i++) d->ctrl[i] = ctrl[i];
         for (int i=0; i<nq; i++) d->qpos[i] = init_qpos[i];
+      }
         //for (int i=0; i<nv; i++) d->qvel[i] = 0;
 
         for (int i=0; i<100; i++)
@@ -394,47 +409,49 @@ int main(int argc, const char** argv) {
         else save_states(output_file, 0.0, d, est_data, est->get_stddev(), 0, 0, "w");
     }
 
+    double render_t = now_t();
     bool exit = render_robot? true : !closeViewer();
     while ( exit ) {
 
-      if (render_robot) {
-        switch (viewer_signal()) { // signal for keyboard presses (triggers walking)
-            case 1:
-                if (walking) {
-                    walker->Stop();
-                    walking = false;
-                    printf("Stopping walk\n");
-                }
-                else {
-                    walker->Start();
-                    walking = true;
-                    printf("Starting to walk\n");
-                }
-                viewer_set_signal(0);
-                break;
-            case 2:
-                if (est) delete est;
-                if (useUKF) {
-                  printf("New UKF initialization\n");
+        if (render_robot) {
+            switch (viewer_signal()) { // signal for keyboard presses (triggers walking)
+                case 1:
+                    if (walking) {
+                        walker->Stop();
+                        walking = false;
+                        printf("Stopping walk\n");
+                    }
+                    else {
+                        walker->Start();
+                        walking = true;
+                        printf("Starting to walk\n");
+                    }
+                    viewer_set_signal(0);
+                    break;
+                case 2:
+                    if (est) delete est;
+                    if (useUKF) {
+                        printf("New UKF initialization\n");
 
-                  est = new UKF(m, d, s_cov, p_cov,
-                      alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
-                } else {
-                  printf("New EKF initialization\n");
-                  //est = new EKF(m, d, e_noise, tol, diag, debug, num_threads);
-                }
+                        est = new UKF(m, d, s_cov, p_cov,
+                                alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
+                    } else {
+                        printf("New EKF initialization\n");
+                        est = new EKF(m, d, e_noise, tol, diag, debug, num_threads);
+                    }
 
-                est_data = est->get_state();
-                if (real_robot) save_states(output_file, 0.0, NULL, est_data, est->get_stddev(), 0, 0, "w");
-                else save_states(output_file, 0.0, d, est_data, est->get_stddev(), 0, 0, "w");
-                viewer_set_signal(0);
-                break;
-            default: 
-                break;
+                    est_data = est->get_state();
+                    if (real_robot) save_states(output_file, 0.0, NULL, est_data, est->get_stddev(), 0, 0, "w");
+                    else save_states(output_file, 0.0, d, est_data, est->get_stddev(), 0, 0, "w");
+                    viewer_set_signal(0);
+                    break;
+                default: 
+                    break;
+            }
         }
-      }
         //double t_2 = now_t();
         std::future<void> t_predict;
+        double thread_t=0;
 
         bool get_data_and_estimate = false;
         if (from_file) { // don't process unless we are estimating
@@ -443,12 +460,17 @@ int main(int argc, const char** argv) {
             if (sense == false // no data
                     && time < 0
                     && render_robot == false) {// not rendering
-              printf("Done with file, readying to exit.\n");
-              exit = false; //shouldCloseViewer(); // end of file
+                printf("Done with file, readying to exit.\n");
+                exit = false; //shouldCloseViewer(); // end of file
             }
         }
         else if (from_hardware && est) {
+          thread_t = now_t();
             t_predict = std::async(std::launch::async, &Estimator::predict_correct_p1, est, ctrl, 0.0072, sensors, conf);
+            get_data_and_estimate = robot->get_sensors(&time, sensors, conf);
+        }
+        else if (from_hardware && !est) {
+          thread_t = now_t();
             get_data_and_estimate = robot->get_sensors(&time, sensors, conf);
         }
         else {
@@ -458,6 +480,7 @@ int main(int argc, const char** argv) {
 
         // simulate and render
         //printf("time: %f\t", d->time);
+        //printf("time to get sensors: %f\n", now_t() - thread_t);
         if (get_data_and_estimate) {
 
             printf("robot hw time: %f\n", time);
@@ -483,7 +506,6 @@ int main(int argc, const char** argv) {
                 }
             }
 
-
             //////////////////////////////////
             double t1 = now_t();
             //if (est) est->correct(sensors);
@@ -495,6 +517,10 @@ int main(int argc, const char** argv) {
 
             double t2 = now_t();
 
+            if (from_hardware) 
+            printf("\n\t\t estimator predict %f ms, correct %f ms, total %f ms\n",
+                    t1-thread_t, t2-t1, t2-thread_t);
+            else
             printf("\n\t\t estimator predict %f ms, correct %f ms, total %f ms\n",
                     t1-t0, t2-t1, t2-t0);
 
@@ -518,7 +544,7 @@ int main(int argc, const char** argv) {
             //printf("\n\n");
 
             if (est && est_data) {
-                if (real_robot) save_states(output_file, time, NULL, est_data, est->get_stddev(), t1-t0, t2-t1, "a");
+                if (real_robot) save_states(output_file, time, NULL, est_data, est->get_stddev(), t1-thread_t, t2-thread_t, "a");
                 else save_states(output_file, time, d, est_data, est->get_stddev(), t1-t0, t2-t1, "a");
             }
 
@@ -534,9 +560,9 @@ int main(int argc, const char** argv) {
                 estimation_counts--;
             }
             else if (estimation_counts == 0) {
-              printf("Done with limited runtime.\n");
-              if (render_robot) shouldCloseViewer();
-              else exit = true;
+                printf("Done with limited runtime.\n");
+                if (render_robot) shouldCloseViewer();
+                else exit = true;
             }
         }
         else {
@@ -544,6 +570,8 @@ int main(int argc, const char** argv) {
         }
 
         if (render_robot) {
+          //printf("Render time %f\n", now_t() - render_t);
+          render_t=now_t();
             if (est) {
                 // render sigma points
                 // TODO rendering is slow on macs
@@ -564,10 +592,12 @@ int main(int argc, const char** argv) {
     }
 
     if (render_robot) {
-      end_viz();
+        end_viz();
     }
     else {
-      mj_deactivate();
+        mj_deactivate();
+        mj_deleteData(d);
+        mj_deleteModel(m);
     }
 
     if (est && est_data) {
@@ -575,12 +605,6 @@ int main(int argc, const char** argv) {
         else save_states(output_file, time, d, est_data, est->get_stddev(), 0, 0, "c");
         // close file
     }
-
-    // end_estimator
-    // end darwin 'robot'
-    //for(int id = 0; id < nq; id++) {
-    //  printf("%f ", qpos[id]);
-    //}
 
     //printf("\n");
     delete[] qpos;

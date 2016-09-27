@@ -472,14 +472,14 @@ void Walking::Process(double dt, double * gyro, double* ctrl)
   c_swap = 0;
 
   if (m_Time <= m_SSP_Time_Start_L) {
-    x_move_l = wsin(m_SSP_Time_Start_L, m_X_Move_PeriodTime, m_X_Move_Phase_Shift + 2 * PI / m_X_Move_PeriodTime * m_SSP_Time_Start_L, m_X_Move_Amplitude, m_X_Move_Amplitude_Shift);
-    y_move_l = wsin(m_SSP_Time_Start_L, m_Y_Move_PeriodTime, m_Y_Move_Phase_Shift + 2 * PI / m_Y_Move_PeriodTime * m_SSP_Time_Start_L, m_Y_Move_Amplitude, m_Y_Move_Amplitude_Shift);
-    z_move_l = wsin(m_SSP_Time_Start_L, m_Z_Move_PeriodTime, m_Z_Move_Phase_Shift + 2 * PI / m_Z_Move_PeriodTime * m_SSP_Time_Start_L, m_Z_Move_Amplitude, m_Z_Move_Amplitude_Shift);
-    c_move_l = wsin(m_SSP_Time_Start_L, m_A_Move_PeriodTime, m_A_Move_Phase_Shift + 2 * PI / m_A_Move_PeriodTime * m_SSP_Time_Start_L, m_A_Move_Amplitude, m_A_Move_Amplitude_Shift);
-    x_move_r = wsin(m_SSP_Time_Start_L, m_X_Move_PeriodTime, m_X_Move_Phase_Shift + 2 * PI / m_X_Move_PeriodTime * m_SSP_Time_Start_L, -m_X_Move_Amplitude, -m_X_Move_Amplitude_Shift);
-    y_move_r = wsin(m_SSP_Time_Start_L, m_Y_Move_PeriodTime, m_Y_Move_Phase_Shift + 2 * PI / m_Y_Move_PeriodTime * m_SSP_Time_Start_L, -m_Y_Move_Amplitude, -m_Y_Move_Amplitude_Shift);
-    z_move_r = wsin(m_SSP_Time_Start_R, m_Z_Move_PeriodTime, m_Z_Move_Phase_Shift + 2 * PI / m_Z_Move_PeriodTime * m_SSP_Time_Start_R, m_Z_Move_Amplitude, m_Z_Move_Amplitude_Shift);
-    c_move_r = wsin(m_SSP_Time_Start_L, m_A_Move_PeriodTime, m_A_Move_Phase_Shift + 2 * PI / m_A_Move_PeriodTime * m_SSP_Time_Start_L, -m_A_Move_Amplitude, -m_A_Move_Amplitude_Shift);
+    x_move_l = wsin(m_SSP_Time_Start_L,m_X_Move_PeriodTime,m_X_Move_Phase_Shift + 2*PI / m_X_Move_PeriodTime*m_SSP_Time_Start_L, m_X_Move_Amplitude, m_X_Move_Amplitude_Shift);
+    y_move_l = wsin(m_SSP_Time_Start_L,m_Y_Move_PeriodTime,m_Y_Move_Phase_Shift + 2*PI / m_Y_Move_PeriodTime*m_SSP_Time_Start_L, m_Y_Move_Amplitude, m_Y_Move_Amplitude_Shift);
+    z_move_l = wsin(m_SSP_Time_Start_L,m_Z_Move_PeriodTime,m_Z_Move_Phase_Shift + 2*PI / m_Z_Move_PeriodTime*m_SSP_Time_Start_L, m_Z_Move_Amplitude, m_Z_Move_Amplitude_Shift);
+    c_move_l = wsin(m_SSP_Time_Start_L,m_A_Move_PeriodTime,m_A_Move_Phase_Shift + 2*PI / m_A_Move_PeriodTime*m_SSP_Time_Start_L, m_A_Move_Amplitude, m_A_Move_Amplitude_Shift);
+    x_move_r = wsin(m_SSP_Time_Start_L,m_X_Move_PeriodTime,m_X_Move_Phase_Shift + 2*PI / m_X_Move_PeriodTime*m_SSP_Time_Start_L, -m_X_Move_Amplitude, -m_X_Move_Amplitude_Shift);
+    y_move_r = wsin(m_SSP_Time_Start_L,m_Y_Move_PeriodTime,m_Y_Move_Phase_Shift + 2*PI / m_Y_Move_PeriodTime*m_SSP_Time_Start_L, -m_Y_Move_Amplitude, -m_Y_Move_Amplitude_Shift);
+    z_move_r = wsin(m_SSP_Time_Start_R,m_Z_Move_PeriodTime,m_Z_Move_Phase_Shift + 2*PI / m_Z_Move_PeriodTime*m_SSP_Time_Start_R, m_Z_Move_Amplitude, m_Z_Move_Amplitude_Shift);
+    c_move_r = wsin(m_SSP_Time_Start_L,m_A_Move_PeriodTime,m_A_Move_Phase_Shift + 2*PI / m_A_Move_PeriodTime*m_SSP_Time_Start_L, -m_A_Move_Amplitude, -m_A_Move_Amplitude_Shift);
     pelvis_offset_l = 0;
     pelvis_offset_r = 0;
   } else if (m_Time <= m_SSP_Time_End_L) {

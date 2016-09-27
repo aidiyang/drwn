@@ -1,0 +1,568 @@
+<mujoco model="darwin"> 
+  <compiler angle="radian" coordinate="local" inertiafromgeom="true" meshdir="meshes/" settotalmass="2.97" />
+  <!--
+   <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
+    <option	timestep="0.00025" gravity="0 0 0"/>
+    <option timestep='0.0025' iterations="50" solver="PGS" gravity="0 0 -9.81 ">
+
+      <geom contype='1' conaffinity='1' condim='1' rgba='0.8 0.6 .4 1'
+        margin="0.001" solref=".02 1" solimp=".8 .8 .01" material="meshmat"/>
+      <geom material="meshmat" margin='0.0000000001' />
+
+      <flag constraint="disable"/>
+soft:
+        margin="0.001" solref="1 1" solimp=".001 .001 .01" material="meshmat"/>
+   -->
+
+    <option	timestep="0.008" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
+    </option>
+
+    <default>
+      <!--
+      <geom condim='3' rgba='0.8 0.6 .4 1' /> -->
+      <geom material="meshmat" />
+      <!--
+        margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
+        -->
+      <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
+      <position ctrllimited='true' kp='20'/>
+
+      <default class='torso'>
+        <geom contype='1' conaffinity='0' rgba='.79 .52 .43 1'/>
+      </default>
+      <default class='left leg'>
+        <geom contype='2' conaffinity='0' rgba='.69 .72 .43 1' condim='1'
+          solref=".02 0.1" solimp="0.9 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
+        <!-- 
+             solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
+              -->
+      </default>
+      <default class='right leg'>
+        <geom contype='4' conaffinity='0' rgba='.29 .72 .43 1' condim='1'
+          solref=".02 0.1" solimp="0.9 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
+        <!--
+             solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
+              -->
+      </default>
+      <default class='forearm'>
+        <geom contype='8' conaffinity='0' rgba='.49 .22 .43 1'/>
+      </default>
+      <default class='visual'>
+        <geom contype='0' conaffinity='0' rgba='.49 .22 .43 1'/>
+      </default>
+      <default class='uppers'>
+        <geom contype='0' conaffinity='4' rgba='.9 .22 .43 1'/>
+        <!-- collides with head (4) and torso (2) -->
+      </default>
+      <default class='hands'>
+        <geom contype='6' conaffinity='0' rgba='.49 .22 .43 1'
+          solref=".02 0.1" solimp="0.2 0.8 0.1" friction="1 0.05 0.001" margin='0.001' />
+      </default>
+      <default class='ps_marker'>
+        <site type="box" size="0.0035 0.003 0.001" rgba="0.5 0.5 1 1" />
+      </default>
+      <default class='ps_marker1'>
+        <site type="box" size="0.0035 0.003 0.001" rgba="1 0 0 1" />
+      </default>
+    </default>
+
+    <!--<size nuserdata="15" />
+         1e-0 1e-7 1e-0 1e-0 1e-7 1e-5 1e-4 1e-5 1e-4 1e-5 1e-3 1e-2 1e-4 1e-5 1e-2"/>
+         -->
+    <custom>
+        <numeric name="snsr_covar" size="15" data="
+        1e-3
+        1e-6
+        1e-2
+        1e+100
+        1e-7
+        1e-3
+        1e-0
+        1e-0
+        1e-0
+        1e-0
+        1e-0
+        1e+100 1e-0 1e-0 1e-0
+        "
+        />
+<!-- Accelerometer -->
+<!-- Gyro          -->
+<!-- Force         -->
+<!-- Torque        -->
+<!-- JointPos      -->
+<!-- JointVel      -->
+<!-- TendonPos     -->
+<!-- TendonVel     -->
+<!-- ActuatorPos   -->
+<!-- ActuatorVel   -->
+<!-- ActuatorFrc   -->
+<!-- SitePos       -->
+<!-- SiteQuat      -->
+<!-- Magnetometer  -->
+<!-- Default       -->
+      <numeric name="t_rot" size="9" data=" 
+        1 0 0 0 1 0 0 0 1"/>
+      <numeric name="t_rot2" size="9" data=" 
+        1 2 2 0 1 0 2 2 1"/>
+      <numeric name="covar_diag" size="26" data="
+        1e-100
+        1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
+      <numeric name="time_var" size='1' data='0.00032' />
+      <numeric name="mass_var" size='1' data='0.04' />
+      <!--
+      -->
+    </custom>
+
+    <asset>
+      <mesh file="body_coll.stl"/>
+      <mesh file="neck_coll.stl"/>
+      <mesh file="head_coll.stl"/>
+      <mesh file="shoulder_l_coll.stl"/>
+      <mesh file="arm_high_l_coll.stl"/>
+      <mesh file="shoulder_r_coll.stl"/>
+      <mesh file="arm_high_r_coll.stl"/>
+      <mesh file="pelvis_l_coll.stl"/>
+      <mesh file="thigh1_l_coll.stl"/>
+      <mesh file="thigh2_l_coll.stl"/>
+      <mesh file="tibia_l_coll.stl"/>
+      <mesh file="ankle1_l_coll.stl"/>
+      <mesh file="ankle2_l_coll.stl"/>
+      <mesh file="pelvis_r_coll.stl"/>
+      <mesh file="thigh1_r_coll.stl"/>
+      <mesh file="thigh2_r_coll.stl"/>
+      <mesh file="tibia_r_coll.stl"/>
+      <mesh file="tibia_naked.stl" scale="0.001 0.001 0.001"/>
+      <mesh file="ankle1_r_coll.stl"/>
+      <mesh file="ankle2_r_coll.stl"/>
+      <mesh file="ankle_coll.stl"/>
+      <mesh file="foot_left.stl" scale="0.001 0.001 0.001"/>
+      <mesh file="foot_right.stl" scale="0.001 0.001 0.001"/>
+      <mesh file="foot_bracket.stl" scale="0.001 0.001 0.001"/>
+      <mesh file="arm_metal_lowres.stl" scale="0.001 0.001 0.001"/>
+
+      <material name="meshmat" rgba="0.5 0.5 0.5 1" shininess="0.1" specular="1"/>
+      <material name="boring" reflectance="0.00005" rgba="0.7 0.6 0.6 1" shininess="1" specular=".1"/>
+      <material name="boxmat" rgba=".9 0 0 1"/>
+      <texture type="skybox" builtin="gradient" width="100" height="100" rgb1=".4 .6 .8" rgb2="0 0 0"/>  
+    </asset>
+
+    <contact>       
+ <!-- <exclude body1="head" body2="torso"/>
+      <exclude body1="foot_l" body2="tibia_l"/>
+      <exclude body1="foot_r" body2="tibia_r"/> -->
+      
+      <exclude body1="ankle1_r" body2="tibia_r"/>
+      <exclude body1="tibia_r" body2="thigh2_r"/>
+
+      <exclude body1="ankle1_l" body2="tibia_l"/>
+      <exclude body1="tibia_l" body2="thigh2_l"/>
+
+ <!-- <pair geom1="thigh2_l" geom2="torso"/>
+      <pair geom1="thigh2_r" geom2="torso"/>
+      <pair geom1="thigh2_l" geom2="torso"/>
+      <pair geom1="thigh2_r" geom2="torso"/> -->
+      <exclude body1="arm_high_r" body2="arm_high_l"/>
+    </contact>
+
+
+    <worldbody>
+      <geom material="boring" pos="0 0 0" size=".5 .5 .5" type="plane" contype='0' conaffinity='15'/>
+      <body name="torso" pos="0 0 0.37">
+        <inertial diaginertia="6.53693 6.39822 1.88344" mass="0.975599" pos="-0.003053 -0.038651 -0.019268" quat="-0.00879356 0.867004 0.0524199 0.495458"/>
+        <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+        <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+        <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+
+        <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+        <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+        <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+        <!--
+        -->
+        <!--
+        <joint type="free" limited='false' />
+        -->
+        <geom name="torso" material="meshmat" contype="0" conaffinity="0" mesh="body_coll" type="mesh" class='torso'/> <!-- TODO fix contact -->
+        <site name="imu" pos="0.0 0 -0.04" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
+
+        <site class="ps_marker1" name="ps_t7" pos="0.035 -0.018 -0.018" euler="0 1.31 1.571" />
+        <site class="ps_marker1" name="ps_t3" pos="0.035  0.018 -0.018" euler="0 1.31 1.571" />
+        <site class="ps_marker" name="ps_t6" pos="0.004 -0.045 0.0215" euler="0 0.1 1.571" />
+        <site class="ps_marker" name="ps_t2" pos="0.004  0.045 0.0215" euler="0 0.1 1.571" />
+        <site class="ps_marker" name="ps_t4" pos="-0.044 -0.056 0.026" euler=" 0.65 0 0" />
+        <site class="ps_marker" name="ps_t0" pos="-0.044  0.056 0.026" euler="-0.65 0 0" />
+        <site class="ps_marker" name="ps_t1" pos="-0.075 -0.054 -0.043" euler="1.571 -1.1 1.571" />
+        <site class="ps_marker" name="ps_t5" pos="-0.075  0.054 -0.043" euler="1.571  1.1 1.571" />
+
+        <body name="neck" pos="0 0 0.0235" quat="0.707107 0 0 0.707107">
+          <inertial diaginertia="0.00482356 0.00482356 0.00482356" mass="0.0243577" pos="0.001424 -0.016567 -0.007128" quat="0.640564 0.00150549 0.00338323 0.767896"/>
+          <joint axis="0 0 1" name="head_pan" pos="0 0 0" range="-3.141592 3.141592" type="hinge"/>
+          <geom class="visual" material="meshmat" mesh="neck_coll" type="mesh" />
+          <body name="head" pos="0 0 0.02715" euler="-1.571 -1.571 -0.2618" >
+            <inertial diaginertia="0.158397 0.123969 0.1178" mass="0.158042" pos="6.4e-005 -0.018565 -0.007667" quat="0.504401 0.495706 -0.489128 0.510499"/>
+            <joint axis="0 0 1" name="head_tilt" pos="0 0 0" range="-.4363323 .959931089" type="hinge"/>
+            <!--<geom class="hands" mesh="head_coll" type="mesh" contype="6" conaffinity="0" />  TODO fix contact later -->
+            <geom mesh="head_coll" type="mesh" contype="0" conaffinity="0" />
+            <geom class="hands" type='sphere' size='.05' pos='0 -0.018 0' rgba='1 0 0 0.4' />
+          </body>
+        </body>
+
+        <body name="shoulder_l" pos="0 0.06035 0"  euler='-1.571 0 -1.571'>
+          <inertial diaginertia="0.0118742 0.00851644 0.00537304" mass="0.013" pos="-0.0135226 0.0102641 0.00139357" quat="0.89853 0.0814684 0.0409894 0.429332"/>
+          <joint axis="0 0 1" name="l_shoulder_pitch" pos="0 0 0" range="-2.61799 2.61799" type="hinge"/>
+          <geom class="visual" material="meshmat" mesh="shoulder_l_coll" type="mesh"/>
+
+          <body name="arm_high_l" pos="-0.016 0 0.025" euler='1.571 0 -0.785398' >
+            <inertial diaginertia="0.122178 0.113353 0.0379938" mass="0.17837715" pos="-0.036239 0.000734 0.00066" quat="0.713991 0.698029 0.0283632 -0.0465622"/>
+            <joint axis="0 0 1" name="l_shoulder_roll" pos="0 0 0" range="-1.308997 2.356194" type="hinge"/>
+            <geom class="uppers" material="meshmat" mesh="arm_high_l_coll" type="mesh"/>
+
+            <body name="arm_low_l" pos="-.06 0 -.016" quat="0 0 0.707107 0.707107">
+              <inertial diaginertia="0.0875091 0.0872503 0.0201335" mass="0.037" pos=".013 -.015 0" quat=".707107 0 0 .315"/>
+              <joint axis="0 0 1" name="l_elbow" pos="0 0 0" range="-1.3 1.57" type="hinge"/>
+              <geom contype='0' conaffinity='0' material="meshmat" mesh="shoulder_l_coll" pos='.016 -.025 0' euler='-1.571 0 0' type="mesh"/>
+              <geom contype='0' conaffinity='6' mesh="arm_metal_lowres" pos='.021 0.0055 -0.081' euler='0 -1.57 0' type="mesh"/>
+              <site class="ps_marker" name="ps15" pos="0.017 -0.08 0.0171" />
+              <site class="ps_marker" name="ps14" pos="-0.0021 -0.055 0.009" euler="1.571 1.571 0" />
+                <geom class="hands" type='sphere' mass='0' size='0.001 ' pos='.016 -0.116 -0.002' euler='0 -1.57 0' rgba='1 0 0 1'/>
+            </body>
+          </body>
+        </body>
+        <body name="shoulder_r" pos="0 -0.06035 0" euler='1.571 0 1.571'>
+          <inertial diaginertia="0.0118742 0.00851644 0.00537304" mass="0.013" pos="-0.013523 0.010264 0.001394" quat="0.89853 0.0814684 0.0409894 0.429332"/>
+          <joint axis="0 0 1" name="r_shoulder_pitch" pos="0 0 0" range="-2.61799 2.61799" type="hinge"/>
+          <geom class="visual" material="meshmat" mesh="shoulder_r_coll" type="mesh"/>
+
+          <body name="arm_high_r" pos="-0.017 0 0.02478"  euler='-1.571 0 0.785398' >
+            <inertial diaginertia="0.122178 0.113353 0.0379938" mass="0.168377" pos="-0.036239 0.000734 -0.00066" quat="0.713991 0.698029 0.0283632 -0.0465622"/>
+            <joint axis="0 0 1" name="r_shoulder_roll" pos="0 0 0" range="-2.356194 1.308997" type="hinge"/>
+            <geom class="uppers" material="meshmat" mesh="arm_high_r_coll" type="mesh"/>
+
+            <body name="arm_low_r" pos="-0.06 0 -0.016" euler="1.571 3.14 0" >
+              <inertial diaginertia="0.0875091 0.0872503 0.0201335" mass="0.037" pos="0 0 0" quat="0.362962 0.448533 -0.589325 0.565485"/>
+              <joint axis="0 0 -1" name="r_elbow" pos="0 0 0" range="-1.57 1.3" type="hinge"/>
+              <geom contype='0' conaffinity='0' material="meshmat" mesh="shoulder_l_coll" pos='.016 -.025 0' euler='-1.571 0 0' type="mesh"/>
+              <geom contype='0' conaffinity='6' mesh="arm_metal_lowres" pos='.012 0.0055 0.081' euler='0 1.57 0' type="mesh"/>
+              <site class="ps_marker" name="ps13" pos="0.017 -0.08 -0.0171" />
+              <site class="ps_marker" name="ps12" pos="-0.0021 -0.055 -0.009" euler="1.571 1.571 0" />
+                <geom class="hands" type='sphere' mass='0' size='0.001 ' pos='.016 -0.116 0.002' euler='0 -1.57 0' rgba='1 0 0 1'/>
+            </body>
+          </body>
+        </body>
+
+        <body name="pelvis_l" pos="-0.005 0.037 -0.09355" euler="0 3.1415 1.5708">
+          <inertial diaginertia="0.122641 0.11137 0.0411301" mass="0.027069" pos="0 0.00048 0.018437" quat="0.998273 -0.0514899 -0.00396715 0.0279885"/>
+          <joint axis="0 0 1" name="l_hip_yaw" pos="0 0 0" range="-.9250245036 2.14675498" type="hinge"/>
+          <geom class="visual" material="meshmat" mesh="pelvis_l_coll" type="mesh"/>
+          <body name="thigh1_l" pos="0 0 0.028652" quat="0.707107 0.707107 0 0">
+            <inertial diaginertia="0.114985 0.0979692 0.0327798" mass="0.167107" pos="7.9e-005 0.018242 0.013873" quat="0.485806 0.506867 -0.504884 0.502165"/>
+            <joint axis="0 0 1" name="l_hip_roll" pos="0 0 0" range="-1.0297442587 .7853981634" type="hinge"/>
+            <geom material="meshmat" mesh="thigh1_l_coll" type="mesh"/>
+            <body name="thigh2_l" pos="0 0 0" quat="0.5 0.5 -0.5 -0.5">
+              <inertial diaginertia="0.114985 0.0979692 0.0327798" mass="0.119043" pos="-0.062965 -0.000323 0.000692" quat="0.485806 0.506867 -0.504884 0.502165"/>
+              <joint axis="0 0 1" name="l_hip_pitch" pos="0 0 0" range="-.5061454831 1.745329252" type="hinge"/>
+              <geom class="uppers" material="meshmat" mesh="thigh2_l_coll" type="mesh"/>
+
+              <body name="tibia_l" pos="-0.093 0 0">
+                <inertial diaginertia="0.115891 0.0933882 0.043901" mass="0.0703098" pos="-0.053955 0.006548 -0.000592" quat="0.456916 0.538297 -0.548699 0.447654"/>
+                <joint axis="0 0 1" name="l_knee" pos="0 0 0" range="-2.2689280276  .1047197551" type="hinge"/>
+                <geom contype='0' conaffinity='0' mesh="tibia_naked" pos='0.145 0 0.037' euler='1.57 0 -1.57' type="mesh"/>
+
+                <body name="ankle1_l" pos="-0.093 0 0" quat="0 1 0 0">
+                  <inertial diaginertia="0.120855 0.109532 0.0411304" mass="0.167108" pos="-0.000214 -0.018536 0.013873" quat="0.997965 0.0519065 0.00385358 -0.0368208"/>
+                  <joint axis="0 0 1" name="l_ankle_pitch" pos="0 0 0" range="-1.3962634016 1.2566370614" type="hinge"/>
+                  <geom material="meshmat" mesh="ankle1_l_coll" type="mesh"/>
+
+                  <body name="foot_l" pos="0 0 0" quat="0.707107 -0.707107 0 0">
+                    <inertial diaginertia="0.120855 0.109532 0.0411304" mass="0.0794462" pos="-0.025995 -0.009506 -0.000503" quat="0.997965 0.0519065 0.00385358 -0.0368208"/>
+                    <joint axis="0 0 1" name="l_ankle_roll" pos="0 0 0" range="-1.0995574288 .7679448709" type="hinge"/>
+                    <geom class="visual" material="meshmat" mesh="ankle_coll" pos="-0.033 0 0"   euler="0 1.5708 1.5708" type="mesh"/>
+                    <body name="toes_l" pos="-0.015 0 0" quat="1.0 0 0 0">
+                      <site name="left_ati" pos="-0.0287 0 0.0" euler="0 1.5708 0" type="cylinder" size="0.0125 0.0108" rgba="1 0 0 1" />
+                      <!--
+                      <geom class='left leg' type='box' group='1' size='.001 .033 .052' pos='-.043 -.0105 0' />
+                      -->
+                      <geom class='left leg' type='box' group='1' size='.0070 .033 .045' pos='-.0355 -.0105 0' />
+                      <geom class='left leg' type='box' group='1' size='.0075 .021 .052' pos='-.0355 -.0105 0' />
+
+                      <geom class="visual" material="meshmat" mesh="foot_left" pos="-0.040 -0.01 0"    euler="0 0 -1.5708" type="mesh"/>
+                      <geom class="visual" material="meshmat" mesh="foot_bracket" pos="0.23 0.037 0.0" euler="0 0 -1.5708" type="mesh"/>
+                      <site class="ps_marker1" name="ps9" pos="-0.0265 -0.035 -0.044" euler="0 1.571 0" />
+                      <site class="ps_marker" name="ps11" pos="-0.031 -0.035 0.044" euler="1.571 1.571 0" />
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+        <body name="pelvis_r" pos="-0.005 -0.037 -0.09355" euler="0 3.1415 -1.5708">
+          <inertial diaginertia="0.122641 0.11137 0.0411301" mass="0.027069" pos="0 0.00048 0.018437" quat="0.998273 -0.0514899 -0.00396715 0.0279885"/>
+          <joint axis="0 0 1" name="r_hip_yaw" pos="0 0 0" range="-2.14675498 .9250245036" type="hinge"/>
+          <geom class="visual" material="meshmat" mesh="pelvis_r_coll" type="mesh"/>
+
+          <body name="thigh1_r" pos="0 0 0.028652" quat="0.707107 -0.707107 0 0">
+            <inertial diaginertia="0.114985 0.0979692 0.0327798" mass="0.167107" pos="7.9e-005 -0.018242 0.0138735" quat="0.485806 0.506867 -0.504884 0.502165"/>
+            <joint axis="0 0 1" name="r_hip_roll" pos="0 0 0" range="-.7853981634 1.0297442587" type="hinge"/>
+            <geom material="meshmat" mesh="thigh1_r_coll" type="mesh"/>
+
+            <body name="thigh2_r" pos="0 0 0" quat="0.5 0.5 -0.5 -0.5">
+              <inertial diaginertia="0.114985 0.0979692 0.0327798" mass="0.119043" pos="0.062965 -0.000323 0.000692" quat="0.485806 0.506867 -0.504884 0.502165"/>
+              <joint axis="0 0 1" name="r_hip_pitch" pos="0 0 0" range="-1.745329252 .5061454831" type="hinge"/>
+              <geom class="uppers" material="meshmat" mesh="thigh2_r_coll" type="mesh"/>
+
+              <body name="tibia_r" pos="0.093 0 0">
+                <inertial diaginertia="0.115891 0.0933882 0.043901" mass="0.0703098" pos="0.053955 0.006548 -0.000592" quat="0.456916 0.538297 -0.548699 0.447654"/>
+                <joint axis="0 0 1" name="r_knee" pos="0 0 0" range="-.1047197551  2.2689280276" type="hinge"/>
+                <geom contype='0' conaffinity='0' mesh="tibia_naked" pos='-0.145 0 -0.037' euler='1.57 0 1.57' type="mesh"/>
+
+                <body name="ankle1_r" pos="0.093 0 0" quat="0 1 0 0">
+                  <inertial diaginertia="0.120855 0.109532 0.0411304" mass="0.167108" pos="-0.000214 -0.018536 -0.013873" quat="0.997965 0.0519065 0.00385358 -0.0368208"/>
+                  <joint axis="0 0 1" name="r_ankle_pitch" pos="0 0 0" range="-1.2566370614 1.3962634016" type="hinge"/>
+                  <geom material="meshmat" mesh="ankle1_r_coll" type="mesh" />
+
+                  <body name="foot_r" pos="0 0 0" quat="0.707107 -0.707107 0 0">
+                    <inertial diaginertia="0.120855 0.109532 0.0411304" mass="0.0794462" pos="0.025995 -0.009506 -0.000503" quat="0.997965 0.0519065 0.00385358 -0.0368208"/>
+                    <joint axis="0 0 1" name="r_ankle_roll" pos="0 0 0" range="-.7679448709 1.0995574288" type="hinge"/>
+
+                    <geom class="visual" material="meshmat" mesh="ankle_coll" pos="0.033 0 0" euler="0 -1.5708 -1.5708" type="mesh"/>
+                    <body name="toes_r" pos="0.015 0 0" quat="1.0 0 0 0">
+                      <site name="right_ati" pos="0.0287 0 0.0" euler="0 -1.5708 0" type="cylinder" size="0.0125 0.0108" rgba="1 0 0 1" />
+                      <!--
+                      <geom class='right leg' type='box' group='1' size='.001 .033 .052' pos='.043 -.0105 0' />
+                      -->
+                      <geom class='right leg' type='box' group='1' size='.0070 .033 .045' pos='.0355 -.0105 0' />
+                      <geom class='right leg' type='box' group='1' size='.0075 .021 .052' pos='.0355 -.0105 0' />
+
+                      <geom class="visual" material="meshmat" mesh="foot_right" pos="0.04 -0.01 0"    euler="3.14159 0 1.5708" type="mesh"/>
+                      <geom class="visual" material="meshmat" mesh="foot_bracket" pos="-0.23 0.037 0.0" euler="3.14159 0 1.5708" type="mesh"/>
+                      <site class="ps_marker1" name="ps8" pos="0.0265 -0.035 -0.044" euler="0 1.571 0" />
+                      <site class="ps_marker" name="ps10" pos="0.031  -0.035  0.044" euler="1.571 1.571 0" />
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </worldbody>
+
+    <sensor>
+      <!--
+      <jointpos joint="rootx" />
+      <jointpos joint="rooty" />
+      <jointpos joint="rootz" />
+      <jointpos joint="rootc" />
+      <jointpos joint="roota" />
+      <jointpos joint="rootb" />
+
+      <jointvel joint="rootx" />
+      <jointvel joint="rooty" />
+      <jointvel joint="rootz" />
+      <jointvel joint="rootc" />
+      <jointvel joint="roota" />
+      <jointvel joint="rootb" />
+      -->
+
+      <!--
+            This ordering is to fascilitate getting data from hardware
+            position data
+            velocity data
+            imu
+            force sensors, right
+            force sensors, left
+      -->
+
+      <jointpos joint="r_shoulder_pitch" />
+      <jointpos joint="l_shoulder_pitch" />
+      <jointpos joint="r_shoulder_roll" />
+      <jointpos joint="l_shoulder_roll" />
+      <jointpos joint="r_elbow" />
+      <jointpos joint="l_elbow" />
+      <jointpos joint="r_hip_yaw" />
+      <jointpos joint="l_hip_yaw" />
+      <jointpos joint="r_hip_roll" />
+      <jointpos joint="l_hip_roll" />
+      <jointpos joint="r_hip_pitch" />
+      <jointpos joint="l_hip_pitch" />
+      <jointpos joint="r_knee" />
+      <jointpos joint="l_knee" />
+      <jointpos joint="r_ankle_pitch" />
+      <jointpos joint="l_ankle_pitch" />
+      <jointpos joint="r_ankle_roll" />
+      <jointpos joint="l_ankle_roll" />
+      <jointpos joint="head_pan" />
+      <jointpos joint="head_tilt" />
+
+      <!--
+      <jointvel joint="rootx" />
+      <jointvel joint="rooty" />
+      <jointvel joint="rootz" />
+      <jointvel joint="rootc" />
+      <jointvel joint="roota" />
+      <jointvel joint="rootb" />
+      -->
+
+      <jointvel joint="r_shoulder_pitch" />
+      <jointvel joint="l_shoulder_pitch" />
+      <jointvel joint="r_shoulder_roll" />
+      <jointvel joint="l_shoulder_roll" />
+      <jointvel joint="r_elbow" />
+      <jointvel joint="l_elbow" />
+      <jointvel joint="r_hip_yaw" />
+      <jointvel joint="l_hip_yaw" />
+      <jointvel joint="r_hip_roll" />
+      <jointvel joint="l_hip_roll" />
+      <jointvel joint="r_hip_pitch" />
+      <jointvel joint="l_hip_pitch" />
+      <jointvel joint="r_knee" />
+      <jointvel joint="l_knee" />
+      <jointvel joint="r_ankle_pitch" />
+      <jointvel joint="l_ankle_pitch" />
+      <jointvel joint="r_ankle_roll" />
+      <jointvel joint="l_ankle_roll" />
+      <jointvel joint="head_pan" />
+      <jointvel joint="head_tilt" />
+
+      <accelerometer name="accel" site="imu" />
+      <gyro name="gyro"           site="imu" />
+
+      <force  name="right_f"   site="right_ati" />
+      <torque name="right_t"   site="right_ati" />
+
+      <force  name="left_f"    site="left_ati" />
+      <torque name="left_t"    site="left_ati" />
+
+      <sitepos name="mocap_t1"       site="ps_t0" />
+      <sitepos name="mocap_t2"       site="ps_t1" />
+      <sitepos name="mocap_t3"       site="ps_t2" />
+      <sitepos name="mocap_t4"       site="ps_t3" />
+      <sitepos name="mocap_t5"       site="ps_t4" />
+      <sitepos name="mocap_t6"       site="ps_t5" />
+      <sitepos name="mocap_t7"       site="ps_t6" />
+      <sitepos name="mocap_t8"       site="ps_t7" />
+
+      <sitepos name="mocap1"       site="ps8" />
+      <sitepos name="mocap2"       site="ps9" />
+      <sitepos name="mocap3"       site="ps10" />
+      <sitepos name="mocap4"       site="ps11" />
+      <sitepos name="mocap5"       site="ps12" />
+      <sitepos name="mocap6"       site="ps13" />
+      <sitepos name="mocap7"       site="ps14" />
+      <sitepos name="mocap8"       site="ps15" />
+
+      <!--
+      <sitepos name="mocap"       site="imu" />
+      <sitepos name="mocap1"       site="right_ati" />
+      <sitepos name="mocap2"       site="left_ati" />
+      -->
+    </sensor>
+
+    <actuator>
+      <position name='0_r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
+      <position name='1_l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5 1.5' />
+      <position name='2_r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.25'  	/>
+      <position name='3_l_shoulder_roll'  	joint='l_shoulder_roll'     ctrlrange='-1.25 .85' />
+      <position name='4_r_elbow'          	joint='r_elbow'             ctrlrange='-1.55 1.25'	/>
+      <position name='5_l_elbow'          	joint='l_elbow'             ctrlrange='-1.25 1.55' />
+      <position name='6_r_hip_yaw'        	joint='r_hip_yaw'           ctrlrange='-1 .9'   	/>
+      <position name='7_l_hip_yaw'        	joint='l_hip_yaw'           ctrlrange='-.9 1'   />
+      <position name='8_r_hip_roll'       	joint='r_hip_roll'          ctrlrange='-.7 .45'   />
+      <position name='9_l_hip_roll'       	joint='l_hip_roll'          ctrlrange='-.45 .7'   />
+      <position name='10_r_hip_pitch'      	joint='r_hip_pitch'         ctrlrange='-1.7 .45'  />
+      <position name='11_l_hip_pitch'      	joint='l_hip_pitch'         ctrlrange='-.45 1.7'  />
+      <position name='12_r_knee'           	joint='r_knee'              ctrlrange='-0.05 2.2' />
+      <position name='13_l_knee'           	joint='l_knee'              ctrlrange='-2.2 0.05' />
+      <position name='14_r_ankle_pitch'    	joint='r_ankle_pitch'       ctrlrange='-1.2 1.35' />
+      <position name='15_l_ankle_pitch'    	joint='l_ankle_pitch'       ctrlrange='-1.35 1.2' />
+      <position name='16_r_ankle_roll'     	joint='r_ankle_roll'        ctrlrange='-.7 .95'   />
+      <position name='17_l_ankle_roll'     	joint='l_ankle_roll'        ctrlrange='-.95 .7'   />
+
+      <position name='18_head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
+      <position name='19_head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
+
+      <!--
+      <position name='0_r_shoulder_pitch' kp='20' joint='r_shoulder_pitch' ctrlrange='-1.5 1.5'  	/>
+      <position name='1_l_shoulder_pitch' kp='20' joint='l_shoulder_pitch' ctrlrange='-1.5 1.5' />
+      <position name='2_r_shoulder_roll'  kp='12' joint='r_shoulder_roll'  ctrlrange='-.85 1.25'  	/>
+      <position name='3_l_shoulder_roll'  kp='12' joint='l_shoulder_roll'  ctrlrange='-1.25 .85' />
+      <position name='4_r_elbow'          kp='8' joint='r_elbow'          ctrlrange='-1.55 1.25'	/>
+      <position name='5_l_elbow'          kp='8' joint='l_elbow'          ctrlrange='-1.25 1.55' />
+      <position name='6_r_hip_yaw'        kp='20' joint='r_hip_yaw'        ctrlrange='-1 .9'   	/>
+      <position name='7_l_hip_yaw'        kp='20' joint='l_hip_yaw'        ctrlrange='-.9 1'   />
+      <position name='8_r_hip_roll'       kp='20' joint='r_hip_roll'       ctrlrange='-.7 .45'   />
+      <position name='9_l_hip_roll'       kp='20' joint='l_hip_roll'       ctrlrange='-.45 .7'   />
+      <position name='10_r_hip_pitch'     kp='20' joint='r_hip_pitch'      ctrlrange='-1.7 .45'  />
+      <position name='11_l_hip_pitch'     kp='20' joint='l_hip_pitch'      ctrlrange='-.45 1.7'  />
+      <position name='12_r_knee'          kp='20' joint='r_knee'           ctrlrange='-0.05 2.2' />
+      <position name='13_l_knee'          kp='20' joint='l_knee'           ctrlrange='-2.2 0.05' />
+      <position name='14_r_ankle_pitch'   kp='18' joint='r_ankle_pitch'    ctrlrange='-1.2 1.35' />
+      <position name='15_l_ankle_pitch'   kp='18' joint='l_ankle_pitch'    ctrlrange='-1.35 1.2' />
+      <position name='16_r_ankle_roll'    kp='4' joint='r_ankle_roll'     ctrlrange='-.7 .95'   />
+      <position name='17_l_ankle_roll'    kp='4' joint='l_ankle_roll'     ctrlrange='-.95 .7'   />
+
+      <position name='18_head_pan'        kp='20' joint='head_pan'         ctrlrange='-2 2'      /> 
+      <position name='19_head_tilt'       kp='20' joint='head_tilt'        ctrlrange='-.4 .9'    /> 
+      -->
+
+
+      <!--
+      <position name='0_r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
+      <position name='1_r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.3'  	/>
+      <position name='2_r_elbow'          	joint='r_elbow'             ctrlrange='-1.55 1.25'	/>
+
+      <position name='3_r_hip_yaw'        	joint='r_hip_yaw'           ctrlrange='-1 .9'   	/>
+      <position name='4_r_hip_roll'       	joint='r_hip_roll'          ctrlrange='-.7 .45'   />
+      <position name='5_r_hip_pitch'      	joint='r_hip_pitch'         ctrlrange='-1.7 .45'  />
+      <position name='6_r_knee'           	joint='r_knee'              ctrlrange='-0.05 2.2' />
+      <position name='7_r_ankle_pitch'    	joint='r_ankle_pitch'       ctrlrange='-1.2 1.35' />
+      <position name='8_r_ankle_roll'     	joint='r_ankle_roll'        ctrlrange='-.7 .95'   />
+
+      <position name='9_l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5  1.5' />
+      <position name='10_l_shoulder_roll'  	joint='l_shoulder_roll'     ctrlrange='-1.25 .85' />
+      <position name='11_l_elbow'          	joint='l_elbow'             ctrlrange='-1.25 1.55' />
+
+      <position name='12_l_hip_yaw'        	joint='l_hip_yaw'           ctrlrange='-.9 1'   />
+      <position name='13_l_hip_roll'       	joint='l_hip_roll'          ctrlrange='-.45 .7'   />
+      <position name='14_l_hip_pitch'      	joint='l_hip_pitch'         ctrlrange='-.45 1.7'  />
+      <position name='15_l_knee'           	joint='l_knee'              ctrlrange='-2.2  .05' />
+      <position name='16_l_ankle_pitch'    	joint='l_ankle_pitch'       ctrlrange='-1.35 1.2' />
+      <position name='17_l_ankle_roll'     	joint='l_ankle_roll'        ctrlrange='-.95 .7'   />
+
+      <position name='18_head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
+      <position name='19_head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
+
+
+      <motor name='r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
+      <motor name='r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.3'  	/>
+      <motor name='r_elbow'          	joint='r_elbow'             ctrlrange='-1.55 1.25'	/>
+
+      <motor name='r_hip_yaw'        	joint='r_hip_yaw'           ctrlrange='-1 .9'   	/>
+      <motor name='r_hip_roll'       	joint='r_hip_roll'          ctrlrange='-.7 .45'   />
+      <motor name='r_hip_pitch'      	joint='r_hip_pitch'         ctrlrange='-1.7 .45'  />
+      <motor name='r_knee'           	joint='r_knee'              ctrlrange='-0.05 2.2' />
+      <motor name='r_ankle_pitch'    	joint='r_ankle_pitch'       ctrlrange='-1.2 1.35' />
+      <motor name='r_ankle_roll'     	joint='r_ankle_roll'        ctrlrange='-.7 .95'   />
+
+      <motor name='l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5  1.5' />
+      <motor name='l_shoulder_roll'  	joint='l_shoulder_roll'     ctrlrange='-1.25 .85' />
+      <motor name='l_elbow'          	joint='l_elbow'             ctrlrange='-1.25 1.55' />
+
+      <motor name='l_hip_yaw'        	joint='l_hip_yaw'           ctrlrange='-.9 1'   />
+      <motor name='l_hip_roll'       	joint='l_hip_roll'          ctrlrange='-.45 .7'   />
+      <motor name='l_hip_pitch'      	joint='l_hip_pitch'         ctrlrange='-.45 1.7'  />
+      <motor name='l_knee'           	joint='l_knee'              ctrlrange='-2.2  .05' />
+      <motor name='l_ankle_pitch'    	joint='l_ankle_pitch'       ctrlrange='-1.35 1.2' />
+      <motor name='l_ankle_roll'     	joint='l_ankle_roll'        ctrlrange='-.95 .7'   />
+
+      <motor name='head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
+      <motor name='head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
+      -->
+      <!--
+      -->
+
+    </actuator>
+
+  </mujoco>
+
+

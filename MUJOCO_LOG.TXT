@@ -1,0 +1,15 @@
+Sat Jul  2 14:40:33 2016
+WARNING: Model missing header ID
+
+Sat Jul  2 14:40:56 2016
+WARNING: Model missing header ID
+
+Sat Jul  2 14:41:04 2016
+WARNING: Model missing header ID
+
+Sat Jul  2 14:43:54 2016
+ERROR: Missing or invalid license activation
+
+Sat Jul  2 14:44:00 2016
+ERROR: Missing or invalid license activation
+

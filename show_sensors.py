@@ -107,6 +107,13 @@ print "Accl mean:", np.mean(accl, axis=0)
 print "Gyro mean:", np.mean(gyro, axis=0)
 
 alpha = 0.5
+start_t = 2.25 # in seconds
+new_c = util.clean_mrkr_data(t, ps, conf, 3, 0.01, start_t)
+
+min_t=np.argmax(t[:]>start_t)
+
+print "start t:", start_t, " start index:", min_t, t[min_t]
+
 accl = np.copy(snsr[:,40:43])
 saccl = low_pass(accl, alpha);
 #snsr[:,40:43] = np.copy(saccl)
@@ -117,9 +124,7 @@ sgyro = low_pass(gyro, alpha)
 ctct = np.copy(snsr[:,46:58])
 #sctct = low_pass(ctct, alpha) 
 sctct=util.clean_ctct_data(ctct, 20)
-snsr[:,46:58] = np.copy(sctct)
-
-new_c = util.clean_mrkr_data(t, ps, conf, 3, 0.01)
+#snsr[:,46:58] = np.copy(sctct)
 
 print "Initial Contact values:"
 i_ctct = np.mean(ctct[0:20, :], axis=0)
@@ -130,12 +135,13 @@ i_ctct = np.mean(ctct[0:20, :], axis=0)
 #print "zmean ctct:", m_ctct[2] + m_ctct[8]
 #print "initz ctct:", i_ctct[2] + i_ctct[8]
 
-
 #new_data = np.hstack((t[:,None], ctrl, snsr, conf))
-new_data = np.hstack((t[:,None], ctrl, snsr, new_c))
-head = 'time,'+'ctrl,'*nu+'snsr,'*ns+'conf,'*16
-np.savetxt('clean_'+f, new_data, delimiter=',', header=head, fmt='%.8f',
-        comments='')
+if f.startswith('clean_') == False:
+    new_t = np.copy(t[min_t:]) - t[min_t]
+    new_data = np.hstack((new_t[:,None], ctrl[min_t:,:], snsr[min_t:,:], new_c[min_t:,:]))
+    head = 'time,'+'ctrl,'*nu+'snsr,'*ns+'conf,'*16
+    np.savetxt('clean_'+f, new_data, delimiter=',', header=head, fmt='%.8f',
+            comments='')
 
 ############### plot
 

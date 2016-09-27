@@ -89,9 +89,6 @@ def get_real_data(f, max_t):
     conf = df.filter(regex='conf').values
     print snsr.shape
     
-    #nu = ctrl.shape[1]
-    #ns = snsr.shape[1]
-    
     t = t[0:e]
     ctrl = ctrl[0:e,:]
     conf = conf[0:e,:]
@@ -119,7 +116,6 @@ def get_real_data(f, max_t):
             'mrkr':mrkr,
             'ps':ps,
             'conf':conf}
-    #return t, ctrl, conf, qpos, qvel, accl, gyro, ctct, mrkr, ps
 
 def dist_diff_whole_run(x1, x2):
     # one rms value for the entire trajectory
@@ -151,29 +147,35 @@ def dist_diff_v_time_limited(x1, x2, c, conf, cols):
         for i in cols:
             if c[t,i] > conf:
                 dist = np.sum(np.square(x1[t,i,:]-x2[t,i,:]))
+                #print x1[t,i,:], "::", x2[t,i,:], "==", dist
                 y[t, 0] += dist
                 count += 1
         y[t, 0] = np.sqrt(y[t, 0]/count)
 
     return y
 
-def clean_mrkr_data(time, mrkr, c, conf, vel_limit):
+def clean_mrkr_data(time, mrkr, c, conf, vel_limit, min_t):
     T = mrkr.shape[0]
     N = 16 # num markers
     new_c = np.copy(c)
+    new_c[0,:] = -1
     last = np.zeros((16)) # remember the last good values
     for t in range(1, T):
-        for n in range(N):
-            if c[t,n] > conf:
-                l = last[n]
-                d = mrkr[t,n,:]-mrkr[l,n,:]
-                vel = d.dot(d) / (time[t] - time[l])
-                if vel > vel_limit:
-                    new_c[t,n] = -1 # don't trust things that move too quick
+        if time[t] > min_t:
+            for n in range(N):
+                if c[t,n] > conf:
+                    l = last[n]
+                    d = mrkr[t,n,:]-mrkr[l,n,:]
+                    vel = d.dot(d) / (time[t] - time[l])
+                    if vel > vel_limit:
+                        new_c[t,n] = -1 # don't trust things that move too quick
+                    else:
+                        last[n] = t
                 else:
-                    last[n] = t
-            else:
-                new_c[t,n] = c[t,n]
+                    new_c[t,n] = c[t,n]
+        else:
+            last[:] = t
+            new_c[t,:] = -1
 
     return new_c
         

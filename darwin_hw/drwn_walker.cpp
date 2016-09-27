@@ -24,7 +24,8 @@ Walking::Walking()
   Z_SWAP_AMPLITUDE = 5;
   PELVIS_OFFSET = 3.0;
   ARM_SWING_GAIN = 1.5;
-
+  BALANCE_KNEE_GAIN = 0.3;
+  BALANCE_ANKLE_PITCH_GAIN = 0.9;
   BALANCE_HIP_ROLL_GAIN = 0.5;
   BALANCE_ANKLE_ROLL_GAIN = 1.0;
 
@@ -36,7 +37,7 @@ Walking::Walking()
   Y_MOVE_AMPLITUDE = 0;
   A_MOVE_AMPLITUDE = 0;
   A_MOVE_AIM_ON = false;
-  // TODO enable this
+
   BALANCE_ENABLE = true;
 
   m_Num_Steps = -1;
@@ -599,7 +600,6 @@ void Walking::Process(double dt, double * gyro, double* ctrl)
   if (BALANCE_ENABLE == true && gyro) {
     double rlGyroErr = gyro[0]; //MotionStatus::RL_GYRO;
     double fbGyroErr = gyro[1]; //MotionStatus::FB_GYRO;
-    printf("\n%f %f\n", gyro[0], gyro[1]);
 
     outValue[1] += (int)(dir[1] * rlGyroErr * BALANCE_HIP_ROLL_GAIN * 4);	// R_HIP_ROLL
     outValue[7] += (int)(dir[7] * rlGyroErr * BALANCE_HIP_ROLL_GAIN * 4);	// L_HIP_ROLL
@@ -642,9 +642,13 @@ void Walking::Process(double dt, double * gyro, double* ctrl)
   */
 
   int idx = JointData::ID_R_HIP_YAW - 1; 
+  //printf("\nWalker:\n");
   for (int i=0; i<6; i++ ) {
     ctrl[idx++] = joint2radian(outValue[i]);
     ctrl[idx++] = joint2radian(outValue[i+6]);
+    //printf("%d :: %d %d : %f %f : %f %f\n", i, outValue[i], outValue[i+6],
+    //  joint2radian(outValue[i]), joint2radian(outValue[i+6]),
+    //  ctrl[idx-2], ctrl[idx-1]);
   }
 
   //m_Joint.SetValue(JointData::ID_L_HIP_YAW, outValue[6]);

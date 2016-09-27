@@ -55,11 +55,11 @@ def snsr_breakout(snsr):
     ctct = snsr[:,46:58]
     mrkr = snsr[:,58:]
     t = qpos.shape[0]
-    print t
-    print mrkr.shape
+    #print t
+    #print mrkr.shape
     if (mrkr.shape[1] > 107):
         mrkr = mrkr.reshape(t, 16,4)
-        print mrkr[0,:,3]
+        #print mrkr[0,:,3]
     else:
         mrkr = mrkr.reshape(t, 16,3)
     ps = np.copy(mrkr[:,:,0:3])
@@ -71,6 +71,16 @@ def snsr_breakout(snsr):
             'ctct':ctct,
             'mrkr':mrkr,
             'ps':ps}
+
+def get_pure_mrkr(f): # from outputs that are not mine
+    df = pd.read_csv(f, sep=',')
+    mrkr = df.filter(regex='mrkr').values
+    # all x all y all z
+    conf = df.filter(regex='conf').values
+    print "Mrkr shape", mrkr.shape
+    print "Conf shape", conf.shape
+
+    return {'mrkr': mrkr, 'conf': conf}
 
 def get_real_data(f, max_t):
     df = pd.read_csv(f, sep=',')
@@ -87,7 +97,7 @@ def get_real_data(f, max_t):
     ctrl = df.filter(regex='ctrl').values
     snsr = df.filter(regex='snsr').values
     conf = df.filter(regex='conf').values
-    print snsr.shape
+    #print snsr.shape
     
     t = t[0:e]
     ctrl = ctrl[0:e,:]
@@ -100,7 +110,7 @@ def get_real_data(f, max_t):
     mrkr = snsr[0:e,58:]
     if (mrkr.shape[1] > 107):
         mrkr = mrkr.reshape(e, 16,4)
-        print mrkr[0,:,3]
+        #print mrkr[0,:,3]
     else:
         mrkr = mrkr.reshape(e, 16,3)
     ps = np.copy(mrkr[:,:,0:3])

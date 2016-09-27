@@ -29,7 +29,10 @@ class SimDarwin : public MyRobot {
     // model helpers
     int nq;
     int nv;
-    int nu;
+    //int nu;
+
+    bool sensor_noise;
+    bool control_noise;
 
   public:
     SimDarwin(
@@ -50,8 +53,13 @@ class SimDarwin : public MyRobot {
 
       nq = m->nq;
       nv = m->nv;
-      nu = m->nu;
+      //nu = m->nu;
 
+      sensor_noise = s_noise > 0 ? true : false;
+      control_noise = c_noise > 0 ? true : false;
+
+      if (sensor_noise) printf("Adding SENSOR noise to Simulation\n");
+      if (control_noise) printf("Adding CONTROL noise to Simulation\n");
     }
 
     ~SimDarwin() {
@@ -64,7 +72,6 @@ class SimDarwin : public MyRobot {
     //  if (!i_pose) {
     //	i_pose = new double[7];
     //  }
-
     //  if (p) {
     //	memcpy(i_pose, p, sizeof(double)*7);
     //  }
@@ -73,29 +80,26 @@ class SimDarwin : public MyRobot {
     //  }
     //}
 
-    //bool get_state(double* time, double* qpos, double* qvel, double *sensor) {
     bool get_sensors(double * time, double* sensor, double* conf) {
-
       *time = d->time;
       if (d->time < sensor_time ) {
-
         //mj_step(m, d); // advanced simulation until we can get new sensor data
         // let render program advance the simulation
         return false;
       }
-      printf("real time %f\nsensor time: %f\n\n", d->time, sensor_time);
+      //printf("real time %f\nsnsr time: %f\n\n", d->time, sensor_time);
 
       // current time + next sensor time + sensor time noise
       sensor_time = d->time + s_dt;// + t_noise(gen);
       
       // get sensor values at this timestep
-      mj_forward(m, d);
-      mj_sensor(m, d);
+      mj_forwardSkip(m, d, 0, 0); // all calculations
 
       if (sensor) {
         for (int id=0; id<m->nsensordata; id++) {
-          double r = sen_noise(gen);
-          sensor[id] = d->sensordata[id];// + r; //cs_noise perturbation;
+          double r = 0.0; 
+          if (sensor_noise) r = sen_noise(gen);
+          sensor[id] = d->sensordata[id] + r; //cs_noise perturbation;
         }
       }
       else {
@@ -111,12 +115,14 @@ class SimDarwin : public MyRobot {
       return true;
     }
 
+
     // mujoco controls to mujoco controls
-    bool set_controls(double * u, int *pgain, int *dgain) {
+    bool set_controls(double * u, int nu, int *pgain, int *dgain) {
       // converts controls to darwin positions
       for(int id = 0; id < nu; id++) {
-        double r = ctrl_noise(gen);
-        d->ctrl[id] = u[id];// + r;
+        double r = 0.0;
+        if (control_noise) r = ctrl_noise(gen);
+        d->ctrl[id] = u[id] + r;
         //printf("%f %f %f\n", u[id], d->ctrl[id], r);
       }
 
@@ -130,9 +136,6 @@ class SimDarwin : public MyRobot {
       if (dgain) {
         printf("Setting d gain for position actuator in Mujoco is not supported\n");
       }
-
-      // sets controls, should stay the same for each mjstep called in
-      // get_state
 
       return true;
     }

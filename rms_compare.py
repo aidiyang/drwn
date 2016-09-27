@@ -3,6 +3,7 @@ import pandas as pd
 import sys
 
 import matplotlib.pyplot as plt
+import matplotlib
 
 import py_utils as util
 
@@ -12,9 +13,15 @@ if len(sys.argv) > 2:
 print "Hardware File:", hw_f
 hw = util.get_real_data(hw_f, -1)
 
-fig, axs = plt.subplots(1, 1, sharex=False, figsize=(15,10))
-my_lw = 2
-my_alpha = 0.9
+
+if hw_f.startswith('clean_fallen') == True:
+    matplotlib.rcParams.update({'font.size': 16})
+    fig, axs = plt.subplots(1, 1, sharex=False, figsize=(16,9), dpi=128)
+elif hw_f.startswith('clean_straight') == True:
+    matplotlib.rcParams.update({'font.size': 14})
+    fig, axs = plt.subplots(1, 1, sharex=False, figsize=(21,9), dpi=128)
+my_lw = 3
+my_alpha = 0.7
 conf_lvl = 0
 conf = hw['conf']
 my_ls = ['-','--','-.',':']
@@ -40,8 +47,9 @@ if hw_f.startswith('clean_fallen') == True:
     print "fallen cols is: ", cols
 
 elif hw_f.startswith('clean_straight') == True:
-    #cols = [2,4,6,7,8,11,12] # straight walk
-    cols = [2] # straight walk full
+    cols = [2,4,6,7,8,11,12] # straight walk
+    #cols = [2] # straight walk full
+    #cols = [2, 8, 14] # straight walk full torso
     #init_spos = np.zeros((16,3))
     #init_spos = np.array([0.0112 , 0.0562 , 0.3778 , -0.0361,  -0.0537,  0.3186,  0.0566 , 0.0452  ,0.3616,
     #0.0768 , 0.0181 , 0.3156 , 0.0110 , -0.0558 , 0.3778 , -0.0359 , 0.0543  ,0.3186,
@@ -58,8 +66,13 @@ elif hw_f.startswith('clean_straight') == True:
 print hw['ps'][0,:,:]
 init_delta = hw['ps'][0,:,:] - init_spos
 hw['ps'] = hw['ps'][:,:,:] - init_delta
-print hw['ps'][0,:,:]
+s = hw['ps'][0,2,:]
+e = hw['ps'][-1:,2,:]
+print "start:", s
+print "end  :", e
 
+dist = np.sqrt(np.sum(np.square(s-e)))
+print dist
 
 
 names = ['No Noise', 'Ctrl Noise', 'Time Noise', 'Mass Noise', 'Time/Control',
@@ -76,27 +89,32 @@ for f in range(2, len(sys.argv)):
     #rms = util.dist_diff_v_time(ss['ps'], hw['ps'], new_c, conf_lvl)
     rms = util.dist_diff_v_time_limited(ss['ps'], hw['ps'], new_c, conf_lvl,
             cols)
-    
-    print "rms shape:", rms.shape
-    
+
     idx = (f-2)%len(my_ls)
-    print "ls:", idx
-    axs.plot(t, rms, ls=my_ls[idx],
+    print names[f-2], "mean:", np.nanmean(rms), "offset:", rms[-1:]-rms[1]
+
+    axs.plot(t, rms-rms[1], ls=my_ls[idx],
         lw=my_lw, alpha=my_alpha, label=names[f-2])
 
 
-ymin, ymax = plt.ylim()
-if ymax > 1:
-    ymax = 0.5
-    plt.ylim(ymin, ymax)
+#ymin, ymax = plt.ylim()
+#if ymax > 1:
+#    ymax = 0.7
 
 axs.set_title('RMSE for Noise Sources')
 axs.set_xlabel('Time')
 axs.set_ylabel('RMSE (Meters)')
 axs.grid(True)
 axs.legend()
+if hw_f.startswith('clean_fallen') == True:
+    plt.ylim(0, 0.3)
+    plt.xlim(0, 7.15)
+    plt.legend(bbox_to_anchor=(0.6, 0.9), bbox_transform=plt.gcf().transFigure)
+elif hw_f.startswith('clean_straight') == True:
+    plt.ylim(0, 0.7)
+    plt.legend(bbox_to_anchor=(0.3, 0.9), bbox_transform=plt.gcf().transFigure)
 
-plt.legend(bbox_to_anchor=(0.4, 0.9), bbox_transform=plt.gcf().transFigure)
+
 
 plt.subplots_adjust(left=0.1, right=0.95, top=0.95, bottom=0.1)
 

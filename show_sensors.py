@@ -94,7 +94,6 @@ for i in range(0,16):
     if m < 5:
         conf[:,i] = -1
 
-
 def low_pass(raw, alpha):
     p = np.mean(raw, axis=0)
     filt = np.zeros(raw.shape)

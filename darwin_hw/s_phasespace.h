@@ -62,7 +62,7 @@ class Phasespace {
       owlSetInteger(OWL_STREAMING, OWL_ENABLE);
 
       int count = 0;
-      std::chrono::milliseconds interval(1);
+      std::chrono::milliseconds interval(2);
       while (!track->m_FinishTracking) {
         int nmarker = 0;
         int nrigid = 0;
@@ -112,10 +112,8 @@ class Phasespace {
                 <<rigid.pose[6]<<std::endl;
             }
           }
-
           track->mutex.unlock();
         }
-
         count++;
         std::this_thread::sleep_for(interval);
       }

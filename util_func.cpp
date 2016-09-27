@@ -23,5 +23,25 @@ namespace util {
     return 0;
   }
 
+void darwin_torques(double * torques, const mjModel * m, mjData *d, double * ctrl, double min_t, double kp) {
+  //double max_t = 2.5;
+  //double min_t = 0.08;
+  // servo torque = kp * (goal - sensor position)
+  printf("\nlimited torques:\n");
+  for(int i = 0; i < m->nu; i++) {
+    torques[i] = kp * (ctrl[i] - d->sensordata[i]);
+    // use built in force limiting
+    //if (torques[i] > 0) 
+    //  torques[i] = torques[i] > max_t ? max_t : torques[i];
+    //else 
+    //  torques[i] = abs(torques[i]) > max_t ? -max_t : torques[i];
+
+    // dead band
+    torques[i] = abs(torques[i]) < min_t ? 0.0 : torques[i];
+    //printf("%1.4f ", torques[i]);
+  }
+  //printf("\n");
+}
+
 
 }

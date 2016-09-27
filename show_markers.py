@@ -53,7 +53,7 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 h = 200
-l = 0
+l = 3
 
 #print np.max(t)
 #bools = np.vstack((conf[:,0]>l, conf[:,0]<h, t[:]>7))
@@ -96,7 +96,10 @@ dt_tol=1000.001
 #    print i, " took ", c, " iterations"
 #    ax.plot(x, y, zs=z, marker='.')
 
-new_c = util.clean_mrkr_data(t, mrkr, conf, 3, 0.1, 2)
+conf_cutoff = 3
+vel_limit = 0.1
+min_time = 2
+new_c = util.clean_mrkr_data(t, mrkr, conf, conf_cutoff, vel_limit, min_time)
 
 for i in range(0,16):
     #bools = np.all(np.vstack((new_c[:,i]>l, new_c[:,i]<h)), axis=0)

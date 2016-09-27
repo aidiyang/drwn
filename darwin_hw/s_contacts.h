@@ -1,10 +1,11 @@
 #pragma once
-
 //#include <thread>
 //#include <mutex>
 
 #include "atidaq/ftconfig.h"
 #include "labjack/u6.h"
+
+//#define STREAM_MODE
 
 class ContactSensors {
 
@@ -41,14 +42,14 @@ class ContactSensors {
 
       // Set torque units.
       // This step is optional; by default, the units are inherited from the calibration file.
-      sts=SetTorqueUnits(cal_r,"N-m");
+      sts=SetTorqueUnits(cal_r, "N-m");
       switch (sts) {
         case 0: break;	// successful completion
         case 1: printf("Invalid Calibration struct");
         case 2: printf("Invalid torque units");
         default: printf("Unknown error");
       }
-      sts=SetTorqueUnits(cal_l,"N-m");
+      sts=SetTorqueUnits(cal_l, "N-m");
       switch (sts) {
         case 0: break;	// successful completion
         case 1: printf("Invalid Calibration struct");
@@ -77,9 +78,9 @@ class ContactSensors {
       //Bias(cal_l,Bias_l);
       // Calibration of ATI-NANO 25
 
-
       // Initialize Labjack u6
       long error=0;
+      int idx=7;
       if( (hDevice = openUSBConnection(-1)) == NULL ) { // should only have one u6...
         printf("Couldn't open U6. Please connect one and try again.\n");
         goto close;
@@ -87,6 +88,8 @@ class ContactSensors {
 
       if( getCalibrationInfo(hDevice, &caliInfo) < 0 )
         goto close;
+
+#ifdef STREAM_MODE
       if (ConfigIO_example(hDevice) != 0)
         goto close;
 
@@ -98,10 +101,27 @@ class ContactSensors {
 
       if (StreamStart(hDevice) != 0)
         goto close;
-
-      //StreamData_example(hDevice, &caliInfo);
-      //StreamStop(hDevice);
-
+#else
+      // command / response config
+      sendBuff = new uint8[sendSize];
+      sendBuff[0] = 0;
+      sendBuff[1] = (uint8)(0xF8);  //Command byte
+      sendBuff[2] = 25;             //Number of data words (.5 word for echo, 10.5 words for IOTypes)
+      sendBuff[3] = (uint8)(0x00);  //Extended command number
+      sendBuff[6] = 0;  //Echo, for order keeping. ignore for now
+      // data requests, 12 channels of data from contact sensors
+      for (int input=0; input<12; input++) {
+        sendBuff[idx++] = 2;           //IOType is AIN24; Analog Input
+        sendBuff[idx++] = input;       //Positive channel, single read
+        sendBuff[idx++] = resIndex + (0<<4);  //ResolutionIndex(Bits 0-3) = 1, GainIndex(Bits 4-7) = 0 (+-10V)
+        sendBuff[idx++] = 0 + 0*128;  //SettlingFactor(Bits 0-2) = 0 (5 microseconds), Differential(Bit 7) = 0
+      }
+      // idx should be 55
+      sendBuff[idx++] = 0;    //Padding byte; 24 words + 0.5 words (echo) + 0.5 padding
+      extendedChecksum(sendBuff, idx);
+      // recieve buffer
+      recvBuff = new uint8[recvSize];
+#endif
 
       this->m_Initialized = true;
 
@@ -128,6 +148,7 @@ close:
       return false;
     }
 
+#ifdef STREAM_MODE
     bool getData(double * r, double * l) {
       static int packetCounter = 0;
       static int recBuffSize = 14 + SamplesPerPacket * 2;
@@ -142,11 +163,10 @@ close:
         uint16 voltageBytes, checksumTotal;
         int autoRecoveryOn;
 
-
-        /* Each StreamData response contains (SamplesPerPacket / NumChannels) * readSizeMultiplier
-         * samples for each channel.
-         * Total number of scans = (SamplesPerPacket / NumChannels) * readSizeMultiplier * numReadsPerDisplay * numDisplay
-         */
+        // Each StreamData response contains (SamplesPerPacket / NumChannels) * readSizeMultiplier
+        // samples for each channel.
+        // Total number of scans = (SamplesPerPacket / NumChannels) * readSizeMultiplier * numReadsPerDisplay * numDisplay
+        //
         //int div = SamplesPerPacket/NumChannels;
         //double voltages[(div) * readSizeMultiplier * numReadsPerDisplay * numDisplay][NumChannels];
         double volts[NumChannels];
@@ -168,11 +188,10 @@ close:
         }
         //double t1 = getTickCount();
         for (j = 0; j < numReadsPerDisplay; j++) {
-          /* For USB StreamData, use Endpoint 3 for reads.  You can read the multiple
-           * StreamData responses of 64 bytes only if SamplesPerPacket is 25 to help
-           * improve streaming performance.  In this example this multiple is adjusted
-           * by the readSizeMultiplier variable.
-           */
+          //For USB StreamData, use Endpoint 3 for reads.  You can read the multiple
+          //StreamData responses of 64 bytes only if SamplesPerPacket is 25 to help
+          //improve streaming performance.  In this example this multiple is adjusted
+          //by the readSizeMultiplier variable.
 
           //Reading stream response from U6
           recChars = LJUSB_Stream(hDevice, recBuff, responseSize * readSizeMultiplier);
@@ -291,7 +310,7 @@ close:
           //printf("  AI%d: %.4f V %d c %f f/t\n", i+6, volts[i], count[i], r[i]);
         }
         return true;
-        
+
       }
       else {
         printf("ContactSensors not running.\n");
@@ -299,15 +318,132 @@ close:
       }
     }
 
+#else
+    bool getData(double * r, double * l) {
+      if (this->m_Initialized) {
+        // read values from DAQ with low level packets
+        unsigned long sendChars, recChars;
+        uint16 checksumTotal;
+
+        //Sending command to U6
+        if( (sendChars = LJUSB_Write(hDevice, sendBuff, sendSize)) < sendSize ) {
+          if(sendChars == 0) printf("Feedback loop error : write failed\n");
+          else printf("Feedback loop error : did not write all of the buffer\n");
+          return false;
+        }
+
+        //Reading response from U6
+        if( (recChars = LJUSB_Read(hDevice, recvBuff, recvSize)) < recvSize ) {
+          if( recChars == 0 ) {
+            printf("Feedback loop error : read failed\n");
+            return false;
+          }
+          else printf("Feedback loop error : did not read all of the expected buffer\n");
+        }
+
+        if( recChars < 10 ) {
+          printf("Feedback loop error : response is not large enough\n");
+          return false;
+        }
+
+        checksumTotal = extendedChecksum16(recvBuff, recChars);
+
+        if( (uint8)((checksumTotal / 256 ) & 0xff) != recvBuff[5] ) {
+          printf("Feedback loop error : read buffer has bad checksum16(MSB)\n");
+          return false;
+        }
+
+        if( (uint8)(checksumTotal & 0xff) != recvBuff[4] ) {
+          printf("Feedback loop error : read buffer has bad checksum16(LBS)\n");
+          return false;
+        }
+
+        if( extendedChecksum8(recvBuff) != recvBuff[0] ) {
+          printf("Feedback loop error : read buffer has bad checksum8\n");
+          return false;
+        }
+
+        if( recvBuff[1] != (uint8)(0xF8) ||  recvBuff[3] != (uint8)(0x00) ) {
+          printf("Feedback loop error : read buffer has wrong command bytes \n");
+          return false;
+        }
+
+        if( recvBuff[6] != 0 ) {
+          printf("Feedback loop error : received errorcode %d for frame %d ", recvBuff[6], recvBuff[7]);
+          //printf("(AIN%d(SE))\n", (int)recvBuff[7]-1);
+          switch( recvBuff[7] ) {
+            case 1: printf("(AIN0(SE))\n"); break;
+            case 2: printf("(AIN1(SE))\n"); break;
+            case 3: printf("(AIN2(SE))\n"); break;
+            case 4: printf("(AIN3(SE))\n"); break;
+            case 5: printf("(AIN4(SE))\n"); break;
+            case 6: printf("(AIN5(SE))\n"); break;
+            case 7: printf("(AIN6(SE))\n"); break;
+            case 8: printf("(AIN7(SE))\n"); break;
+            case 9: printf("(AIN8(SE))\n"); break;
+            case 10: printf("(AIN9(SE))\n"); break;
+            case 11: printf("(AIN10(SE))\n"); break;
+            case 12: printf("(AIN11(SE))\n"); break;
+            default: printf("(Unknown)\n"); break;
+          }
+          return false;
+        }
+
+        double voltage;
+        int idx=9;
+        float raw[6];
+        float FT[6];            // This array will hold the resultant force/torque vector.
+        for (int input=0; input<6; input++) {
+          int a=idx++; int b=idx++; int c=idx++;
+          getAinVoltCalibrated(&caliInfo, resIndex, 0, 1,
+              recvBuff[a]+(recvBuff[b]*256)+(recvBuff[c]*65536),
+              &voltage);
+          raw[input] = (float)voltage;
+        }
+
+        static double Bias_r[6]={ 2.8713, -3.1618, -3.9439, -0.0699, -0.1390, 0.1395};
+        static double Bias_l[6]={-1.7733, -0.3236,  0.9399, -0.0056,  0.1402, 0.1160};
+        //static double Bias_l[6]={0.0,0.0,0.0,0.0,0.0,0.0}; // no bias
+        //static double Bias_r[6]={0.0,0.0,0.0,0.0,0.0,0.0};
+
+        // convert raw values to usable units / calibration
+        ConvertToFT(cal_r,raw,FT);
+        for (int i = 0; i<6; i++) {
+          r[i] = (double)FT[i] - Bias_r[i];
+        }
+
+        for (int input=0; input<6; input++) {
+          int a=idx++; int b=idx++; int c=idx++;
+          getAinVoltCalibrated(&caliInfo, resIndex, 0, 1,
+              recvBuff[a]+(recvBuff[b]*256)+(recvBuff[c]*65536),
+              &voltage);
+          raw[input] = (float)voltage;
+        }
+        ConvertToFT(cal_l,raw,FT);
+        for (int i = 0; i<6; i++) {
+          l[i] = (double)FT[i] - Bias_l[i];
+        }
+        return true;
+      }
+      else {
+        printf("ContactSensors not running.\n");
+        return false;
+      }
+    }
+#endif
+
     ~ContactSensors() {
       destroyCalibration(cal_r);
       destroyCalibration(cal_l);
 
+#ifdef STREAM_MODE
       StreamStop(hDevice);
-      closeUSBConnection(hDevice);
+#else
+      if (sendBuff) delete[] sendBuff;
+      if (recvBuff) delete[] recvBuff;
+#endif
 
-      //if (sendBuff) delete[] sendBuff;
-      //if (recvBuff) delete[] recvBuff;
+      closeUSBConnection(hDevice);
 
       if (this->m_TrackerRunning) {
 
@@ -322,6 +458,7 @@ close:
       }
     }
 
+#ifdef STREAM_MODE
     int ConfigIO_example(HANDLE hDevice)
     {
       uint8 sendBuff[16], recBuff[16];
@@ -588,6 +725,8 @@ close:
 
       return 0;
     }
+#endif
+
   private:
     bool m_Initialized;
     bool m_TrackerRunning;
@@ -604,150 +743,15 @@ close:
     int resIndex;
     unsigned long sendSize;
     unsigned long recvSize;
-    //uint8 *sendBuff;
-    //uint8 *recvBuff;
+#ifndef STREAM_MODE
+    uint8 *sendBuff;
+    uint8 *recvBuff;
+#endif
     uint8 NumChannels;
     uint8 SamplesPerPacket;
 };
 
-/* command / req config
-   sendBuff = new uint8[sendSize];
-   sendBuff[0] = 0;
-   sendBuff[1] = (uint8)(0xF8);  //Command byte
-   sendBuff[2] = 25;             //Number of data words (.5 word for echo, 10.5 words for IOTypes)
-   sendBuff[3] = (uint8)(0x00);  //Extended command number
-   sendBuff[6] = 0;  //Echo, for order keeping. ignore for now
-// data requests, 12 channels of data from contact sensors
-for (int input=0; input<12; input++) {
-sendBuff[idx++] = 2;           //IOType is AIN24; Analog Input
-sendBuff[idx++] = input;       //Positive channel, single read
-sendBuff[idx++] = resIndex + (0<<4);  //ResolutionIndex(Bits 0-3) = 1, GainIndex(Bits 4-7) = 0 (+-10V)
-sendBuff[idx++] = 0 + 0*128;  //SettlingFactor(Bits 0-2) = 0 (5 microseconds), Differential(Bit 7) = 0
-}
-// idx should be 55
-sendBuff[idx++] = 0;    //Padding byte; 24 words + 0.5 words (echo) + 0.5 padding
-extendedChecksum(sendBuff, idx);
-// recieve buffer
-recvBuff = new uint8[recvSize];
-*/
 
 
-/* old command response code
-   bool getData(double * r, double * l) {
-   if (this->m_Initialized) {
-// read values from DAQ with low level packets
-unsigned long sendChars, recChars;
-uint16 checksumTotal;
-
-//Sending command to U6
-if( (sendChars = LJUSB_Write(hDevice, sendBuff, sendSize)) < sendSize ) {
-if(sendChars == 0) printf("Feedback loop error : write failed\n");
-else printf("Feedback loop error : did not write all of the buffer\n");
-return false;
-}
-
-//Reading response from U6
-if( (recChars = LJUSB_Read(hDevice, recvBuff, recvSize)) < recvSize ) {
-if( recChars == 0 ) {
-printf("Feedback loop error : read failed\n");
-return false;
-}
-else printf("Feedback loop error : did not read all of the expected buffer\n");
-}
-
-if( recChars < 10 ) {
-printf("Feedback loop error : response is not large enough\n");
-return false;
-}
-
-checksumTotal = extendedChecksum16(recvBuff, recChars);
-
-if( (uint8)((checksumTotal / 256 ) & 0xff) != recvBuff[5] ) {
-printf("Feedback loop error : read buffer has bad checksum16(MSB)\n");
-return false;
-}
-
-if( (uint8)(checksumTotal & 0xff) != recvBuff[4] ) {
-printf("Feedback loop error : read buffer has bad checksum16(LBS)\n");
-return false;
-}
-
-if( extendedChecksum8(recvBuff) != recvBuff[0] ) {
-printf("Feedback loop error : read buffer has bad checksum8\n");
-return false;
-}
-
-if( recvBuff[1] != (uint8)(0xF8) ||  recvBuff[3] != (uint8)(0x00) ) {
-printf("Feedback loop error : read buffer has wrong command bytes \n");
-return false;
-}
-
-if( recvBuff[6] != 0 ) {
-printf("Feedback loop error : received errorcode %d for frame %d ", recvBuff[6], recvBuff[7]);
-switch( recvBuff[7] ) {
-case 1: printf("(AIN0(SE))\n"); break;
-case 2: printf("(AIN1(SE))\n"); break;
-case 3: printf("(AIN2(SE))\n"); break;
-case 4: printf("(AIN3(SE))\n"); break;
-case 5: printf("(AIN4(SE))\n"); break;
-case 6: printf("(AIN5(SE))\n"); break;
-case 7: printf("(AIN6(SE))\n"); break;
-case 8: printf("(AIN7(SE))\n"); break;
-case 9: printf("(AIN8(SE))\n"); break;
-case 10: printf("(AIN9(SE))\n"); break;
-case 11: printf("(AIN10(SE))\n"); break;
-case 12: printf("(AIN11(SE))\n"); break;
-default: printf("(Unknown)\n"); break;
-}
-return false;
-}
-
-double voltage;
-int idx=9;
-float raw[6];
-float FT[6];            // This array will hold the resultant force/torque vector.
-for (int input=0; input<6; input++) {
-  int a=idx++; int b=idx++; int c=idx++;
-  getAinVoltCalibrated(&caliInfo, resIndex, 0, 1,
-      recvBuff[a]+(recvBuff[b]*256)+(recvBuff[c]*65536),
-      &voltage);
-  raw[input] = (float)voltage;
-}
-
-// convert raw values to usable units / calibration
-ConvertToFT(cal_r,raw,FT);
-for (int i = 0; i<6; i++) {
-  r[i] = (double)FT[i];
-}
-
-for (int input=0; input<6; input++) {
-  int a=idx++; int b=idx++; int c=idx++;
-  getAinVoltCalibrated(&caliInfo, resIndex, 0, 1,
-      recvBuff[a]+(recvBuff[b]*256)+(recvBuff[c]*65536),
-      &voltage);
-  raw[input] = (float)voltage;
-}
-ConvertToFT(cal_l,raw,FT);
-for (int i = 0; i<6; i++) {
-  l[i] = (double)FT[i];
-}
-return true;
-
-//this->mutex.lock(); // not a try; wait for newest
-//for (int i = 0; i<POSE_SIZE; i++) {
-//  p[i] = (double)pose[i];
-//}
-//for (int i = 0; i<(MARKER_COUNT * 4); i++) {
-//  m[i] = (double)marker_d[i];
-//}
-//this->mutex.unlock();
-//return true;
-}
-else {
-  printf("ContactSensors not running.\n");
-  return false;
-}
-}
-*/
 
 

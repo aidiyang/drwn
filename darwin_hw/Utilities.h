@@ -25,12 +25,12 @@ double GetCurrentTimeMS() {
 }
 
 // joint positions for converting to and from
-double joint2radian(int joint_value) {
+double joint2radian(const int joint_value) {
   //return (joint_value * 0.088) * 3.14159265 / 180.0;
-  return (joint_value-2048.0) * 0.00153398078;
+  return ((double)joint_value-2048.0) * 0.00153398078;
 }
 
-int radian2joint(double radian) {
+int radian2joint(const double radian) {
   return (int)(radian * 651.898650256) + 2048;
 }
 
@@ -52,12 +52,12 @@ double j_rpm2rads_ps(int rpm) {
   return rpm * 0.01151917306;
 }
 
-int rad_ps2rpm(double rad_ps) {
+int rad_ps2rpm(const double rad_ps) {
   //return rpm * 0.11 * 2 * 3.14159265 / 60;
   return (int)(rad_ps * 86.8117871649);
 }
 
-int rad_ps2jvel(double rps) {
+int rad_ps2jvel(const double rps) {
   int jvel = (int) (rps / 0.01151917306);
   if (jvel < 0) jvel = 1023 - jvel;
   return jvel;
@@ -130,25 +130,26 @@ void zero_position(MyRobot *d, double* ctrl, double* sensors, int nu) {
   d->get_sensors(&time, sensors, NULL);
   int max_t = 150;
   double init[nu];
+  double diff[nu];
   for (int i = 0; i < nu; i++) {
     init[i] = ctrl[i]; // pass in initial goal position with ctrl
     ctrl[i] = sensors[i];
+    diff[i] = init[i] - sensors[i];
   }
   for (int t=0; t<max_t; t++) { // 25 commands over 5 seconds?
     for (int i = 0; i < nu; i++) {
-      double diff = init[i] - sensors[i]; // end - start
-      ctrl[i] += diff / (double)max_t;
+      ctrl[i] += diff[i] / (double)max_t;
     }
     d->set_controls(ctrl, nu, NULL, NULL);
     printf(".");
     fflush(stdout);
 
     d->get_sensors(&time, sensors, NULL);
-    // wait for next cmd to interpolate
-    //std::chrono::milliseconds interval(3000/max_t);
-    //std::this_thread::sleep_for(interval);
   }
-  d->set_controls(init, nu, NULL, NULL); // force final position
+  for (int i = 0; i < nu; i++) {
+    ctrl[i] = init[i]; // pass in initial goal position with ctrl
+  }
+  d->set_controls(ctrl, nu, NULL, NULL); // force final position
   printf(" done.\n");
 }
 

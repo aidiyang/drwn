@@ -57,6 +57,9 @@ class SimDarwin : public MyRobot {
 
       sensor_noise = s_noise > 0 ? true : false;
       control_noise = c_noise > 0 ? true : false;
+
+      if (sensor_noise) printf("Adding SENSOR noise to Simulation\n");
+      if (control_noise) printf("Adding CONTROL noise to Simulation\n");
     }
 
     ~SimDarwin() {
@@ -69,7 +72,6 @@ class SimDarwin : public MyRobot {
     //  if (!i_pose) {
     //	i_pose = new double[7];
     //  }
-
     //  if (p) {
     //	memcpy(i_pose, p, sizeof(double)*7);
     //  }
@@ -78,17 +80,14 @@ class SimDarwin : public MyRobot {
     //  }
     //}
 
-    //bool get_state(double* time, double* qpos, double* qvel, double *sensor) {
     bool get_sensors(double * time, double* sensor, double* conf) {
-
       *time = d->time;
       if (d->time < sensor_time ) {
-
         //mj_step(m, d); // advanced simulation until we can get new sensor data
         // let render program advance the simulation
         return false;
       }
-      printf("real time %f\nsensor time: %f\n\n", d->time, sensor_time);
+      //printf("real time %f\nsnsr time: %f\n\n", d->time, sensor_time);
 
       // current time + next sensor time + sensor time noise
       sensor_time = d->time + s_dt;// + t_noise(gen);
@@ -115,6 +114,7 @@ class SimDarwin : public MyRobot {
 
       return true;
     }
+
 
     // mujoco controls to mujoco controls
     bool set_controls(double * u, int nu, int *pgain, int *dgain) {

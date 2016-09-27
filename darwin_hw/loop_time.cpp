@@ -62,7 +62,7 @@ int main (int argc, char* argv[]) {
    }
 
    bool zero_gyro = true;
-   PhidgetIMU * imu = new PhidgetIMU(-1, zero_gyro);
+//PhidgetIMU * imu = new PhidgetIMU(-1, zero_gyro);
    if (zero_gyro) {
       my_cm730.Sleep(2500); // gyro needs 2 seconds to zero itself
    }

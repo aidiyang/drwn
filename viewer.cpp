@@ -25,6 +25,25 @@ namespace po = boost::program_options;
 extern mjModel* m; // defined in viewer_lib.h to capture perturbations
 extern mjData* d;
 
+double s_ps_walk[16*3] = {
+   -0.0246,  0.0560, 0.3758,
+   -0.0711, -0.0540, 0.3161,
+    0.0210,  0.0450, 0.3601,
+    0.0417,  0.0180, 0.3144,
+   -0.0246, -0.0560, 0.3758,
+   -0.0711,  0.0540, 0.3161,
+    0.0210, -0.0450, 0.3601,
+    0.0417, -0.0180, 0.3144,
+   -0.0795, -0.0743, 0.0169,
+   -0.0795,  0.0743, 0.0169,
+    0.0084, -0.0742, 0.0117,
+    0.0084,  0.0742, 0.0117,
+    0.0061, -0.1081, 0.2651,
+    0.0205, -0.1174, 0.2375,
+    0.0161,  0.1082, 0.2655,
+    0.0337,  0.1176, 0.2399};
+
+
 double init_qpos[26] = {
   0.0423, 0.0002, -0.0282, 0.0004, 0.2284, -0.0020, 0.0000, -0.4004, 0.7208, 0.2962, -0.5045, -0.8434, -0.2962, 0.5045, -0.0005, -0.0084, 0.6314, -0.9293, -0.5251, -0.0115, 0.0005, 0.0084, -0.6314, 0.9293, 0.5251, 0.0115};
 double init_qvel[26] = { 0.00, -0.00, -0.01, 0.00, -0.00, 0.00, 0.00, -0.01, 0.01, 0.01, -0.01, -0.01, -0.01, 0.01,
@@ -42,8 +61,8 @@ void save_states(std::string filename, double time,
     mjData * real, mjData * est, mjData * stddev,
     double t1, double t2,
     std::string mode = "w") {
-  //int nu = m->nu;
-  int nu = 20;
+  int nu = m->nu;
+  //int nu = 20;
   if (mode=="w") {
     // create file
     myfile.open(filename, std::ofstream::out);
@@ -141,20 +160,42 @@ void save_states(std::string filename, double time,
 
 
 void print_state(const mjModel* m, const mjData* d) {
+  printf("qpos:\n");
   for (int i=0; i<m->nq; i++) {
     printf("%1.4f ", d->qpos[i]);
   }
-  printf(":: ");
+  printf("\nqvel:\n");
   for (int i=0; i<m->nv; i++) {
     printf("%1.4f ", d->qvel[i]);
   }
-  printf(":: ");
-  for (int i=0; i<m->nv; i++) {
-    printf("%1.4f ", d->qacc[i]);
+  printf("\nctrl:\n");
+  for (int i=0; i<m->nu; i++) {
+    //printf("%1.4f ", d->qacc[i]);
+    printf("%1.4f ", d->ctrl[i]);
   }
   printf("\n");
 }
 
+void calc_torques(mjModel * m, mjData *d, double * u) {
+  printf("\nControls:\n");
+  for(int id = 0; id < m->nu; id++) {
+    printf("%1.4f ", u[id]);
+  }
+  printf("\nPositions:\n");
+  for(int id = 0; id < m->nu; id++) {
+    printf("%1.4f ", d->sensordata[id]);
+  }
+  printf("\nmujoco torques:\n");
+  for(int id = 0; id < m->nu; id++) {
+    printf("%1.4f ", d->actuator_force[id]);
+  }
+  printf("\nmanual torques:\n");
+  for(int id = 0; id < m->nu; id++) {
+    double torque = 20 * (u[id] - d->sensordata[id]);
+    printf("%1.4f ", torque);
+  }
+  printf("\n");
+}
 
 int main(int argc, const char** argv) {
 
@@ -197,7 +238,7 @@ int main(int argc, const char** argv) {
       ("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
       ("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
       ("e_noise,e", po::value<double>(&e_noise)->default_value(1.0), "Gaussian amount of estimator noise to corrupt data with.")
-      ("alpha,a", po::value<double>(&alpha)->default_value(0.001), "Alpha: UKF param")
+      ("alpha,a", po::value<double>(&alpha)->default_value(1e-3), "Alpha: UKF param")
       ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
       ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
       ("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
@@ -283,22 +324,44 @@ int main(int argc, const char** argv) {
   }
   int nq = m->nq;
   int nv = m->nv;
-  int nu = 20;//m->nu;
+  int nu = m->nu;
   int nsensordata = m->nsensordata;
-
+  
+  bool darwin_model = model_name.find("darwin") != std::string::npos;
 
   ////// SIMULATED ROBOT
   double dt = m->opt.timestep;
-  double lp_dt = dt;
+  double kp = 20;
+  double min_t = 0.0;
+  int A_SIZE=3;
+  int G_SIZE=3;
+  int CONTACTS_SIZE=12;
+  int NMARKERS=16;
+  int MARKER_SIZE = NMARKERS*3;
+  
+double time = 0.0;
+  double prev_time = 0.0;
+  double *qpos = new double[nq];
+  double *qvel = new double[nv];
+  double *ctrl = new double[nu];
+  double *trqs = new double[nu];
+  for (int i=0; i<nu; i++) {
+    ctrl[i] = 0.0;
+    trqs[i] = 0.0;
+  }
+  double *sensors = new double[nsensordata];
+  double *conf = new double[NMARKERS];
+  //double lp_dt = dt;
   printf("DT of mujoco model %f\n", dt);
   MyRobot *robot;
+  int mrkr_idx = 0;
 #ifndef __APPLE__
   if (real_robot) {
     ////// REAL ROBOT
     bool use_cm730 = true;
     bool zero_gyro = true;
     bool use_rigid = false;
-    bool use_markers = false;
+    bool use_markers = true;
     bool use_raw = false;
     std::string ps_server = "128.208.4.49";
     double *p = NULL; // initial pose
@@ -311,13 +374,25 @@ int main(int argc, const char** argv) {
       if (m->sensor_type[i] == mjSENS_FORCE) use_ati = true;
       //if (m->sensor_type[i] == mjSENS_TORQUE) use_ati = true;
     }
-    use_ati = false;
+    //use_markers = false;
+    mrkr_idx = 40+
+      use_accel*A_SIZE+
+      use_gyro*G_SIZE+
+      use_ati*CONTACTS_SIZE;
+
 
     int* p_gain = new int[nu]; 
     for (int i=0; i<nu; i++) { // use sensors based on mujoco model
       p_gain[i] = (int) m->actuator_gainprm[i*mjNGAIN];
-      //printf("%d\n", p_gain[i]);
     }
+    kp = p_gain[0];
+    printf("KP: %f\n", kp);
+    double * min_t_ptr = util::get_numeric_field(m, "min_torque", NULL);
+    if (min_t_ptr) {
+      min_t = min_t_ptr[0];
+      printf("Torque Minimium for Deadband: %f\n", min_t);
+    }
+
     printf("\n\n");
     if (use_accel) printf("Using Accelerometer\n");
     if (use_gyro) printf("Using Gyroscope\n");
@@ -331,28 +406,51 @@ int main(int argc, const char** argv) {
       robot = new DarwinRobot(use_cm730, zero_gyro, use_rigid, use_markers, use_raw,
           use_accel, use_gyro, use_ati, p_gain, ps_server, p);
 
-      double * rot=util::get_numeric_field(m, "t_rot", NULL);
-      if (rot) {
+      // MARKER ROTATION AND OFFSET
+      double *ps = new double[MARKER_SIZE];
+      double *ps_c = new double[NMARKERS];
+      Matrix3d rot;
+      rot<<0.996336648486483, -0.0855177343170566, 0, 0.0855177343170566, 0.996336648486483, 0, 0, 0, 1;
+      if (use_markers || use_rigid) {
         robot->set_frame_rotation(rot);
+        int c1 = 7; // marker positions
+        int c2 = 3;
+        double* mrkr = sensors+mrkr_idx;
+        kb_changemode(1);
+        while (!kbhit()) { // double check the chest marker positioning
+          robot->get_sensors(&time, sensors, conf);
+          printf("\r");
+          printf("M1: %1.4f %1.4f %1.4f : %1.4f\t\t", mrkr[c1*3+0], mrkr[c1*3+1], mrkr[c1*3+2], conf[c1]);
+          printf("M2: %1.4f %1.4f %1.4f : %1.4f", mrkr[c2*3+0], mrkr[c2*3+1], mrkr[c2*3+2], conf[c2]);
+        }
+        int c=getchar();
+        kb_changemode(0);
+        // after chest markers are in view, average their values
+        int m_count = 100;
+        buffer_markers(robot, ps, ps_c, sensors, conf, mrkr_idx, NMARKERS, m_count);
+        // ps has been averaged of good markers
+
+        Vector3d v1(ps[c1*3+0], ps[c1*3+1], ps[c1*3+2]); // these should be good from above
+        Vector3d v2(ps[c2*3+0], ps[c2*3+1], ps[c2*3+2]);
+        //Vector3d vec_r = rot*v1 - rot*v2;
+        Vector3d vec_r = v1 - v2;
+        vec_r[2] = 0;
+        Vector3d vec_s(0, -1, 0); // basically only in y axis
+
+        // set these at the same time?
+        robot->set_initpos_rt(vec_r, vec_s, ps, ps_c, s_ps_walk); // pass the clean data
+      }
+      else {
+        printf("Skipping Rotation Calibration\n");
       }
     }
     delete[] p_gain;
+
   }
   else
 #endif
     robot = new SimDarwin(m, d, dt, s_noise, s_time_noise, c_noise);
 
-
-  double time = 0.0;
-  double prev_time = 0.0;
-  double *qpos = new double[nq];
-  double *qvel = new double[nv];
-  double *ctrl = new double[nu];
-  for (int i=0; i<nu; i++) {
-    ctrl[i] = 0.0;
-  }
-  double *sensors = new double[nsensordata];
-  double *conf = new double[16];
 
   // init darwin to walker pose
   Walking * walker = new Walking();
@@ -375,13 +473,18 @@ int main(int argc, const char** argv) {
     for (int i=0; i<100; i++)
       mj_step(m, d);
   }
-  if (from_hardware) {
+  //if (from_hardware) 
+  if (darwin_model)
+  {
+      std::cout<< model_name << "\n";
     printf("Loading crouched initial position.\n");
     for (int i=0; i<20; i++) d->ctrl[i] = ctrl[i];
     for (int i=0; i<nq; i++) d->qpos[i] = init_qpos[i];
-    for (int i=0; i<100; i++)
+    for (int i=0; i<1000; i++)
       mj_step(m, d);
   }
+  //util::darwin_torques(trqs, m, d, d->ctrl, min_t, kp); // set controls from above
+  //robot->set_controls(trqs, 20, NULL, NULL);
   robot->set_controls(ctrl, 20, NULL, NULL);
 
   Estimator * est = 0;
@@ -393,6 +496,7 @@ int main(int argc, const char** argv) {
 
   double * s_cov = util::get_numeric_field(m, "snsr_covar", NULL);
   double * p_cov = util::get_numeric_field(m, "covar_diag", NULL);
+
 
   if (render_robot == false) { // if we are not rendering just make the ukf
     est = new UKF(m, d, s_cov, p_cov,
@@ -406,6 +510,8 @@ int main(int argc, const char** argv) {
 
   //double render_t = util::now_t();
   bool exit = render_robot ? true : !closeViewer();
+  double real_dt = 0.007;
+  double lp_alpha = 0.09;
   while ( exit ) {
 
     if (render_robot) {
@@ -460,7 +566,7 @@ int main(int argc, const char** argv) {
     }
     else if (from_hardware && est) {
       thread_t = util::now_t();
-      t_predict = std::async(std::launch::async, &Estimator::predict_correct_p1, est, ctrl, 0.0131, sensors, conf);
+      t_predict = std::async(std::launch::async, &Estimator::predict_correct_p1, est, ctrl, real_dt, sensors, conf);
       double t1 = util::now_t();
       get_data_and_estimate = robot->get_sensors(&time, sensors, conf);
       double t2 = util::now_t();
@@ -481,16 +587,14 @@ int main(int argc, const char** argv) {
     if (get_data_and_estimate) {
 
       printf("robot hw time: %f\n", time);
-      printf("prev time: %f\n", prev_time);
-      //printf("true state:\n");
+      printf("true state:\n");
       //print_state(m, d);
-
-      //mj_forward(m, d); // to get the sensord data at the current place
-      //mj_sensor(m, d);
 
       //////////////////////////////////
       printf("robot sensor time: %f, est DT: %f\n", time, time-prev_time);
-      printf("low passed dt: %f\n", lp_dt);
+      if (est) printf("Estimator time: %f\n", est_data->time);
+      real_dt = real_dt + lp_alpha * ((time-prev_time)-real_dt);
+      printf("low passed dt: %f\n", real_dt);
 
       //////////////////////////////////
       double t0 = util::now_t();
@@ -501,21 +605,21 @@ int main(int argc, const char** argv) {
           //est->predict_correct_p1(ctrl, time-prev_time, sensors, conf);
         }
         else {  
+          ///est->predict_correct_p1(trqs, time-prev_time, sensors, conf);
           est->predict_correct_p1(ctrl, time-prev_time, sensors, conf);
         }
       }
-      double a = 0.5;
-      lp_dt = a * lp_dt + (1-a)*((time-prev_time));
+      //double a = 0.5;
+      //lp_dt = a * lp_dt + (1-a)*((time-prev_time));
 
       //////////////////////////////////
       double t1 = util::now_t();
       //if (est) est->correct(sensors);
-      printf("prev time: %f\n", prev_time);
       //if (est) est->predict_correct(ctrl, time-prev_time, sensors, conf);
       if (est) {
+        //est->predict_correct_p2(trqs, time-prev_time, sensors, conf);
         est->predict_correct_p2(ctrl, time-prev_time, sensors, conf);
       }
-
       double t2 = util::now_t();
 
       if (from_hardware) 
@@ -525,18 +629,26 @@ int main(int argc, const char** argv) {
         printf("\n\t\t estimator predict %f ms, correct %f ms, total %f ms\n",
             t1-t0, t2-t1, t2-t0);
 
-      //if (est) {
-      //    printf("\n\nSensor Compare:\nreal: ");
-      //    int s = 40+6;
-      //    for (int i=s; i<12; i++) {
-      //        if (real_robot) printf("%1.4f ", sensors[i]);
-      //        else printf("%1.4f ", d->sensordata[i]);
-      //    }
-      //    printf("\n est: ");
-      //    for (int i=s; i<12; i++) {
-      //        printf("%1.4f ", est_data->sensordata[i]);
-      //    }
-      //}
+      if (est) {
+        printf("est  state:\n");
+        //print_state(m, est_data);
+      }
+
+      if (darwin_model) {
+          printf("\n\nSensor Compare:\nreal: ");
+          int s = mrkr_idx;
+          for (int i=s; i<s+MARKER_SIZE; i++) {
+              if (real_robot) printf("%1.4f ", sensors[i]);
+              else printf("%1.4f ", d->sensordata[i]);
+          }
+          if (est) {
+              printf("\n est: ");
+              for (int i=s; i<s+MARKER_SIZE; i++) {
+                  printf("%1.4f ", est_data->sensordata[i]);
+              }
+          }
+      }
+
       //printf("\n");
       //printf("\nctrl: ");
       //for (int i=0; i<nu; i++) {
@@ -555,6 +667,10 @@ int main(int argc, const char** argv) {
         walker->Process(time-prev_time, 0, ctrl);
       }
       robot->set_controls(ctrl, 20, NULL, NULL);
+      //calc_torques(m, d, ctrl);
+      //util::darwin_torques(trqs, m, d, ctrl, min_t, kp);
+      //robot->set_controls(trqs, 20, NULL, NULL);
+
 
       prev_time = time;
       if (est && estimation_counts > 0) {
@@ -617,6 +733,7 @@ int main(int argc, const char** argv) {
   delete[] sensors;
   delete[] conf;
   delete est;
+  delete robot;
 
   return 0;
 }

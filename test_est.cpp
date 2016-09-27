@@ -1,4 +1,5 @@
 
+#define __AVX__ 1
 #include "util_func.h"
 #include "estimator.h"
 #include "darwin_hw/drwn_walker.h"
@@ -242,6 +243,10 @@ int main(int argc, const char** argv) {
 
     prev_time = time;
   }
+  printf("True:\n");
+  print_state(m, d);
+  printf("est:\n");
+  print_state(m, est_data);
 
   mj_deactivate();
   mj_deleteData(d);

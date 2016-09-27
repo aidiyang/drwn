@@ -201,8 +201,8 @@ class DarwinRobot : public MyRobot {
         this->pgain[joint_num]=p[joint+9];
         this->dgain[joint_num]=0; //d[joint+9];
       }
-      this->pgain[JointData::ID_HEAD_PAN]=p[JointData::ID_HEAD_PAN];
-      this->pgain[JointData::ID_HEAD_TILT]=p[JointData::ID_HEAD_TILT];
+      this->pgain[JointData::ID_HEAD_PAN]=p[JointData::ID_HEAD_PAN-1];
+      this->pgain[JointData::ID_HEAD_TILT]=p[JointData::ID_HEAD_TILT-1];
       this->dgain[JointData::ID_HEAD_PAN]=0; //d[JointData::ID_HEAD_PAN];
       this->dgain[JointData::ID_HEAD_TILT]=0; //d[JointData::ID_HEAD_TILT];
 
@@ -317,9 +317,9 @@ class DarwinRobot : public MyRobot {
         if (use_cm730) {
           body_data = std::async(std::launch::async, &CM730::BulkRead, cm730);
         }
-        if (use_ati) {
-          ati_data = std::async(std::launch::async, &ContactSensors::getData, ati, r, l);
-        }
+        //if (use_ati) {
+        //  ati_data = std::async(std::launch::async, &ContactSensors::getData, ati, r, l);
+        //}
 
         double a[3];
         double g[3];
@@ -331,10 +331,8 @@ class DarwinRobot : public MyRobot {
 
         //double t1 = GetCurrentTimeMS();
         if (use_ati) {
-         //if ( ati->getData(r, l))
-         //{
-         if ( ati_data.get()) {
-           //
+         if ( ati->getData(r, l)) {
+         //if ( ati_data.get()) {
           sensor[idx+0] = r[0]; // right force x
           sensor[idx+1] = -1.0*r[1]; // right force y
           sensor[idx+2] = r[2]; // right force z
@@ -383,7 +381,7 @@ class DarwinRobot : public MyRobot {
 
         if (use_cm730) {
           if (body_data.get() != CM730::SUCCESS) {
-            printf("BAD JOINT READ\n");
+            printf("BAD JOINT READ INTERFACE\n");
           }
           else {
             // raw values collected, convert to mujoco
@@ -431,7 +429,7 @@ class DarwinRobot : public MyRobot {
           //cmd_vec[n++] = this->dgain; // d gain
           cmd_vec[n++] = 0; // d gain
           cmd_vec[n++] = 0; // i gain
-          cmd_vec[n++] = this->pgain[id-1]; // p gain
+          cmd_vec[n++] = this->pgain[id]; // p gain
           cmd_vec[n++] = 0; // reserved
           cmd_vec[n++] = CM730::GetLowByte(current[id]); // move to middle
           cmd_vec[n++] = CM730::GetHighByte(current[id]);

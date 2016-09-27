@@ -25,12 +25,18 @@ est_qvel = df.filter(regex='est_v').values
 est_ctrl = df.filter(regex='est_c').values
 est_snsr = df.filter(regex='est_s').values
 est_mrkr = est_snsr[:,58:(58+16*3)]
-est_mrkr = est_mrkr.reshape(len(est_mrkr), 16,3)
+if (est_mrkr.any()):
+    est_mrkr = est_mrkr.reshape(len(est_mrkr), 16,3)
 
 nq = est_qpos.shape[1]
 nv = est_qvel.shape[1]
 nu = est_ctrl.shape[1]
 ns = est_snsr.shape[1]
+
+print "nq:", nq
+print "nv:", nv
+print "nu:", nu
+print "ns:", ns
 
 std_qpos = df.filter(regex='stddev_p').values
 std_qvel = df.filter(regex='stddev_v').values
@@ -52,6 +58,9 @@ my_ls = '--'
 my_lw = 5
 my_alpha = 0.1
 root = 6
+if (root > nq):
+    root = nq
+
 if qpos.any():
     axs[0,0].plot(t, qpos[:,0:root], lw=my_lw, alpha=my_alpha)
 plt.gca().set_color_cycle(None) # reset color cycle
@@ -61,34 +70,36 @@ for col in range(0,root):
     axs[0,0].fill_between(t, est_qpos[:,col]+std_qpos[:,col],
             est_qpos[:,col]-std_qpos[:,col], edgecolor='none', alpha=0.1)
 
-if qpos.any():
-    axs[1,0].plot(t, qpos[:,root:], lw=my_lw, alpha=my_alpha)
-plt.gca().set_color_cycle(None) # reset color cycle
-axs[1,0].plot(t, est_qpos[:,root:], ls=my_ls, alpha=1.0)
-axs[1,0].set_title('qpos joints')
-for col in range(root, nq):
-    axs[1,0].fill_between(t, est_qpos[:,col]+std_qpos[:,col],
-            est_qpos[:,col]-std_qpos[:,col], edgecolor='none', alpha=0.1)
+if (root == 6 ):
+    if qpos.any():
+        axs[1,0].plot(t, qpos[:,root:], lw=my_lw, alpha=my_alpha)
+    plt.gca().set_color_cycle(None) # reset color cycle
+    axs[1,0].plot(t, est_qpos[:,root:], ls=my_ls, alpha=1.0)
+    axs[1,0].set_title('qpos joints')
+    for col in range(root, nq):
+        axs[1,0].fill_between(t, est_qpos[:,col]+std_qpos[:,col],
+                est_qpos[:,col]-std_qpos[:,col], edgecolor='none', alpha=0.1)
 
 
 if qvel.any():
     axs[0,1].plot(t, qvel[:,0:root], lw=my_lw, alpha=my_alpha)
 plt.gca().set_color_cycle(None)
 axs[0,1].plot(t, est_qvel[:,0:root], ls=my_ls, alpha=1.0)
-axs[0,1].set_title('qvel root')
+axs[0,1].set_title('qvel root, solid=sim, dotted=est')
 for col in range(0, root):
     axs[0,1].fill_between(t, est_qvel[:,col]+std_qvel[:,col],
             est_qvel[:,col]-std_qvel[:,col], edgecolor='none', alpha=0.1)
 
 
-if qvel.any():
-    axs[1,1].plot(t, qvel[:,root:], lw=my_lw, alpha=my_alpha)
-plt.gca().set_color_cycle(None)
-axs[1,1].plot(t, est_qvel[:,root:], ls=my_ls, alpha=1.0)
-axs[1,1].set_title('qvel joints')
-for col in range(root, nv):
-    axs[1,1].fill_between(t, est_qvel[:,col]+std_qvel[:,col],
-            est_qvel[:,col]-std_qvel[:,col], edgecolor='none', alpha=0.1)
+if (root == 6 ):
+    if qvel.any():
+        axs[1,1].plot(t, qvel[:,root:], lw=my_lw, alpha=my_alpha)
+    plt.gca().set_color_cycle(None)
+    axs[1,1].plot(t, est_qvel[:,root:], ls=my_ls, alpha=1.0)
+    axs[1,1].set_title('qvel joints')
+    for col in range(root, nv):
+        axs[1,1].fill_between(t, est_qvel[:,col]+std_qvel[:,col],
+                est_qvel[:,col]-std_qvel[:,col], edgecolor='none', alpha=0.1)
 
 
 if ctrl.any():
@@ -103,26 +114,28 @@ axs[2,0].set_title('ctrl')
 #            est_ctrl[:,col]-std_ctrl[:,col], edgecolor='none', alpha=0.1)
 
 # accel
-if snsr.any():
-    axs[2,1].plot(t, snsr[:,40:43], lw=my_lw, alpha=my_alpha)
-plt.gca().set_color_cycle(None)
-axs[2,1].plot(t, est_snsr[:,40:43], ls=my_ls, alpha=1.0)
-#axs[1,0].fill_between(t, est_snsr+std_snsr, est_snsr-std_snsr, ls=my_ls, alpha=1.0)
-axs[2,1].set_title('accel')
-for col in range(40,43):
-    axs[2,1].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
-            est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
+if (ns > 56):
+    if snsr[:,40:43].any():
+        axs[2,1].plot(t, snsr[:,40:43], lw=my_lw, alpha=my_alpha)
+    plt.gca().set_color_cycle(None)
+    axs[2,1].plot(t, est_snsr[:,40:43], ls=my_ls, alpha=1.0)
+    #axs[1,0].fill_between(t, est_snsr+std_snsr, est_snsr-std_snsr, ls=my_ls, alpha=1.0)
+    axs[2,1].set_title('accel')
+    for col in range(40,43):
+        axs[2,1].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
+                est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
 
 # gyro
-if snsr.any():
-    axs[2,2].plot(t, snsr[:,43:46], lw=my_lw, alpha=my_alpha)
-plt.gca().set_color_cycle(None)
-axs[2,2].plot(t, est_snsr[:,43:46], ls=my_ls, alpha=1.0)
-#axs[1,0].fill_between(t, est_snsr+std_snsr, est_snsr-std_snsr, ls=my_ls, alpha=1.0)
-axs[2,2].set_title('gyro')
-for col in range(43,46):
-    axs[2,2].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
-            est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
+if (ns > 56):
+    if snsr.any():
+        axs[2,2].plot(t, snsr[:,43:46], lw=my_lw, alpha=my_alpha)
+    plt.gca().set_color_cycle(None)
+    axs[2,2].plot(t, est_snsr[:,43:46], ls=my_ls, alpha=1.0)
+    #axs[1,0].fill_between(t, est_snsr+std_snsr, est_snsr-std_snsr, ls=my_ls, alpha=1.0)
+    axs[2,2].set_title('gyro')
+    for col in range(43,46):
+        axs[2,2].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
+                est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
 
 ## mrkr 
 # if mrkr.any():

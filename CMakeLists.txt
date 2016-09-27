@@ -127,6 +127,11 @@ if (NOT APPLE)
        ${DARWIN_INCLUDES} )
    endif()
    #target_include_directories(viewer PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+   add_executable(test_est "test_est.cpp" "ukf.cpp" "darwin_hw/drwn_walker.cpp" "util_func.cpp" 
+     "darwin_hw/Vector.cpp" "darwin_hw/Matrix.cpp" "darwin_hw/MX28.cpp"
+     "darwin_hw/Point.cpp" "darwin_hw/JointData.cpp" )
+   target_link_libraries(test_est ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} )
+
 else()
   add_library(sim_only "darwin_hw/drwn_walker.cpp" "util_func.cpp" 
     "darwin_hw/Vector.cpp" "darwin_hw/Matrix.cpp" "darwin_hw/MX28.cpp"
@@ -134,11 +139,6 @@ else()
   add_executable(viewer "viewer.cpp" )
   target_link_libraries(viewer sim_only ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} )
 endif()
-
-add_executable(test_est "test_est.cpp" "ukf.cpp" "darwin_hw/drwn_walker.cpp" "util_func.cpp" 
-    "darwin_hw/Vector.cpp" "darwin_hw/Matrix.cpp" "darwin_hw/MX28.cpp"
-    "darwin_hw/Point.cpp" "darwin_hw/JointData.cpp" )
-target_link_libraries(test_est ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} )
 
 #add_executable(speed_test "multithread.cpp" )
 #target_link_libraries(speed_test ${MUJOCO_LIBRARIES} )

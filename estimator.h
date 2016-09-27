@@ -103,18 +103,21 @@ class UKF : public Estimator {
     double constraint_violated(mjData* t_d);
     double handle_constraint(mjData* t_d, mjData* d, double tol,
         Eigen::VectorXd* t_x, Eigen::VectorXd* x0, Eigen::VectorXd* P);
+    double handle_constraint(mjData* t_d, double tol,
+        Eigen::VectorXd* t_x, Eigen::VectorXd* x0);
 
     void predict(double * ctrl, double dt);
     void correct(double* sensors);
     void predict_correct(double * ctrl, double dt, double* sensors, double* conf = 0); 
     void predict_correct_p1(double * ctrl, double dt, double* sensors, double* conf = 0); 
     void predict_correct_p2(double * ctrl, double dt, double* sensors, double* conf = 0); 
+    void predict_correct_p10(double * ctrl, double dt, double* sensors, double* conf = 0);
 
     double * get_numeric_field(const mjModel* m, std::string s, int *size);
 
     mjData* get_stddev();
 
-    void sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl, 
+    double sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl, 
         Eigen::VectorXd *x, Eigen::MatrixXd *m_sqrt, int s, int e);
 
   private:
@@ -131,6 +134,7 @@ class UKF : public Estimator {
     double * W_s;
     double * W_theta;
     double * W_c;
+    double W_even;
     double * snsr_ptr;
 
     std::normal_distribution<> * rd_vec; 
@@ -139,6 +143,8 @@ class UKF : public Estimator {
     //std::vector<VectorXd *> x;
     Eigen::VectorXd * x;
     Eigen::VectorXd * gamma;
+    Eigen::MatrixXd m_gamma;
+    Eigen::MatrixXd m_x;
     Eigen::VectorXd x_t;
     Eigen::VectorXd z_k;
     Eigen::VectorXd x_minus;
@@ -153,7 +159,7 @@ class UKF : public Estimator {
     Eigen::MatrixXd PtAdd;
     double mrkr_conf;
 
-    std::future<void> *sigma_handles;
+    std::future<double> *sigma_handles;
 
     std::vector<mjData *> sigmas;
     std::vector<mjModel *> models;
@@ -166,7 +172,4 @@ class UKF : public Estimator {
     double *m_noise;
     double *t_noise;
 };
-
-
-
 

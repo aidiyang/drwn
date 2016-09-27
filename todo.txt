@@ -168,3 +168,12 @@ estimator code:
 Should test the low-latency kernels with sensor performance
 need to re-jigger the phasespace stuff as it would be nice to use in estimation
 
+
+09/28
+cleaning up for final submission
+things to test:
+  constraint limiting for correction step 
+  traditional weighting for state update and / or covariance update?
+
+  Even weighting on state but traditional on covariance seems to be okay
+

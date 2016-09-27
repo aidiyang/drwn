@@ -12,6 +12,7 @@
 soft:
         margin="0.001" solref="1 1" solimp=".001 .001 .01" material="meshmat"/>
       <flag constraint="disable"/>
+      <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
    -->
 
     <option	timestep="0.002" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
@@ -25,21 +26,22 @@ soft:
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
       <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
-      <position ctrllimited='true' kp='20'/>
+
+      <position ctrllimited='true' kp='20' forcelimited='true' forcerange='-2.7 2.7'/>
 
       <default class='torso'>
         <geom contype='1' conaffinity='0' rgba='.79 .52 .43 1'/>
       </default>
       <default class='left leg'>
         <geom contype='2' conaffinity='0' rgba='.69 .72 .43 1' condim='1'
-          solref=".02 0.1" solimp="0.9 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
+          solref=".02 0.1" solimp="0.8 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
         <!-- 
              solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
               -->
       </default>
       <default class='right leg'>
         <geom contype='4' conaffinity='0' rgba='.29 .72 .43 1' condim='1'
-          solref=".02 0.1" solimp="0.9 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
+          solref=".02 0.1" solimp="0.8 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
         <!--
              solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
               -->
@@ -71,19 +73,20 @@ soft:
          -->
     <custom>
         <numeric name="snsr_covar" size="29" data="
-        1e+2
-        1e-3
+          1e+1
+        1e-4
         1e+1
         1e-6
+        1e-3
         1e-2
-        1e-1
         1e-0
+
         1e-7
-        1e-6
+        1e-5
         1e-0
         1e-0
-        1e-8 1e-0 1e-0 1e-0
-        1e-8
+        1e-8 1e-0 1e-0 1e-0 1e-8
+
         1e-9
         1e-8
         1e-8
@@ -99,27 +102,43 @@ soft:
         1e-8
         "
         />
-<!-- Accelerometer -->
-<!-- Gyro          -->
-<!-- Force         -->
-<!-- Torque        -->
-<!-- JointPos      -->
-<!-- JointVel      -->
-<!-- TendonPos     -->
-<!-- TendonVel     -->
-<!-- ActuatorPos   -->
-<!-- ActuatorVel   -->
-<!-- ActuatorFrc   -->
-<!-- SitePos       -->
-<!-- SiteQuat      -->
-<!-- Magnetometer  -->
-<!-- Default       -->
+<!-- TOUCH         -->
+<!-- ACCELEROMETER -->
+<!-- VELOCIMETER,  -->
+<!-- GYRO,         -->
+<!-- FORCE,        -->
+<!-- TORQUE,       -->
+<!-- MAGNETOMETER, -->
+<!--               -->
+<!-- JOINTPOS,     -->
+<!-- JOINTVEL,     -->
+<!-- TENDONPOS,    -->
+<!-- TENDONVEL,    -->
+<!-- ACTUATORPOS,  -->
+<!-- ACTUATORVEL,  -->
+<!-- ACTUATORFRC,  -->
+<!-- BALLQUAT,     -->
+<!-- BALLANGVEL,   -->
+
+<!-- FRAMEPOS,     -->
+<!-- FRAMEQUAT,    -->
+<!-- FRAMEXAXIS,   -->
+<!-- FRAMEYAXIS,   -->
+<!-- FRAMEZAXIS,   -->
+<!-- FRAMELINVEL,  -->
+<!-- FRAMEANGVEL,  -->
+<!-- FRAMELINACC,  -->
+<!-- FRAMEANGACC,  -->
+
+<!-- SUBTREECOM,   -->
+<!-- SUBTREELINVEL -->
+<!-- SUBTREEANGMOM -->
       <numeric name="t_rot" size="9" data=" 
         1 0 0 0 1 0 0 0 1"/>
       <numeric name="t_rot2" size="9" data=" 
         1 2 2 0 1 0 2 2 1"/>
       <numeric name="covar_diag" size="26" data="
-          1e-10
+          1e-3
           1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
       <!--
       <numeric name="time_var" size='1' data='0.00032' />
@@ -187,14 +206,13 @@ soft:
         <joint name="rootx" type="slide" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rooty" type="slide" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rootz" type="slide" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
+
         <joint name="roota" type="hinge" axis="1 0 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <!--
         -->
-        <!--
-        <joint type="free" limited='false' />
-        -->
+
         <geom name="torso" material="meshmat" contype="0" conaffinity="0" mesh="body_coll" type="mesh" class='torso'/> <!-- TODO fix contact -->
         <site name="imu" pos="0.0 0 -0.04" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
 
@@ -362,6 +380,7 @@ soft:
     </worldbody>
 
     <sensor>
+      <!--
       <jointpos joint="rootx" />
       <jointpos joint="rooty" />
       <jointpos joint="rootz" />
@@ -369,7 +388,6 @@ soft:
       <jointpos joint="roota" />
       <jointpos joint="rootb" />
 
-      <!--
       <jointvel joint="rootx" />
       <jointvel joint="rooty" />
       <jointvel joint="rootz" />
@@ -495,6 +513,30 @@ soft:
 
       <position name='18_head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
       <position name='19_head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
+
+      <!--
+      <motor name='0_r_shoulder_pitch' joint='r_shoulder_pitch'    />
+      <motor name='1_l_shoulder_pitch' joint='l_shoulder_pitch'    />
+      <motor name='2_r_shoulder_roll'  joint='r_shoulder_roll'     />
+      <motor name='3_l_shoulder_roll'  joint='l_shoulder_roll'     />
+      <motor name='4_r_elbow'          joint='r_elbow'             />
+      <motor name='5_l_elbow'          joint='l_elbow'             />
+      <motor name='6_r_hip_yaw'        joint='r_hip_yaw'           />
+      <motor name='7_l_hip_yaw'        joint='l_hip_yaw'           />
+      <motor name='8_r_hip_roll'       joint='r_hip_roll'          />
+      <motor name='9_l_hip_roll'       joint='l_hip_roll'          />
+      <motor name='10_r_hip_pitch'     joint='r_hip_pitch'      	  />
+      <motor name='11_l_hip_pitch'     joint='l_hip_pitch'      	  />
+      <motor name='12_r_knee'          joint='r_knee'           	  />
+      <motor name='13_l_knee'          joint='l_knee'           	  />
+      <motor name='14_r_ankle_pitch'   joint='r_ankle_pitch'    	  />
+      <motor name='15_l_ankle_pitch'   joint='l_ankle_pitch'    	  />
+      <motor name='16_r_ankle_roll'    joint='r_ankle_roll'     	  />
+      <motor name='17_l_ankle_roll'    joint='l_ankle_roll'     	  />
+
+      <motor name='18_head_pan'      		joint='head_pan'        	  /> 
+      <motor name='19_head_tilt'     		joint='head_tilt'       	  /> 
+      -->
 
       <!--
       <position name='0_r_shoulder_pitch' kp='20' joint='r_shoulder_pitch' ctrlrange='-1.5 1.5'  	/>

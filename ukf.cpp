@@ -75,6 +75,8 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
   //prev_d = mj_makeData(this->m); // data from t-1
 
   //raw.resize(N);
+  m_x = MatrixXd::Zero(L, N);
+  m_gamma = MatrixXd::Zero(ns, N);
   x = new VectorXd[N];
   gamma = new VectorXd[N];
   for (int i=0; i<(2*nq+1); i++) {
@@ -88,21 +90,15 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
     mj_forward(m, sigma_states[i]);
   }
 
+  W_even = 1.0/N;
   for (int i=0; i<N; i++) {
     if (i==0) {
       //sigma_states[i] = this->d;
-      //W_s[i] = lambda / ((double) L + lambda);
-      //W_c[i] = W_s[i] + (1-(alpha*alpha)+beta);
+      W_s[i] = lambda / ((double) L + lambda);
+      W_c[i] = W_s[i] + (1-(alpha*alpha)+beta);
       W_s[i] = 1.0/N;
-      W_c[i] = 1.0/N;
-      /*
-         if (Ws0 < 0) {
-         W_s[i] = 1.0 / N;
-         }
-         else{
-         W_s[i] = Ws0;
-         }
-         */
+
+      //W_c[i] = 1.0/N;
       //W_c[i] = W_s[i];
     }
     else {
@@ -110,21 +106,12 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
       //mj_copyData(sigma_states[i], this->m, this->d);
 
       // Traditional weighting
-      //W_s[i] = 1.0 / (2.0 * ((double)L + lambda));
-      //W_c[i] = W_s[i];
+      W_s[i] = 1.0 / (2.0 * ((double)L + lambda));
+      W_c[i] = W_s[i];
 
       // even weighting
       W_s[i] = 1.0/N;
-      W_c[i] = 1.0/N;
-
-      /*
-         if (Ws0 < 0) {
-         W_s[i] = 1.0 / N;
-         }
-         else{
-         W_s[i] = (1.0 - Ws0) / ((double) 2 * L);
-         }
-         */
+      //W_c[i] = 1.0/N;
     }
     x[i] = VectorXd::Zero(L); // point into raw buffer, not mjdata
 
@@ -244,6 +231,7 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
     rd_vec[i] = std::normal_distribution<>( 0, sqrt(PzAdd(i,i)) );
   }
 
+  ct_vec = NULL;
   if (diag > 0) {
     ct_vec = new std::normal_distribution<>[nu]; 
     for (int i=0; i<nu; i++) {
@@ -258,7 +246,7 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
   if (m_noise) printf("Total Mass Var: %f\n", (*m_noise) * this->noise);
   if (t_noise) printf("Time Var: %f\n", (*t_noise) * this->noise);
 
-  sigma_handles = new std::future<void>[my_threads];
+  sigma_handles = new std::future<double>[my_threads];
 };
 
 UKF::~UKF() {
@@ -281,7 +269,7 @@ UKF::~UKF() {
   mj_deleteData(stddev);
 
   delete[] rd_vec;
-  delete[] ct_vec;
+  if (ct_vec) delete[] ct_vec;
 };
 
 double UKF::add_time_noise() {
@@ -331,12 +319,14 @@ void UKF::add_snsr_noise(double * noise) {
   }
 }
 
+// vector to data
 void UKF::set_data(mjData* data, VectorXd *x) {
   mju_copy(data->qpos,   &x[0](0), nq);
   mju_copy(data->qvel,   &x[0](nq), nv);
   if (ctrl_state) mju_copy(data->ctrl,   &x[0](nq+nv), nu); // set controls for this t
 }
 
+// data to vector
 void UKF::get_data(mjData* data, VectorXd *x) {
   mju_copy(&x[0](0),  data->qpos, nq);
   mju_copy(&x[0](nq), data->qvel, nv);
@@ -378,7 +368,46 @@ double UKF::constraint_scale(mjData * t_d, double tol) {
 double UKF::constraint_violated(mjData* t_d) {
   VectorXd constraint = Map<VectorXd>(t_d->qfrc_constraint, nv);
   //VectorXd constraint = Map<VectorXd>(t_d->qfrc_inverse, nv);
-  return constraint.norm();
+  return constraint.maxCoeff();
+}
+
+double UKF::handle_constraint(mjData* t_d, double tol,
+    VectorXd* t_x, VectorXd* x0) {
+  double scale = 1.0;
+  set_data(t_d, t_x);
+  double vio = constraint_violated(t_d);
+  std::cout<< "\tscale: 0.0 violation: "<<vio<<"\n";
+  std::cout<< "\terror: "<<x0[0].transpose()<<"\n";
+  if (vio <= tol) {
+    return scale;
+  }
+  else {
+    //scale = 0.5;
+    for (int i=2; i<16; i++) { // limit the line-search
+
+      VectorXd new_x_t = t_x[0] + (scale*x0[0]);
+
+      mj_resetData(m, t_d); 
+      set_data(t_d, &(new_x_t));
+
+      std::cout<< "origin:" << t_x[0].transpose() << std::endl;
+      std::cout<< "scaled:" << new_x_t.transpose() << std::endl;
+
+      //for (int j=0; j<nv; j++) t_d->qacc[j] = 0.0;
+      //for (int j=0; j<nv; j++) t_d->qfrc_constraint[j] = 0.0;
+      //mju_copy(t_d->qacc, d->qacc, nv); // copy from center point
+      //fast_forward(t_d, j);
+      mj_forward(m, t_d);
+
+      vio = constraint_violated(t_d);
+      std::cout<< "\tscale: "<< scale<<" violation: "<<vio<<"\n";
+      if (vio <= tol) { break; }
+      //if (vio > tol) { scale = scale - pow(0.5, i); }
+      //else { scale = scale + pow(0.5, i); }
+      scale = scale / 10.0;
+    }
+  }
+  return scale;
 }
 
 double UKF::handle_constraint(mjData* t_d, mjData* d, double tol,
@@ -409,9 +438,10 @@ double UKF::handle_constraint(mjData* t_d, mjData* d, double tol,
   return scale;
 }
 
-void UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
+double UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
     VectorXd *x, MatrixXd *m_sqrt, int s, int e) {
-  
+
+  double t0 = util::now_t();
   for (int j=s; j<e; j++) {
     // step through all the perturbation cols and collect the data
     int i = j+1;
@@ -438,6 +468,7 @@ void UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
 
     //add_snsr_noise(t_d->sensordata);
     mju_copy(&(gamma[i](0)), t_d->sensordata, ns);
+    mju_copy(&(m_gamma.col(i)(0)), d->sensordata, ns);
 
     if (j < nq) { // only copy position perturbed
       mju_copy(sigma_states[i+0]->qpos, t_d->qpos, nq);
@@ -464,18 +495,34 @@ void UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
 
     //add_snsr_noise(t_d->sensordata);
     mju_copy(&(gamma[i+L](0)), t_d->sensordata, ns);
+    mju_copy(&(m_gamma.col(i+L)(0)), d->sensordata, ns);
 
     if (j < nq) { // only copy position perturbed states
       mju_copy(sigma_states[i+nq]->qpos, t_d->qpos, nq);
     }
+  }
+  return util::now_t() - t0;
+}
+void UKF::predict_correct_p10(double * ctrl, double dt, double* sensors, double* conf) {
+  //fast_forward(m, d, 0, 0); // dont skip sensor
+  //mj_Euler(m, d);
+  //fast_forward(m, d, 0, 0); // dont skip sensor
 
+  m->opt.timestep = dt; // input to this function
+  m->opt.iterations = 100; 
+  m->opt.tolerance = 1e-6; 
+  mju_copy(d->ctrl, ctrl, nu); // set controls for the center point
+  mj_step(m, d);
+  for (int i=1; i<(2*nq+1); i++) {
+    mju_copy(sigma_states[i]->qpos, d->qpos, nq);
   }
 }
 
 void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* conf) {
 
-  double t2 = util::now_t();
+  //double t2 = util::now_t();
   //int end = (nq > 26) ? 26 : nq;
+  IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
 
   //set_data(d, &(x_t)); // did this in _p2 step
   mju_copy(d->ctrl, ctrl, nu); // set controls for the center point
@@ -502,7 +549,7 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
         for (int i=0; i<3; i++) {
           int idx = ps_start + j*3 + i;
           // our conf threshold (basically not visible)
-          if (conf[j] < 0.0) { PzAdd(idx, idx) = 1e+100; }
+          if (conf[j] < 0.0 || conf[j] > 10.0) { PzAdd(idx, idx) = 1e+100; }
           else { PzAdd(idx, idx) = mrkr_conf; }
         }
       }
@@ -544,10 +591,10 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
   //gamma[0] = Map<VectorXd>(d->sensordata, ns);
   //add_snsr_noise(d->sensordata);
   mju_copy(&(gamma[0](0)), d->sensordata, ns);
+  mju_copy(&(m_gamma.col(0)(0)), d->sensordata, ns);
 
   mju_copy(sigma_states[0]->qpos, d->qpos, nq);
   //mju_copy(sigma_states[0]->ctrl, d->ctrl, nu);
-
   //double t5 = util::now_t();
 
   ////////////////// Weights scaled according to constraints
@@ -557,68 +604,73 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
   //double a = (2.0*lambda - 1.0) / (2.0*(L+lambda)*(S_theta - (N*sq)));
   //double b = (1.0)/(2.0*(L+lambda)) - (2.0*lambda - 1.0)/(2.0*sq*(S_theta - (N*sq)));
 
-  // traditional weighting  rescaled
-  //W_s[0] = b;
-  //W_c[0] = b;
-  //for (int i=1; i<N; i++) { W_s[i] = a * W_theta[i] + b; W_c[i] = W_s[i]; }
-
-  // even weighting
-  //W_s[0] = 1.0/N;
-  //W_c[0] = 1.0/N;
-  //for (int i=1; i<N; i++) { W_s[i] = 1.0/N; W_c[i] = W_s[i]; }
-  //double sum = 0.0;
-  //printf("\nScaled Weights:\n");
-  //for (int i=0; i<N; i++) { sum += W_s[i]; printf("%1.3f ", W_s[i]); }
-  //printf("\nScaled Weights Sum: %f\n", sum);
- 
   // finish up sigma point processing
-  for (int i=0; i<my_threads; i++) {
-    sigma_handles[i].get();
+  double pure_t = 0.0;
+  double pure_ts[my_threads];
+  for (int i=my_threads-1; i>=0; i--) {
+    pure_ts[i] = sigma_handles[i].get();
+    if (pure_ts[i] > pure_t)
+      pure_t = pure_ts[i];
     times[i] = util::now_t() - times[i];
   }
+
+  //printf("Max proc time: %f\n", pure_t);
   //for (int i=0; i<my_threads; i++) {
-  //  printf("Thread %d : %f \n", i, times[i]);
+  //  printf("Thread %d : %f / %f : d: %f\n", i, pure_ts[i], times[i], times[i]-pure_ts[i]);
   //}
 
   // aprior mean
   x_t.setZero();
-  //for (int i=0; i<N; i++) { x_t += W_s[i]*x[i]; }
-  for (int i=1; i<N; i++) { x_t += x[i]; }
-  x_t = W_s[0]*x[0] + (W_s[1])*x_t;
+  z_k.setZero(); // = VectorXd::Zero(ns);
+  for (int i=1; i<N; i++) {
+    x_t += W_s[i]*x[i];
+    z_k += W_s[i]*gamma[i];
+  }
+  x_t = W_s[0]*x[0]     + x_t;
+  z_k = W_s[0]*gamma[0] + z_k;
   // TODO  can optimize more if all the weights are the same
 
-  z_k = shat; //VectorXd::Zero(ns);
-  //for (int i=0; i<N; i++) { z_k += W_s[i]*gamma[i]; }
-  for (int i=1; i<N; i++) { z_k += gamma[i]; }
-  z_k = W_s[0]*gamma[0] + (W_s[1])*z_k;
-  // TODO  can optimize more if all the weights are the same
+  // even weighting
+  //for (int i=0; i<N; i++) {
+  //z_k += W_even*gamma[i];
+  //x_t += W_even*x[i];
+  //}
+  //x_t = W_even*x_t;
+  //z_k = W_even*z_k;
+
+  //std::cout << "snsr mean: " << z_k << std::endl;
+  //std::cout << "snsr diff: " << m_gamma.rowwise().mean() << std::endl;
+  //std::cout << "snsr diff: " << z_k - m_gamma.colwise().mean() << std::endl;
 
   P_t.setZero();
   P_z.setZero();
   Pxz.setZero();
-  //for (int i=0; i<N; i++) {
-  //  VectorXd z(gamma[i] - z_k);
-  //  VectorXd x_i(x[i] - x_t);
-  //  P_t += W_c[i] * (x_i * x_i.transpose()); // aprior covarian
-  //  P_z += W_c[i] * (z * z.transpose());
-  //  Pxz += W_c[i] * (x_i * z.transpose());
-  //}
 
   for (int i=1; i<N; i++) {
     VectorXd z(gamma[i] - z_k);
     VectorXd x_i(x[i] - x_t);
 
-    P_t += (x_i * x_i.transpose());
-    P_z += (z * z.transpose());
-    Pxz += (x_i * z.transpose());
+    //P_t += W_even*(x_i * x_i.transpose()); // needs to include w_even here to avoid over/underflow?
+    //P_z += W_even*(z * z.transpose());
+    //Pxz += W_even*(x_i * z.transpose());
+
+    P_t += W_c[i] * (x_i * x_i.transpose());
+    P_z += W_c[i] * (z * z.transpose());
+    Pxz += W_c[i] * (x_i * z.transpose());
   }
   VectorXd x_i(x[0] - x_t);
   VectorXd z(gamma[0] - z_k);
-  P_t = W_c[0]*(x_i * x_i.transpose()) + W_c[1]*P_t;
-  P_z = W_c[0]*(z * z.transpose())     + W_c[1]*P_z + PzAdd;
-  Pxz = W_c[0]*(x_i * z.transpose())   + W_c[1]*Pxz;
+  P_t = W_c[0]*(x_i * x_i.transpose()) + P_t;
+  P_z = W_c[0]*(z * z.transpose())     + P_z + PzAdd;
+  Pxz = W_c[0]*(x_i * z.transpose())   + Pxz;
 
-  //P_t = P_t + PtAdd; 
+  //P_t = W_even*P_t;
+  //P_z = P_z + PzAdd;
+  //Pxz = W_even*Pxz;
+
+  if (diag < 0) { // if no control noise, force pt to stay sane
+    P_t = P_t + PtAdd; 
+  }
 
   // other method of combining estimates
   // TODO different method for X_1 by multiplying with kalman gain each
@@ -642,7 +694,21 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
   //        t3-t2, t4-t3, t5-t4, t6-t5);
   //double t2 = util::now_t();
 
-  printf("\ncombo est %f\n", util::now_t()-t2);
+  if (NUMBER_CHECK) {
+    int end = (nq > 26) ? 26 : nq;
+    VectorXd c = Map<VectorXd>(ctrl, nu);
+    std::cout << "\nraw ctrl:\n"<< (c).transpose().format(CleanFmt) << "\n";
+
+    std::cout << "\nPredict Pz  :\n"<< P_z.block(0,0,end,end).format(CleanFmt) << "\n";
+    std::cout << "\nPredict Pz next:\n"<< P_z.block(end,end,ns,ns).format(CleanFmt) << "\n";
+    std::cout << "\nPredict Pz^-1:\n"<< P_z.inverse().block(0,0,end,end).format(CleanFmt) << "\n";
+    std::cout << "\nPredict Pxz :\n"<< Pxz.block(0,0,end,end).format(CleanFmt) << "\n\n";
+
+    std::cout << "\npredict p_t :\n"<< P_t.block(0,0,end,end).format(CleanFmt) << "\n";
+    std::cout << "\npredict x_t:\n"<< x_t.transpose().format(CleanFmt) << "\n";
+    std::cout << "\npredict z_k hat:\n"<< (z_k).transpose().format(CleanFmt) << "\n";
+  }
+  //printf("\ncombo est %f\n", util::now_t()-t2);
 }
 
 void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* conf) {
@@ -651,30 +717,49 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
 
   VectorXd s = Map<VectorXd>(sensors, ns); // map our real z to vector
 
-  x_t = x_t + (K*(s-z_k));
+  VectorXd c_v = (K*(s-z_k));
+
+
+  VectorXd new_x_t = x_t + (K*(s-z_k));
+
   P_t = P_t - (K * P_z * K.transpose());
 
-  set_data(d, &(x_t)); // set corrected state into mujoco data struct
-  mju_copy(d->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
+  //set_data(d, &(x_t)); // set corrected state into mujoco data struct
+  //std::cout<< "Correction constraint violation norm predict:" << constraint_violated(d) << "\n";
+  //set_data(d, &(new_x_t)); // set corrected state into mujoco data struct
+  //std::cout<< "Correction constraint violation norm correct:" << constraint_violated(d) << "\n";
 
-//#if 1
-  //fast_forward(m, d, 0, 0); // dont skip sensor
-//#endif
+  //double scale = handle_constraint(d, tol, &(x_t), &(c_v));
+  //x_t = x_t + scale*(K*(s-z_k));
+
+  //set_data(d, &(x_t)); // set corrected state into mujoco data struct
+  //std::cout<< "Correction constraint violation scale:" << scale << "\n";
+  //std::cout<< "Correction constraint violation norm scaled :" << constraint_violated(d) << "\n";
+
+
+  x_t = x_t + (K*(s-z_k));
+  set_data(d, &(x_t)); // set corrected state into mujoco data struct
+
+  mju_copy(d->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
+#if 1
+  fast_forward(m, d, 0, 0); // dont skip sensor
+#endif
 
   int end = (nq > 26) ? 26 : nq;
   if (NUMBER_CHECK) {
     IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
-    std::cout << "Kalman Gain:\n"<< K.block(0,0,end,end).format(CleanFmt) << "\n";
+    std::cout << "\nKalman Gain:\n"<< K.block(0,0,end,end).format(CleanFmt) << "\n";
     std::cout << "\nraw sensors:\n"<< (s).transpose().format(CleanFmt) << "\n";
     std::cout << "\ndelta:\n"<< (s-z_k).transpose().format(CleanFmt) << "\n";
 
-    std::cout << "\nPz  :\n"<< P_z.block(0,0,end,end).format(CleanFmt) << "\n";
-    std::cout << "\nPz^-1:\n"<< P_z.inverse().block(0,0,end,end).format(CleanFmt) << "\n";
-    std::cout << "\nPxz :\n"<< Pxz.block(0,0,end,end).format(CleanFmt) << "\n\n";
+    std::cout << "\nCorrect Pz  :\n"<< P_z.block(0,0,end,end).format(CleanFmt) << "\n";
+    if (nq>26) std::cout << "\nCorrect Pz^-1:\n"<< P_z.inverse().block(0,0,end,end).format(CleanFmt) << "\n";
+    std::cout << "\nCorrect Pxz :\n"<< Pxz.block(0,0,end,end).format(CleanFmt) << "\n\n";
 
-    std::cout << "\ncorrect p_t :\n"<< P_t.block(0,0,end,end).format(CleanFmt) << "\n";
-    std::cout << "\ncorrect x_t:\n"<< x_t.transpose().format(CleanFmt) << "\n";
-    std::cout << "\nz_k hat:\n"<< (z_k).transpose().format(CleanFmt) << "\n";
+    std::cout << "\nCorrect p_t :\n"<< P_t.block(0,0,end,end).format(CleanFmt) << "\n";
+    if (nq>26) std::cout << "\nCorrect p_t next :\n"<< P_t.block(end,end,L,L).format(CleanFmt) << "\n";
+    std::cout << "\nCorrect x_t:\n"<< x_t.transpose().format(CleanFmt) << "\n";
+    std::cout << "\nCorrect z_k hat:\n"<< (z_k).transpose().format(CleanFmt) << "\n";
     std::cout << "Predict and Correct COMBO\n";
   }
 }

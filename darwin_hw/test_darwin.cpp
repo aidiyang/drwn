@@ -54,12 +54,11 @@ double s_ps_zero[16*3] =
     0.0710,  0.1326, 0.3151,
     0.0960,  0.1519, 0.3073};
 
-
-
 int main (int argc, char* argv[]) {
 
   bool debug;
   bool joints;
+  bool move;
   bool zero_gyro;
   bool use_rigid;
   bool use_markers;
@@ -79,6 +78,7 @@ int main (int argc, char* argv[]) {
       ("output,o", po::value<std::string>(&output_file)->default_value("raw.csv"), "Where to save logged sensor data to csv.")
       ("debug,d", po::value<bool>(&debug)->default_value(false), "Use CM730 interface.")
       ("cm730,j", po::value<bool>(&joints)->default_value(true), "Use CM730 interface.")
+      ("move", po::value<bool>(&move)->default_value(true), "Use CM730 interface.")
       ("rigid,r", po::value<bool>(&use_rigid)->default_value(false), "Use Phasespace rigid body tracking.")
       ("markers,m", po::value<bool>(&use_markers)->default_value(true), "Use Phasespace Markers.")
       ("accel,a", po::value<bool>(&use_accel)->default_value(true), "Use accelerometer.")
@@ -126,6 +126,7 @@ int main (int argc, char* argv[]) {
 
   // TODO get array sizes from mujoco?
   double *ctrl = new double[nu];
+  for (int i=0; i<nu; i++) ctrl[i] = 0.0;
   double time = 0.0; 
   int A_SIZE=3;
   int G_SIZE=3;
@@ -152,43 +153,48 @@ int main (int argc, char* argv[]) {
   double avg[count];
 
   ////////////////////////////////// move to initial position
-  walker->Initialize(ctrl); // new goal state
-  zero_position(d, ctrl, sensors, nu);
-  d->set_gyro_offsets();
-  Matrix3d rot;
-
-  //rot<<0.999303305496562, -0.03732162407565985, 0, 0.03732162407565985, 0.999303305496562, 0, 0, 0, 1;
-  //rot<<0.9965100112758773,-0.08347333362787641, 0, 0.08347333362787641, 0.9965100112758773, 0, 0, 0, 1;
-  rot<<0.9998328991168706, -0.01828042241179796, 0, 0.01828042241179796, 0.9998328991168706, 0, 0, 0, 1;
-
-  d->set_frame_rotation(rot);
-  int c1 = 7; // marker positions
-  int c2 = 3;
-  double* mrkr = sensors+mrkr_idx;
-  kb_changemode(1);
-  while (!kbhit()) { // double check the chest marker positioning
-    d->get_sensors(&time, sensors, conf);
-    printf("\r");
-    printf("M1: %1.4f %1.4f %1.4f : %1.4f\t\t",
-        mrkr[c1*3+0], mrkr[c1*3+1], mrkr[c1*3+2], conf[c1]);
-    printf("M2: %1.4f %1.4f %1.4f : %1.4f",
-        mrkr[c2*3+0], mrkr[c2*3+1], mrkr[c2*3+2], conf[c2]);
+  if (move) {
+    walker->Initialize(ctrl); // new goal state
+    zero_position(d, ctrl, sensors, nu);
+    d->set_gyro_offsets();
   }
-  int c=getchar();
-  // after chest markers are in view, average their values
-  int m_count = 100;
-  buffer_markers(d, ps, ps_c, sensors, conf, mrkr_idx, NMARKERS, m_count);
-  // ps has been averaged of good markers
-  
-  Vector3d v1(ps[c1*3+0], ps[c1*3+1], ps[c1*3+2]); // these should be good from above
-  Vector3d v2(ps[c2*3+0], ps[c2*3+1], ps[c2*3+2]);
-  //Vector3d vec_r = rot*v1 - rot*v2;
-  Vector3d vec_r = v1 - v2;
-  vec_r[2] = 0;
-  Vector3d vec_s(0, -1, 0); // basically only in y axis
 
-  // set these at the same time?
-  d->set_initpos_rt(vec_r, vec_s, ps, ps_c, s_ps_walk); // pass the clean data
+  Matrix3d rot;
+  rot<<0.996336648486483, -0.0855177343170566, 0, 0.0855177343170566, 0.996336648486483, 0, 0, 0, 1;
+
+  if (use_markers || use_rigid) {
+    d->set_frame_rotation(rot);
+    int c1 = 7; // marker positions
+    int c2 = 3;
+    double* mrkr = sensors+mrkr_idx;
+    kb_changemode(1);
+    while (!kbhit()) { // double check the chest marker positioning
+      d->get_sensors(&time, sensors, conf);
+      printf("\r");
+      printf("M1: %1.4f %1.4f %1.4f : %1.4f\t\t",
+          mrkr[c1*3+0], mrkr[c1*3+1], mrkr[c1*3+2], conf[c1]);
+      printf("M2: %1.4f %1.4f %1.4f : %1.4f",
+          mrkr[c2*3+0], mrkr[c2*3+1], mrkr[c2*3+2], conf[c2]);
+    }
+    int c=getchar();
+    // after chest markers are in view, average their values
+    int m_count = 100;
+    buffer_markers(d, ps, ps_c, sensors, conf, mrkr_idx, NMARKERS, m_count);
+    // ps has been averaged of good markers
+
+    Vector3d v1(ps[c1*3+0], ps[c1*3+1], ps[c1*3+2]); // these should be good from above
+    Vector3d v2(ps[c2*3+0], ps[c2*3+1], ps[c2*3+2]);
+    //Vector3d vec_r = rot*v1 - rot*v2;
+    Vector3d vec_r = v1 - v2;
+    vec_r[2] = 0;
+    Vector3d vec_s(0, -1, 0); // basically only in y axis
+
+    // set these at the same time?
+    d->set_initpos_rt(vec_r, vec_s, ps, ps_c, s_ps_walk); // pass the clean data
+  }
+  else {
+    printf("Skipping Rotation Calibration\n");
+  }
 
 
   printf("Press w to walk.\n");
@@ -204,7 +210,7 @@ int main (int argc, char* argv[]) {
   // make the log file to start
   if (log) save_states(myfile, output_file, nu, nsensordata, NMARKERS, time, ctrl, sensors, conf, "w");
 
-  double t1=0.0, t2=0.0;
+  double t1=0.0, t2=0.0, t25=0.0, t3=0.0, t4=0.0;
   double prev_time = 0.0;
 
   bool exit = false;
@@ -218,15 +224,17 @@ int main (int argc, char* argv[]) {
           exit=true;
           break;
         case 'w':
-          if (walk) {
-            walker->Stop();
-            printf("\nStop walking.\n");
-            walk = false;
-          }
-          else {
-            walker->Start();
-            printf("\nStart walking.\n");
-            walk = true;
+          if (move) {
+            if (walk) {
+              walker->Stop();
+              printf("\nStop walking.\n");
+              walk = false;
+            }
+            else {
+              walker->Start();
+              printf("\nStart walking.\n");
+              walk = true;
+            }
           }
           break;
       }
@@ -238,54 +246,70 @@ int main (int argc, char* argv[]) {
     time = time - init_time;
 
     // set this t's ctrl
-    //
     d->get_cm730_gyro(gyro);
-    printf("\ncm730 %f %f\n", gyro[0], gyro[1]);
-    //gyro[0] = sensors[40+3+1]*57.2958;
-    //gyro[1] = sensors[40+3+2]*57.2958;
+    //printf("cm730 %f %f\n", gyro[0], gyro[1]);
+    //printf("phidg %f %f\n",  sensors[40+3+1]*57.2958, sensors[40+3+2]*57.2958);
 
+    t25 = GetCurrentTimeMS();
     walker->Process(time-prev_time, gyro, ctrl);
-    //walker->Process(time-prev_time, NULL, ctrl);
-    d->set_controls(ctrl, NULL, NULL);
+    if (move) {
+      t3 = GetCurrentTimeMS();
+      d->set_controls(ctrl, nu, NULL, NULL);
+      t4 = GetCurrentTimeMS();
+    }
 
     if (log) save_states(myfile, output_file, nu, nsensordata, NMARKERS, time, ctrl, sensors, conf, "a");
 
     printf("\r");
-    printf("%1.3f : %1.3f ms\t", time, t2-t1);
-    for (int id=0; id<10; id++) {
-      printf("%1.2f ", sensors[id]);
-    }
-    //printf("\t::\t");
-    //for (int id=0; id<6; id++) {
-    //  printf("%1.6f ", sensors[40+id]);
-    //}
-    printf("\n");
+    printf("%1.3f : snsr time %1.3f : ctrl time %1.3f ms", time, t2-t1, t4-t3);
+    
+
     int i=40;
     if (debug) {
+      printf("Ctrl:\n");
+      for (int id=0; id<nu; id++) {
+        printf("%1.4f ", ctrl[id]);
+      }
+      printf("\nQpos:\n");
+      for (int id=0; id<10; id++) {
+        printf("%1.2f ", sensors[id]);
+      }
       if (use_accel) { printf("Accl: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3; }
       if (use_gyro) { printf("Gyro: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3; }
       if (use_ati) {
-        printf("Frce: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
-        printf("Trqe: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
-        printf("Frce: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
-        printf("Trqe: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
+        printf("::\n");
+        printf("Frce R: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
+        printf("Trqe R: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
+        printf("::\n");
+        printf("Frce L: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
+        printf("Trqe L: %1.4f %1.4f %1.4f\n", sensors[i+0], sensors[i+1], sensors[i+2]); i+=3;
+      }
+    
+      if (use_markers) {
+        //printf("Mrkr  : %1.4f %1.4f %1.4f\n", sensors[i++], sensors[i++], sensors[i++]);
+        printf("Markers:\nx: ");
+        for (int m=0; m<16; m++) { printf("%1.3f  ", sensors[i+m*3+0]); }
+        printf("\ny: ");
+        for (int m=0; m<16; m++) { printf("%1.3f  ", sensors[i+m*3+1]); }
+        printf("\nz: ");
+        for (int m=0; m<16; m++) { printf("%1.3f  ", sensors[i+m*3+2]); }
+        printf("\nconf: ");
+        for (int m=0; m<16; m++) { printf("%1.3f  ", conf[m]); }
+        printf("\n");
       }
     }
-    //if (use_markers) {
-    //    printf("Trqe: %1.4f %1.4f %1.4f\n", sensors[i++], sensors[i++], sensors[i++]);
-    //}
 
     //printf("L: %1.4f %1.4f %1.4f : %1.4f\t\t",
     //    sensors[40+M_L*4+0], sensors[40+M_L*4+1], sensors[40+M_L*4+2], sensors[40+M_L*4+3]);
     //printf("R: %1.4f %1.4f %1.4f : %1.4f",
     //    sensors[40+M_R*4+0], sensors[40+M_R*4+1], sensors[40+M_R*4+2], sensors[40+M_R*4+3]);
+
     avg[idx++] = (t2-t1);
     if (idx>=count) { idx = 0; }
 
     prev_time = time;
   }
   printf("\n\n");
-
 
   if (log) save_states(myfile, output_file, nu, nsensordata, NMARKERS, 0.0, NULL, NULL, NULL, "c");
 
@@ -306,10 +330,12 @@ int main (int argc, char* argv[]) {
 
   delete[] ctrl;
   delete[] sensors;
+  delete[] ps;
+  delete[] ps_c;
+  delete[] conf;
 
   delete walker;
   delete d;
-
 
   return 0;
 }

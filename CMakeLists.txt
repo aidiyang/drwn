@@ -28,16 +28,19 @@ find_package(Boost 1.55 COMPONENTS program_options random filesystem system)
 
 set(MUJOCO_INCLUDE_DIRS 
    #"${PROJECT_SOURCE_DIR}/source/mujoco"
-   #"/opt/mujoco122"
-   "/opt/mujoco131/include"
+   #"/opt/mujoco140/include"
+   "/opt/mjfast/include"
 )
 set(MUJOCO_LIBRARY_DIRS
   #"/opt/mujoco/"
-	"/opt/mujoco131/bin/"
+  #"/opt/mujoco140/bin/"
+	"/opt/mjfast/bin/"
 )
 set(MUJOCO_LIBRARIES
 	"glfw"
 	"mujoco"
+  "glew"
+  "GL"
 )
 
 include_directories(
@@ -78,7 +81,7 @@ list(APPEND MY_LINKER_LIBS ${Boost_LIBRARIES}) # boost
 #    ${PYTHON_LIBRARIES}
 #)
 
-option(MUJOCO_SIMULATOR_PARALLEL "OpenMP for parallel Mujoco." on)
+#option(MUJOCO_SIMULATOR_PARALLEL "OpenMP for parallel Mujoco." on)
 option(USE_EIGEN_MKL "Use MKL for Eigen backend." off)
 if (USE_EIGEN_MKL)
   add_definitions(-DUSE_EIGEN_MKL)
@@ -87,15 +90,15 @@ endif()
 #option(ENABLE_SOCKET_STREAMING "Set Mujoco Viewer to support data streaming" off)
 
 if(UNIX OR APPLE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -Wall")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -Wall -pthread")
 endif()
 
 if (APPLE)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=c++11 -O3")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=c++11")
    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/mac_bin)
    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/mac_bin)
 else()
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT} -std=c++11 -fopenmp -O2")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 endif()
@@ -114,17 +117,23 @@ if (NOT APPLE)
    # Darwin Code
    subdirs(darwin_hw)
    # Viewer Rendering
-   add_executable(viewer "viewer.cpp" )
+   add_executable(viewer "viewer.cpp" "ukf.cpp" "util_func.cpp" )
    #target_link_libraries(viewer ${MUJOCO_LIBRARIES} )
    if(USE_EIGEN_MKL)
-     target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} darwin_hw mkl_intel_lp64 mkl_co		remkl_gnu_thread pthread m dl)
+     target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} ${MKL_LIBRARIES}
+       darwin_hw )
    else()
      target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} darwin_hw
        ${DARWIN_INCLUDES} )
    endif()
    #target_include_directories(viewer PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+   add_executable(test_est "test_est.cpp" "ukf.cpp" "darwin_hw/drwn_walker.cpp" "util_func.cpp" 
+     "darwin_hw/Vector.cpp" "darwin_hw/Matrix.cpp" "darwin_hw/MX28.cpp"
+     "darwin_hw/Point.cpp" "darwin_hw/JointData.cpp" )
+   target_link_libraries(test_est ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} )
+
 else()
-  add_library(sim_only "darwin_hw/drwn_walker.cpp"
+  add_library(sim_only "darwin_hw/drwn_walker.cpp" "util_func.cpp" 
     "darwin_hw/Vector.cpp" "darwin_hw/Matrix.cpp" "darwin_hw/MX28.cpp"
     "darwin_hw/Point.cpp" "darwin_hw/JointData.cpp" )
   add_executable(viewer "viewer.cpp" )

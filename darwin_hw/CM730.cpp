@@ -1,7 +1,7 @@
 /*
  *   CM730.cpp
  *
- *   Author: ROBOTIS
+ *   Author: ROBOTIS, klowrey
  *
  */
 #include <stdio.h>

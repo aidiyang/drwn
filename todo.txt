@@ -200,7 +200,12 @@ values; overcorrection
 
 09/29
 todo list
-    impose sensor ranges?
+    impose sensor ranges? done; helps tremendously
     sensor offset vectors (sage-husa adaptive)?
         Seems to help in some cases but needs additional tuning
-    limit the contact sensors to be just z-axis?
+    limit the contact sensors to be just z-axis? not needed with sensor limits
+
+still need to:
+  test with noisey models
+  test without phasespace data
+    further phasespace data cleanup to avoid floating; could be sage-husa?

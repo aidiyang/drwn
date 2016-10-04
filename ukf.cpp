@@ -712,10 +712,10 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
 
   double dk = 0.09; //0.99;
   s_hat = (1-dk)*s_hat + dk*(s-z_k);
-  std::cout<<"Sensor Vector     :\n" << s.transpose() << "\n";
-  std::cout<<"Sensor Esti Vector:\n" << z_k.transpose() << "\n";
-  std::cout<<"Sensor Bias Vector:\n" << s_hat.transpose() << "\n";
-  std::cout<<"Summed:\n" << (s-z_k).transpose() << "\n";
+  std::cout<<"Sensor Vector     :\n" << s.segment(40,18).transpose() << "\n";
+  std::cout<<"Sensor Esti Vector:\n" << z_k.segment(40,18).transpose() << "\n";
+  std::cout<<"Sensor Bias Vector:\n" << s_hat.segment(40,18).transpose() << "\n";
+  //std::cout<<"Summed:\n" << (s-z_k).transpose() << "\n";
 
   //VectorXd new_x_t = x_t + (K*(s-z_k));
   //set_data(d, &(x_t)); // set corrected state into mujoco data struct

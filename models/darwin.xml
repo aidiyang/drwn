@@ -75,11 +75,11 @@ soft:
     <custom>
         <numeric name="snsr_covar" size="29" data="
           1e+1
-        1e-3
+        1e-4
         1e+1
         1e-6
         1e-3
-        1e+2
+        1e-2
         1e-0
 
         1e-7
@@ -89,18 +89,7 @@ soft:
         1e-8 1e-0 1e-0 1e-0 1e-8
 
         1e-7
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
+        1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
         "
         />
 <!-- TOUCH         -->
@@ -134,25 +123,6 @@ soft:
 <!-- SUBTREECOM,   -->
 <!-- SUBTREELINVEL -->
 <!-- SUBTREEANGMOM -->
-        <numeric name="snsr_range" size="29" data="
-        1e+1
-        1e-2
-        1e+1
-        1e-6
-        1e-3
-        1e-2
-        1e-0
-
-        1e-7
-        1e-5
-        1e-0
-        1e-0
-        1e-8 1e-0 1e-0 1e-0 1e-8
-
-        1e-9
-        1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
-        "
-        />
       <numeric name="snsr_range" size="29" data="
         1e+1
         20.0
@@ -177,7 +147,7 @@ soft:
       <numeric name="t_rot2" size="9" data=" 
         1 2 2 0 1 0 2 2 1"/>
       <numeric name="covar_diag" size="26" data="
-          1e-2
+          1e-1
           1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
         <!-- sensor range limited by hardware, or a guess-->
             <!--

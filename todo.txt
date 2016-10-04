@@ -209,3 +209,13 @@ still need to:
   test with noisey models
   test without phasespace data
     further phasespace data cleanup to avoid floating; could be sage-husa?
+
+10/04
+    For revision:
+    Try to make new dataset:
+        phasespace orientation based on foor markers instead of chest markers
+        slower walking & fallen
+        longer data
+        video of these data sets?
+    regenerate plots on these data sets
+    rebut the comments re: other papers

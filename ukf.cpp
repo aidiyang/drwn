@@ -65,7 +65,7 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
   for (int i=0; i<my_threads; i++) {
     models[i] = mj_copyModel(NULL, m);
 
-    models[i]->opt.iterations = 25; // TODO to make things faster 
+    models[i]->opt.iterations = 15; // TODO to make things faster 
     models[i]->opt.tolerance = 0; 
 
     sigmas[i] = mj_makeData(this->m);
@@ -96,7 +96,7 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
       //sigma_states[i] = this->d;
       W_s[i] = lambda / ((double) L + lambda);
       W_c[i] = W_s[i] + (1-(alpha*alpha)+beta);
-      
+
       W_s[i] = 1.0/N;
       W_c[i] = 1.0/N;
       //W_c[i] = W_s[i];
@@ -185,7 +185,7 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
       snsr_ptr[i] = default_snsr[i];
   }
   util::show_snsr_weights(snsr_ptr);
-  
+
   int my_sensordata=0;
   for (int i = 0; i < m->nsensor; i++) {      
     int type = m->sensor_type[i];
@@ -292,8 +292,14 @@ void UKF::add_snsr_noise(double * snsr) {
       snsr[i] += r;
     }
     // clamp sensor values
-    if (snsr[i] > snsr_limit[i]) snsr[i] = snsr_limit[i];
-    if (snsr[i] < -1.0*snsr_limit[i]) snsr[i] = -1.0*snsr_limit[i];
+    if (snsr[i] > snsr_limit[i]) {
+      //printf("snsr changed: %d : %f -> %f\n", i, snsr[i], snsr_limit[i]);
+      snsr[i] = snsr_limit[i];
+    }
+    if (snsr[i] < -1.0*snsr_limit[i]) {
+      //printf("snsr changed: %d : %f -> %f\n", i, snsr[i], snsr_limit[i]);
+      snsr[i] = -1.0*snsr_limit[i];
+    }
   }
 }
 
@@ -569,6 +575,7 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
   //gamma[0] = Map<VectorXd>(d->sensordata, ns);
   add_snsr_noise(d->sensordata);
   mju_copy(&(gamma[0](0)), d->sensordata, ns);
+
   mju_copy(&(m_gamma.col(0)(0)), d->sensordata, ns);
 
   mju_copy(sigma_states[0]->qpos, d->qpos, nq);
@@ -696,7 +703,7 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
 
   VectorXd s = Map<VectorXd>(sensors, ns); // map our real z to vector
 
-  z_k = z_k + s_hat;
+  //z_k = z_k + s_hat;
   VectorXd c_v = (K*(s-z_k));
 
   set_data(d, &(x_t)); // set corrected state into mujoco data struct
@@ -712,9 +719,17 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
 
   double dk = 0.09; //0.99;
   s_hat = (1-dk)*s_hat + dk*(s-z_k);
-  std::cout<<"Sensor Vector     :\n" << s.segment(40,18).transpose() << "\n";
-  std::cout<<"Sensor Esti Vector:\n" << z_k.segment(40,18).transpose() << "\n";
-  std::cout<<"Sensor Bias Vector:\n" << s_hat.segment(40,18).transpose() << "\n";
+
+  //std::cout<<"Before sensor max: "<<z_k.maxCoeff()<<std::endl;
+  //std::cout<<"Before sensor limit:\n"<<z_k.segment(40,12).transpose()<<std::endl;
+  add_snsr_noise(&(z_k(0)));
+  //std::cout<<"After sensor max: "<<z_k.maxCoeff()<<std::endl;
+  //std::cout<<"After sensor limit:\n"<<z_k.segment(40,12).transpose()<<std::endl;
+
+  //std::cout<<"Sensor Vector     :\n" << s.segment(40,18).transpose() << "\n";
+  //std::cout<<"Sensor Esti Vector:\n" << z_k.segment(40,18).transpose() << "\n";
+  //std::cout<<"Sensor Bias Vector:\n" << s_hat.segment(40,18).transpose() << "\n";
+
   //std::cout<<"Summed:\n" << (s-z_k).transpose() << "\n";
 
   //VectorXd new_x_t = x_t + (K*(s-z_k));
@@ -732,23 +747,23 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
 
 
 
-  mju_copy(d->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
+  mju_copy(sigma_states[0]->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
 #if 1
   //fast_forward(m, d, 0, 0); // dont skip sensor
 
   mj_forward(m, d); // dont skip sensor
   std::cout<<"Correct Energy: "<<d->energy[0]<<", "<<d->energy[1]<<std::endl;
   total_energy = d->energy[0] + d->energy[1];
-  
-  if (total_energy > 20) {
-    x_t = x_t - (K*(s-z_k));
-    P_t = P_t + (K * P_z * K.transpose());
-    printf("IGNORING UPDATE STEP!!\n");
-    printf("IGNORING UPDATE STEP!!\n");
-    printf("IGNORING UPDATE STEP!!\n");
-    printf("IGNORING UPDATE STEP!!\n");
-    printf("IGNORING UPDATE STEP!!\n");
-  }
+
+  //if (total_energy > 20) {
+  //  x_t = x_t - (K*(s-z_k));
+  //  P_t = P_t + (K * P_z * K.transpose());
+  //  printf("IGNORING UPDATE STEP!!\n");
+  //  printf("IGNORING UPDATE STEP!!\n");
+  //  printf("IGNORING UPDATE STEP!!\n");
+  //  printf("IGNORING UPDATE STEP!!\n");
+  //  printf("IGNORING UPDATE STEP!!\n");
+  //}
 #endif
 
   if (NUMBER_CHECK) {

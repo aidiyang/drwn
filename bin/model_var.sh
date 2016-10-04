@@ -1,9 +1,10 @@
 #!/bin/bash
 
-nonoise="1e-12"
+nonoise="-1"
 d_noise="1e-4"
-ee="0.4"
-data_f="clean_straight_walk.csv"
+ee="-1"
+#data_f="clean_straight_walk.csv"
+data_f="new_walk1.csv"
 #data_f="clean_fallen_3_short.csv"
 #data_f="walk3.csv"
 

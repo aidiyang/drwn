@@ -16,6 +16,7 @@ soft:
    -->
 
     <option	timestep="0.002" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
+      <flag energy="enable"/>
     </option>
 
     <default>

@@ -148,14 +148,15 @@ class UKF : public Estimator {
     Eigen::VectorXd x_t;
     Eigen::VectorXd z_k;
     Eigen::VectorXd x_minus;
-    Eigen::VectorXd qhat;
-    Eigen::VectorXd shat;
+    Eigen::VectorXd q_hat;
+    Eigen::VectorXd s_hat;
     Eigen::MatrixXd Q;
     //Eigen::MatrixXd * P;
     Eigen::MatrixXd P_t;
     Eigen::MatrixXd P_z;
     Eigen::MatrixXd Pxz;
     Eigen::MatrixXd PzAdd;
+    double * snsr_limit;
     Eigen::MatrixXd PtAdd;
     double mrkr_conf;
 

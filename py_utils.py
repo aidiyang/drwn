@@ -2,35 +2,38 @@ import numpy as np
 import pandas as pd
 import sys
 
+def max_min(snsr):
+    return np.max(snsr), np.min(snsr)
+
 def get_est_data(f):
     df = pd.read_csv(f, sep=',')
     
-    s = 0
-    t = np.copy(df['time'][s:])
+    #s = 0
+    time = np.copy(df['time'].values)
     
-    qpos = np.copy(df.filter(regex='qpos').values[s:,:])
-    qvel = np.copy(df.filter(regex='qvel').values[s:,:])
-    ctrl = np.copy(df.filter(regex='ctrl').values[s:,:])
-    snsr = np.copy(df.filter(regex='snsr').values[s:,:])
+    qpos = np.copy(df.filter(regex='qpos').values)
+    qvel = np.copy(df.filter(regex='qvel').values)
+    ctrl = np.copy(df.filter(regex='ctrl').values)
+    snsr = np.copy(df.filter(regex='snsr').values)
     
-    est_qpos = np.copy(df.filter(regex='est_p').values[s:,:])
-    est_qvel = np.copy(df.filter(regex='est_v').values[s:,:])
-    est_ctrl = np.copy(df.filter(regex='est_c').values[s:,:])
-    est_snsr = np.copy(df.filter(regex='est_s').values[s:,:])
+    est_qpos = np.copy(df.filter(regex='est_p').values)
+    est_qvel = np.copy(df.filter(regex='est_v').values)
+    est_ctrl = np.copy(df.filter(regex='est_c').values)
+    est_snsr = np.copy(df.filter(regex='est_s').values)
     
-    std_qpos = np.copy(df.filter(regex='stddev_p').values[s:,:])
-    std_qvel = np.copy(df.filter(regex='stddev_v').values[s:,:])
-    std_ctrl = np.copy(df.filter(regex='stddev_c').values[s:,:])
-    std_snsr = np.copy(df.filter(regex='stddev_s').values[s:,:])
+    std_qpos = np.copy(df.filter(regex='stddev_p').values)
+    std_qvel = np.copy(df.filter(regex='stddev_v').values)
+    std_ctrl = np.copy(df.filter(regex='stddev_c').values)
+    std_snsr = np.copy(df.filter(regex='stddev_s').values)
     std_qpos = np.sqrt(std_qpos) 
     std_qvel = np.sqrt(std_qvel) 
     std_ctrl = np.sqrt(std_ctrl) 
     std_snsr = np.sqrt(std_snsr) 
     
-    p_time = np.copy(df['predict'][s:])
-    c_time = np.copy(df['correct'][s:])
+    p_time = np.copy(df['predict'])
+    c_time = np.copy(df['correct'])
 
-    return {'time':t,
+    return {'time':time,
             'qpos':qpos, 
             'qvel':qvel,
             'ctrl':ctrl,

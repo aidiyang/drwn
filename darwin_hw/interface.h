@@ -83,7 +83,7 @@ class DarwinRobot : public MyRobot {
 
       NMARKER = 16;
 
-      double imu_alpha = 0.2;
+      double imu_alpha = 0.1;
 
       table_rotation = Matrix3d::Identity();
       init_pos = Matrix3d::Identity();
@@ -474,8 +474,8 @@ class DarwinRobot : public MyRobot {
       vec_s.normalize();
 
       printf("\n");
-      printf("Chest Vector from markers, norm: %f\n", vec_r.norm());
-      printf("Chest Vector from Simultr, norm: %f\n", vec_s.norm());
+      printf("Flat Vector from markers, norm: %f\n", vec_r.norm());
+      printf("Flat Vector from Simultr, norm: %f\n", vec_s.norm());
 
       double angle_diff = angle(vec_r, vec_s);
       std::cout<<"Angle difference: "<<angle_diff*180/3.1415<<", radian:"<<angle_diff<<"\n";
@@ -495,7 +495,7 @@ class DarwinRobot : public MyRobot {
       std::cout<<"Rotation Matrix for initial position:\n"<<init_pos<<std::endl;
 
       Vector3d off(0,0,0);
-      int c=0;
+      int mrkr_count=0;
       std::cout<<"Calculating Offset:\n";
       for (int i=0; i<NMARKER; i++) {
         Map<Vector3d> p(pose+i*3);
@@ -505,10 +505,16 @@ class DarwinRobot : public MyRobot {
             Vector3d n = init_pos*m - p;
             std::cout<<i<<":"<<ps_c[i]<<": "<<(init_pos*m).transpose()<<" - "<<p.transpose()<<" : "<<n.transpose()<<std::endl;
             off = off + n;
-            c++;
+            mrkr_count++;
         }
       }
-      off = off / (double)c; // average the offset
+      if (mrkr_count < 8) {
+        printf("Only Saw %d markers during offset calculations!\n", mrkr_count);
+        printf("Only Saw %d markers during offset calculations!\n", mrkr_count);
+        printf("Only Saw %d markers during offset calculations!\n", mrkr_count);
+        printf("Only Saw %d markers during offset calculations!\n", mrkr_count);
+      }
+      off = off / (double)mrkr_count; // average the offset
       std::cout<<"Offset:\n"<<off<<"\n";
       for (int i=0; i<NMARKER; i++) { // calculate the offset
           offset[i] = off;

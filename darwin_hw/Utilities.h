@@ -166,7 +166,7 @@ void buffer_markers(MyRobot *d, double* ps, double* ps_c,
   for (int i = 0; i < b_count; i++) {
     d->get_sensors(&time, sensors, conf);
     for (int m=0; m<NMARKER; m++) {
-      if (conf[m] > 3.9) {
+      if (conf[m] > 0 && conf[m] < 10) {
         ps[m*3+0] += sensors[mrkr_idx+ m*3+0];
         ps[m*3+1] += sensors[mrkr_idx+ m*3+1];
         ps[m*3+2] += sensors[mrkr_idx+ m*3+2];

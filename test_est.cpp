@@ -1,5 +1,5 @@
 
-#define __AVX__ 1
+//#define __AVX__ 1
 #include "util_func.h"
 #include "estimator.h"
 #include "darwin_hw/drwn_walker.h"

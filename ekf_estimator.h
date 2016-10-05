@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 #ifndef __APPLE__
-#include <omp.h>
+//#include <omp.h>
 #endif
 #include <math.h>
 
@@ -52,8 +52,9 @@ class EKF : public Estimator {
          covar = mj_makeData(this->m);
          this->NUMBER_CHECK = debug;
          sigma_states.push_back(mj_makeData(this->m));
-         //mj_copyData(predmu, this->m, this->d);
-         predmu = this->d;
+         predmu = mj_makeData(this->m);
+         mj_copyData(predmu, this->m, this->d);
+         //predmu = this->d;
          d2 = mj_makeData(this->m);
          mj_copyData(d2, this->m, this->d);
 
@@ -94,7 +95,7 @@ class EKF : public Estimator {
          //mj_step(m, predmu);
          mj_forward(m, predmu);
          mj_Euler(m, predmu);
-         bool print_stuff = true;
+         bool print_stuff = false;
          if (print_stuff) {
             printf("predMu\n");
             for (int i=0; i<nq; i++) { printf("%1.4f ", predmu->qpos[i]); }
@@ -102,18 +103,29 @@ class EKF : public Estimator {
             printf("\n"); 
          }
 
-         m->opt.timestep = 1e-6;
+         m->opt.timestep = eps;
          MatrixXd Gt = get_deriv(m, predmu, d2);
          MatrixXd Vt = get_ctrlderiv(m, predmu, d2);
+
+         m->opt.timestep = dt;
 
          //Process noise just identity? Or use Qt = Vt*Mt*Vt.transpose(), where Vt is jacob of state w.r.t control, Mt is "motion noise"
          MatrixXd Qt = MatrixXd::Identity(nu, nu)*1e-6;
          MatrixXd predSigma = Gt*sigma*Gt.transpose() + Vt*Qt*Vt.transpose();//MatrixXd::Identity(L,L)*diag;
          //Initial covar = identity
 
+         MatrixXd testMu = MatrixXd::Zero(L, 1);
+         for (int i = 0; i < nq; i++) {
+               testMu(i) = predmu->qpos[i];
+         }
+         for (int i = 0; i < nv; i++) {
+               testMu(i+nq) = predmu->qvel[i];
+         }
+         MatrixXd testGt = Gt * testMu;
+
          //Correction
          mj_forward(m, predmu);
-         mj_sensor(m, predmu);
+         //mj_sensor(m, predmu);
 
          //Add sensor noise
          if (noise > 0){     
@@ -127,16 +139,18 @@ class EKF : public Estimator {
          Map<VectorXd> pred_s(predmu->sensordata, ns);
 
          //Compute sens deriv
-         MatrixXd Ht = get_deriv(m, predmu, d2, true);
+         MatrixXd Ht = get_sensderiv(m, predmu, d2);
 
          //Rt = MatrixXd::Identity(m->nsensordata, m->nsensordata)*diag; //Observation (sensor) noise just identity?
-         MatrixXd St = (Ht*predSigma*Ht.transpose()+Rt);
-         MatrixXd tmp = MatrixXd::Identity(m->nsensordata, m->nsensordata);
-         HouseholderQR<MatrixXd> qr(St);
-         MatrixXd Stinv = qr.solve(tmp);  //Compute inverse of St using QR solver
+         MatrixXd St = (Ht*predSigma*Ht.transpose()+Rt); // pzadd
+         //MatrixXd tmp = MatrixXd::Identity(m->nsensordata, m->nsensordata);
+         //HouseholderQR<MatrixXd> qr(St);
+         //MatrixXd Stinv = qr.solve(tmp);  //Compute inverse of St using QR solver
          //MatrixXd Stinv = St.colPivHouseholderQr().solve(tmp);
+         MatrixXd Stinv = St.inverse();
          MatrixXd Kt = predSigma*Ht.transpose()*Stinv;
          sigma = (MatrixXd::Identity(L, L) - Kt*Ht)*predSigma;
+         sigma = sigma + MatrixXd::Identity(L, L)*diag;
 
          if (print_stuff) {
             IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
@@ -146,6 +160,8 @@ class EKF : public Estimator {
             std::cout<<"Vt:\n"<<Vt.format(CleanFmt)<<"\n";
             std::cout<<"Ht:\n"<<Ht.format(CleanFmt)<<"\n";
             std::cout<<"Kt:\n"<<Kt.format(CleanFmt)<<"\n";
+
+            std::cout<<"Gt Test:\n"<<testGt.format(CleanFmt)<<"\n";
 
             std::cout<<"Rt:\n"<<Rt.format(CleanFmt)<<"\n";
             std::cout<<"St:\n"<<St.format(CleanFmt)<<"\n";
@@ -177,13 +193,72 @@ class EKF : public Estimator {
          //std::cout << Rt.diagonal().transpose() << std::endl;
       }
 
-
-      MatrixXd get_deriv(const mjModel* m, const mjData* dmain, mjData* d, bool isSensor = false) {
+      MatrixXd get_sensderiv(const mjModel* m, const mjData* dmain, mjData* d) {
          int nv = m->nv;
          int nq = m->nq;
          int nsensordata = m->nsensordata;
-         int size;
 
+         // allocate stack space for result at center
+         mjtNum* center = mj_stackAlloc(d, nsensordata);
+
+         // copy state and control from dmain to thread-specific d
+         d->time = dmain->time;
+         mju_copy(d->qpos, dmain->qpos, m->nq);
+         mju_copy(d->qvel, dmain->qvel, m->nv);
+         //mju_copy(d->qacc, dmain->qacc, m->nv);
+         //mju_copy(d->qfrc_applied, dmain->qfrc_applied, m->nv);
+         //mju_copy(d->xfrc_applied, dmain->xfrc_applied, 6*m->nbody);
+         mju_copy(d->ctrl, dmain->ctrl, m->nu);
+
+         //Compute and copy center point
+         mj_forward(m, d);
+         //mj_forwardSkip(m, d, 0);
+         //mj_sensor(m, d);
+         mju_copy(center, d->sensordata, nsensordata);
+
+         //Reset data for perturb
+         d->time = dmain->time;
+         mju_copy(d->qpos, dmain->qpos, m->nq);
+         mju_copy(d->qvel, dmain->qvel, m->nv);
+         mju_copy(d->ctrl, dmain->ctrl, m->nu);
+
+         MatrixXd deriv(nsensordata, L);
+
+         // finite-difference over position: skip = 2
+         for( int i=0; i<nq; i++ ) {
+            d->qpos[i] += eps;
+            d->time = dmain->time;
+
+            // compute column i of derivative 0
+            mj_forwardSkip(m, d, 0, 0);
+            //mj_sensor(m, d);
+            for( int j=0; j<ns; j++ ) {
+               deriv(j, i) = (d->sensordata[j] - center[j])/eps;
+            }
+            d->qpos[i] = dmain->qpos[i];
+            //d->qpos[i] -= eps;
+         }
+
+         // finite-difference over velocity: skip = 1
+         for( int i=0; i<nv; i++ ) {
+            // perturb velocity
+            d->qvel[i] += eps;
+            d->time = dmain->time;
+
+            // compute column i of derivative 1
+            mj_forwardSkip(m, d, 0, 0);
+            //mj_sensor(m, d);
+            for( int j=0; j<ns; j++ ) {
+               deriv(j, i+nq) = (d->sensordata[j] - center[j])/eps;
+            }
+            d->qvel[i] = dmain->qvel[i];
+         }
+         return deriv;
+      }
+
+      MatrixXd get_deriv(const mjModel* m, const mjData* dmain, mjData* d) {
+         int nv = m->nv;
+         int nq = m->nq;
          // allocate stack space for result at center
          mjtNum* center = mj_stackAlloc(d, L);
 
@@ -196,52 +271,38 @@ class EKF : public Estimator {
          //mju_copy(d->xfrc_applied, dmain->xfrc_applied, 6*m->nbody);
          mju_copy(d->ctrl, dmain->ctrl, m->nu);
 
-         // select output from forward or inverse dynamics
-         if (isSensor) {
-            mj_forwardSkip(m, d, 0);
-            mj_sensor(m, d);
-            mju_copy(center, d->sensordata, nsensordata);
-            size = nsensordata;
-            //printf("is sensor, size is:\t%d\n", size);
-         } else {
-            mju_copy(center,    d->qpos, nq);
-            mju_copy(center+nq, d->qvel, nv);
-            size = L;
-            //printf("is state, size is:\t%d\n", size);
-         } 
-         MatrixXd deriv(size, L);
+         //Compute and copy center point
+         mj_forward(m, d);
+         mj_Euler(m, d);
+         mju_copy(center,    d->qpos, nq);
+         mju_copy(center+nq, d->qvel, nv);
+      
+         //Reset data for perturb
+         d->time = dmain->time;
+         mju_copy(d->qpos, dmain->qpos, m->nq);
+         mju_copy(d->qvel, dmain->qvel, m->nv);
+         mju_copy(d->ctrl, dmain->ctrl, m->nu);
+
+         MatrixXd deriv(L, L);
         
          // finite-difference over position: skip = 2
          for( int i=0; i<nq; i++ ) {
             d->qpos[i] += eps;
             d->time = dmain->time;
-            mj_forwardSkip(m, d, 0);
+            //mj_forwardSkip(m, d, 0);
 
             // compute column i of derivative 0
-            if (isSensor) {
-               mj_sensor(m, d);
-               if (dnoise > 0) {
-                  for (int i =0; i<m->nsensordata; i++) {   //Sensor noise
-                     d->sensordata[i] += dnd(rng);
-                  }
-               }
-               for( int j=0; j<ns; j++ ) {
-                  deriv(j, i) = (d->sensordata[j] - center[j])/eps;
-               }
-               d->qpos[i] = dmain->qpos[i];
+            mj_forwardSkip(m, d, 0, 1);
+            mj_Euler(m, d);
+            for( int j=0; j<nq; j++ ) {
+               deriv(j, i) = (d->qpos[j] - center[j])/eps;
             }
-            else {
-               mj_Euler(m, d);
-               for( int j=0; j<nq; j++ ) {
-                  deriv(j, i) = (d->qpos[j] - center[j])/eps;
-               }
-               for( int j=0; j<nv; j++ ) {
-                  deriv(j+nq, i) = (d->qvel[j] - center[j+nq])/eps;
-               }
-               // undo perturbation
-               mju_copy(d->qpos, dmain->qpos, m->nq);
-               mju_copy(d->qvel, dmain->qvel, m->nv);
+            for( int j=0; j<nv; j++ ) {
+               deriv(j+nq, i) = (d->qvel[j] - center[j+nq])/eps;
             }
+            // undo perturbation
+            mju_copy(d->qpos, dmain->qpos, m->nq);
+            mju_copy(d->qvel, dmain->qvel, m->nv);
          }
 
          // finite-difference over velocity: skip = 1
@@ -249,33 +310,19 @@ class EKF : public Estimator {
             // perturb velocity
             d->qvel[i] += eps;
             d->time = dmain->time;
-            // evaluate dynamics, with center warmstart
-            mj_forwardSkip(m, d, 0);
+            
             // compute column i of derivative 1
-            if (isSensor) {
-               mj_sensor(m, d);
-               if (dnoise > 0) {
-                  for (int i =0; i<m->nsensordata; i++) {   //Sensor noise
-                     d->sensordata[i] += dnd(rng);
-                  }
-               }
-               for( int j=0; j<ns; j++ ) {
-                  deriv(j, i+nq) = (d->sensordata[j] - center[j])/eps;
-               }
-               d->qvel[i] = dmain->qvel[i];
+            mj_forwardSkip(m, d, 0, 1);
+            mj_Euler(m, d);  
+            for( int j=0; j<nq; j++ ) {
+               deriv(j, i+nq) = (d->qpos[j] - center[j])/eps;
             }
-            else { 
-               mj_Euler(m, d);  
-               for( int j=0; j<nq; j++ ) {
-                  deriv(j, i+nq) = (d->qpos[j] - center[j])/eps;
-               }
-               for( int j=0; j<nv; j++ ) {
-                  deriv(j+nq, i+nq) = (d->qvel[j] - center[j+nq])/eps;
-               }
-               // undo perturbation
-               mju_copy(d->qpos, dmain->qpos, m->nq);
-               mju_copy(d->qvel, dmain->qvel, m->nv);
+            for( int j=0; j<nv; j++ ) {
+               deriv(j+nq, i+nq) = (d->qvel[j] - center[j+nq])/eps;
             }
+            // undo perturbation
+            mju_copy(d->qpos, dmain->qpos, m->nq);
+            mju_copy(d->qvel, dmain->qvel, m->nv);
          }
          return deriv;
       }
@@ -297,16 +344,23 @@ class EKF : public Estimator {
          //mju_copy(d->xfrc_applied, dmain->xfrc_applied, 6*m->nbody);
          mju_copy(d->ctrl, dmain->ctrl, m->nu);
 
-         // select output to be state
+         //Copy and compute center point
+         mj_forward(m, d);
+         mj_Euler(m, d);
          mju_copy(center,    d->qpos, nq);
          mju_copy(center+nq, d->qvel, nv);
+
+         //Reset data for perturbd->time = dmain->time;
+         mju_copy(d->qpos, dmain->qpos, m->nq);
+         mju_copy(d->qvel, dmain->qvel, m->nv);
+         mju_copy(d->ctrl, dmain->ctrl, m->nu);
 
          MatrixXd deriv(L, nu);
 
          for( int i=0; i<nu; i++ ) {
             d->ctrl[i] += eps;
             d->time = dmain->time;
-            mj_forwardSkip(m, d, 0);
+            mj_forwardSkip(m, d, 0, 1);   //Or just do mj_forward?
             mj_Euler(m, d);
             // compute column i of derivative 0
             for( int j=0; j<nq; j++ ) {

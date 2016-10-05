@@ -169,7 +169,7 @@ Should test the low-latency kernels with sensor performance
 need to re-jigger the phasespace stuff as it would be nice to use in estimation
 
 
-09/28
+09/26
 cleaning up for final submission
 things to test:
   constraint limiting for correction step 
@@ -177,3 +177,45 @@ things to test:
 
   Even weighting on state but traditional on covariance seems to be okay
 
+09/27
+Traditional weighting on state but with clamped sensors?
+
+Better PtAdd matrix for root vs joint dimensions?
+
+
+traditional weighting on covariance, even on state does not hold for real data
+  energy limit on update may help but covariance still blows up
+
+change to better motor model may help
+
+
+09/28
+when sensors are aggressively corrected for, sim has a tendency to use bad sensor
+values; overcorrection
+    need to limit sensor values to sensible units?
+    this suggests significant modelling errors; ukf can estimate with noise
+        on a simulated model, but can't match up with real model
+        the markers fight with the other sensors a lot; without an accurate model
+        we cannot treat the sensors as accurate?
+
+09/29
+todo list
+    impose sensor ranges? done; helps tremendously
+    sensor offset vectors (sage-husa adaptive)?
+        Seems to help in some cases but needs additional tuning
+    limit the contact sensors to be just z-axis? not needed with sensor limits
+
+still need to:
+  test with noisey models
+  test without phasespace data
+    further phasespace data cleanup to avoid floating; could be sage-husa?
+
+10/04
+    For revision:
+    Try to make new dataset:
+        phasespace orientation based on foor markers instead of chest markers
+        slower walking & fallen
+        longer data
+        video of these data sets?
+    regenerate plots on these data sets
+    rebut the comments re: other papers

@@ -12,6 +12,7 @@
 soft:
         margin="0.001" solref="1 1" solimp=".001 .001 .01" material="meshmat"/>
       <flag constraint="disable"/>
+      <flag energy="enable"/>
       <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
    -->
 
@@ -87,19 +88,8 @@ soft:
         1e-0
         1e-8 1e-0 1e-0 1e-0 1e-8
 
-        1e-9
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
-        1e-8
+        1e-7
+        1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
         "
         />
 <!-- TOUCH         -->
@@ -133,6 +123,25 @@ soft:
 <!-- SUBTREECOM,   -->
 <!-- SUBTREELINVEL -->
 <!-- SUBTREEANGMOM -->
+      <numeric name="snsr_range" size="29" data="
+        1e+1
+        20.0
+        1e+1
+        6.0
+        250.0
+        3.4
+        1e-0
+
+        3.14
+        8.0
+        1e-0
+        1e-0
+        1e-8 1e-0 1e-0 1e-0 1e-8
+
+        2.0
+        1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
+        "
+        />
       <numeric name="t_rot" size="9" data=" 
         1 0 0 0 1 0 0 0 1"/>
       <numeric name="t_rot2" size="9" data=" 
@@ -140,7 +149,10 @@ soft:
       <numeric name="covar_diag" size="26" data="
           1e-3
           1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
-      <!--
+        <!-- sensor range limited by hardware, or a guess-->
+            <!--
+           1e-4 covar_diag when theres sensor noise
+           1e-3 without sensor noise
       <numeric name="time_var" size='1' data='0.00032' />
       <numeric name="mass_var" size='1' data='0.03' />
       -->
@@ -458,12 +470,16 @@ soft:
 
       <accelerometer name="accel" site="imu" />
       <gyro name="gyro"           site="imu" />
+      <!--
+      -->
 
       <force  name="right_f"   site="right_ati" />
       <torque name="right_t"   site="right_ati" />
 
       <force  name="left_f"    site="left_ati" />
       <torque name="left_t"    site="left_ati" />
+      <!--
+      -->
 
       <framepos name="mocap_t1" objtype="site"    objname="ps_t0" />
       <framepos name="mocap_t2" objtype="site"    objname="ps_t1" />
@@ -484,9 +500,9 @@ soft:
       <framepos name="mocap8"   objtype="site"    objname="ps15" />
 
       <!--
-      <sitepos name="mocap"       site="imu" />
-      <sitepos name="mocap1"       site="right_ati" />
-      <sitepos name="mocap2"       site="left_ati" />
+      <framepos name="test_mocap"    objtype="site"    objname="imu" />
+      <framepos name="test_mocap1"   objtype="site"    objname="right_ati" />
+      <framepos name="test_mocap2"   objtype="site"    objname="left_ati" />
       -->
     </sensor>
 

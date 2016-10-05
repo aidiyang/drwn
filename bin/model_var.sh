@@ -1,10 +1,18 @@
 #!/bin/bash
 
+<<<<<<< HEAD
 nonoise="1e-22"
 d_noise="1e-4"
 ee="0.4"
 data_f="clean_fallen_3.csv"
 data_f="clean_straight_walk.csv"
+=======
+nonoise="-1"
+d_noise="1e-4"
+ee="-1"
+#data_f="clean_straight_walk.csv"
+data_f="new_walk1.csv"
+>>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
 #data_f="clean_fallen_3_short.csv"
 #data_f="walk3.csv"
 

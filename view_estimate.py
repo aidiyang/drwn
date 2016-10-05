@@ -12,6 +12,7 @@ if len(sys.argv) > 1:
 df = pd.read_csv(f, sep=',')
 
 t = df['time']
+print t
 
 qpos = df.filter(regex='qpos').values
 qvel = df.filter(regex='qvel').values
@@ -52,7 +53,7 @@ c_time = df['correct']
 
 
 
-fig, axs = plt.subplots(3, 3, sharex=False)
+fig, axs = plt.subplots(4, 3, sharex=False)
 
 my_ls = '--'
 my_lw = 5
@@ -125,6 +126,10 @@ if (ns > 56):
         axs[2,1].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
                 est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
 
+    print "Accel Max X:", np.max(est_snsr[:,40]), np.min(est_snsr[:,40])
+    print "Accel Max Y:", np.max(est_snsr[:,41]), np.min(est_snsr[:,41])
+    print "Accel Max Z:", np.max(est_snsr[:,42]), np.min(est_snsr[:,42])
+
 # gyro
 if (ns > 56):
     if snsr.any():
@@ -136,6 +141,9 @@ if (ns > 56):
     for col in range(43,46):
         axs[2,2].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
                 est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
+    print "Gyro Max X:", np.max(est_snsr[:,43]), np.min(est_snsr[:,43])
+    print "Gyro Max Y:", np.max(est_snsr[:,44]), np.min(est_snsr[:,44])
+    print "Gyro Max Z:", np.max(est_snsr[:,45]), np.min(est_snsr[:,45])
 
 ## mrkr 
 # if mrkr.any():
@@ -147,6 +155,52 @@ if (ns > 56):
 # #for col in range(40,43):
 # #    axs[2,1].fill_between(t, est_mrkr[:,col]+std_mrkr[:,col],
 # #            est_mrkr[:,col]-std_mrkrk[:,col], edgecolor='none', alpha=0.1)
+
+# force / torque 
+if (ns > 56):
+    if snsr.any():
+        axs[3,1].plot(t, snsr[:,46:49], lw=my_lw, color='blue', alpha=my_alpha)
+        axs[3,1].plot(t, snsr[:,52:55], lw=my_lw, color='red', alpha=my_alpha)
+    plt.gca().set_color_cycle(None)
+    axs[3,1].plot(t, est_snsr[:,46:48], ls=my_ls, alpha=1.0)
+    axs[3,1].plot(t, est_snsr[:,52:55], ls=my_ls, alpha=1.0)
+    #axs[1,0].fill_between(t, est_snsr+std_snsr, est_snsr-std_snsr, ls=my_ls, alpha=1.0)
+    axs[3,1].set_title('force')
+    for col in range(46,48):
+        axs[3,1].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
+                est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
+    for col in range(52,55):
+        axs[3,1].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
+                est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
+        
+    print "R Force Max X:", np.max(est_snsr[:,46]), np.min(est_snsr[:,46])
+    print "R Force Max Y:", np.max(est_snsr[:,47]), np.min(est_snsr[:,47])
+    print "R Force Max Z:", np.max(est_snsr[:,48]), np.min(est_snsr[:,48])
+    print "L Force Max X:", np.max(est_snsr[:,52]), np.min(est_snsr[:,52])
+    print "L Force Max Y:", np.max(est_snsr[:,53]), np.min(est_snsr[:,53])
+    print "L Force Max Z:", np.max(est_snsr[:,54]), np.min(est_snsr[:,54])
+
+
+    if snsr.any():
+        axs[3,2].plot(t, snsr[:,49:52], lw=my_lw, color='blue', alpha=my_alpha)
+        axs[3,2].plot(t, snsr[:,55:58], lw=my_lw, color='red', alpha=my_alpha)
+    plt.gca().set_color_cycle(None)
+    axs[3,2].plot(t, est_snsr[:,49:52], ls=my_ls, alpha=1.0)
+    axs[3,2].plot(t, est_snsr[:,55:58], ls=my_ls, alpha=1.0)
+    #axs[1,0].fill_between(t, est_snsr+std_snsr, est_snsr-std_snsr, ls=my_ls, alpha=1.0)
+    axs[3,2].set_title('torque')
+    for col in range(49,52):
+        axs[3,2].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
+                est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
+    for col in range(55,58):
+        axs[3,2].fill_between(t, est_snsr[:,col]+std_snsr[:,col],
+                est_snsr[:,col]-std_snsr[:,col], edgecolor='none', alpha=0.1)
+    print "R Torque Max X:", np.max(est_snsr[:,49]), np.min(est_snsr[:,49])
+    print "R Torque Max Y:", np.max(est_snsr[:,50]), np.min(est_snsr[:,50])
+    print "R Torque Max Z:", np.max(est_snsr[:,51]), np.min(est_snsr[:,51])
+    print "L Torque Max X:", np.max(est_snsr[:,55]), np.min(est_snsr[:,55])
+    print "L Torque Max Y:", np.max(est_snsr[:,56]), np.min(est_snsr[:,56])
+    print "L Torque Max Z:", np.max(est_snsr[:,57]), np.min(est_snsr[:,57])
 
 
 

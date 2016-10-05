@@ -15,9 +15,15 @@ if len(sys.argv) > 2:
     r = sys.argv[2]
 
 
+print "Getting Estimation data from", f
+print "Getting Raw sensor data from", r
 es = util.get_est_data(f)
 
-t = es['time']
+#print es['time']
+#t = es['time']
+#print t
+df = pd.read_csv(f, sep=',')
+t = df['time']
 #t = t - t[0]
 
 hw = util.get_real_data(r, len(t))
@@ -25,18 +31,24 @@ hw = util.get_real_data(r, len(t))
 ss = util.snsr_breakout(es['est_snsr'])
 
 r_t=hw['time']
+t = r_t
 
 fig, axs = plt.subplots(7, 3, sharex=False)
+print t.shape
+print es['est_qpos'].shape
+print hw['qpos'].shape
 
 my_ls = '--'
 my_lw = 2
 my_alpha = 0.5
 hw_alpha = 0.9
-axs[0,0].plot(t, es['est_qpos'], color='b', alpha=my_alpha)
-axs[0,0].plot(r_t,   hw['qpos'], color='r', alpha=my_alpha)
+#axs[0,0].plot(t, es['est_qpos'], color='b', alpha=my_alpha)
+axs[0,0].plot(t,   ss['qpos'], color='b', alpha=my_alpha)
+axs[0,0].plot(r_t, hw['qpos'], color='r', alpha=my_alpha)
 axs[0,0].set_title('pos')
 
-axs[0,1].plot(t, es['est_qvel'], color='b', alpha=my_alpha)
+#axs[0,1].plot(t, es['est_qvel'], color='b', alpha=my_alpha)
+axs[0,1].plot(t, ss['qvel'], color='b', alpha=my_alpha)
 axs[0,1].plot(r_t,   hw['qvel'], color='r', alpha=my_alpha)
 axs[0,1].set_title('vel')
 axs[0,1].set_ylim([-3, 3])

@@ -65,7 +65,7 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
   for (int i=0; i<my_threads; i++) {
     models[i] = mj_copyModel(NULL, m);
 
-    models[i]->opt.iterations = 25; // TODO to make things faster 
+    models[i]->opt.iterations = 15; // TODO to make things faster 
     models[i]->opt.tolerance = 0; 
 
     sigmas[i] = mj_makeData(this->m);
@@ -96,9 +96,9 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
       //sigma_states[i] = this->d;
       W_s[i] = lambda / ((double) L + lambda);
       W_c[i] = W_s[i] + (1-(alpha*alpha)+beta);
-      W_s[i] = 1.0/N;
 
-      //W_c[i] = 1.0/N;
+      W_s[i] = 1.0/N;
+      W_c[i] = 1.0/N;
       //W_c[i] = W_s[i];
     }
     else {
@@ -111,7 +111,7 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
 
       // even weighting
       W_s[i] = 1.0/N;
-      //W_c[i] = 1.0/N;
+      W_c[i] = 1.0/N;
     }
     x[i] = VectorXd::Zero(L); // point into raw buffer, not mjdata
 
@@ -162,19 +162,21 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
   }
   std::cout<<"Ptadd:\n"<<PtAdd.diagonal().transpose()<<std::endl;
 
-  qhat = VectorXd::Zero(L);
+  q_hat = VectorXd::Zero(L);
   Q = PtAdd;
 
-  shat = VectorXd::Zero(ns);
+  s_hat = VectorXd::Zero(ns);
 
   PzAdd = MatrixXd::Identity(ns, ns);
-  int my_sensordata=0;
+  snsr_limit = new double[ns];
   double default_snsr[29] = {
     1e-4,1e-4,1e-4,1e-7,1e-4,1e-6,1e-3,
     1e-7,1e-5,1e-4,1e-5,1e-4,1e-5,1e-3,
     1e-6,1e-6,1e-7,1e-4,1e-7,1e-7,1e-7,
     1e-5,1e-2,1e-5,1e-2,1e-1,1e-1,1e-1,1e-0};
   snsr_ptr = new double[29];
+  double* snsr_range = util::get_numeric_field(m, "snsr_range", NULL); 
+
   if (m->nnumericdata >= 29 && snsr_weights) {
     for (int i=0; i<29; i++)
       snsr_ptr[i] = snsr_weights[i];
@@ -182,44 +184,16 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
     for (int i=0; i<29; i++)
       snsr_ptr[i] = default_snsr[i];
   }
-  printf("Sensor Covariance Matrix Diagonal:\n");
-  printf("    Touch        : %e\n",  snsr_ptr[0]);
-  printf("    Accelerometer: %e\n",  snsr_ptr[1]);
-  printf("    Velocimeter  : %e\n",  snsr_ptr[2]);
-  printf("    Gyro         : %e\n",  snsr_ptr[3]);
-  printf("    Force        : %e\n",  snsr_ptr[4]);
-  printf("    Torque       : %e\n",  snsr_ptr[5]);
-  printf("    Magnetometer : %e\n",  snsr_ptr[6]);
-  printf("    JointPos     : %e\n",  snsr_ptr[7]);
-  printf("    JointVel     : %e\n",  snsr_ptr[8]);
-  printf("    TendonPos    : %e\n",  snsr_ptr[9]);
-  printf("    TendonVel    : %e\n", snsr_ptr[10]);
-  printf("    ActuatorPos  : %e\n", snsr_ptr[11]);
-  printf("    ActuatorVel  : %e\n", snsr_ptr[12]);
-  printf("    ActuatorFrc  : %e\n", snsr_ptr[13]);
-  printf("    BallPos      : %e\n", snsr_ptr[14]);
-  printf("    BallQuat     : %e\n", snsr_ptr[15]);
-  printf("    FramePos     : %e\n", snsr_ptr[16]);
-  printf("    FrameQuat    : %e\n", snsr_ptr[17]);
-  printf("    FrameXAxis   : %e\n", snsr_ptr[18]);
-  printf("    FrameYAxis   : %e\n", snsr_ptr[19]);
-  printf("    FrameZAxis   : %e\n", snsr_ptr[20]);
-  printf("    FrameLinVel  : %e\n", snsr_ptr[21]);
-  printf("    FrameAngVel  : %e\n", snsr_ptr[22]);
-  printf("    FrameLinAcc  : %e\n", snsr_ptr[23]);
-  printf("    FrameAngAcc  : %e\n", snsr_ptr[24]);
-  printf("    SubTreeCom   : %e\n", snsr_ptr[25]);
-  printf("    SubTreeLinVel: %e\n", snsr_ptr[26]);
-  printf("    SubTreeAngMom: %e\n", snsr_ptr[27]);
-  printf("    Default      : %e\n", snsr_ptr[28]);
+  util::show_snsr_weights(snsr_ptr);
+
+  int my_sensordata=0;
   for (int i = 0; i < m->nsensor; i++) {      
     int type = m->sensor_type[i];
-    double var = 0;
-    // TODO assumes type is correctly set
-    var = snsr_ptr[type];
+    // different sensors have different number of fields
     for (int j=my_sensordata; j<(m->sensor_dim[i]+my_sensordata); j++) {
-      // different sensors have different number of fields
-      PzAdd(j, j) = var;
+      PzAdd(j, j) = snsr_ptr[type];
+      if (snsr_range) snsr_limit[j] = snsr_range[type];
+      else snsr_limit[j] = 1e6; // filler
     }
     my_sensordata += m->sensor_dim[i];
   }
@@ -243,8 +217,8 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
   m_noise = util::get_numeric_field(m, "mass_var", NULL);
   t_noise = util::get_numeric_field(m, "time_var", NULL);
 
-  if (m_noise) printf("Total Mass Var: %f\n", (*m_noise) * this->noise);
-  if (t_noise) printf("Time Var: %f\n", (*t_noise) * this->noise);
+  if (m_noise) printf("Total Mass Var: %f\n", (*m_noise));
+  if (t_noise) printf("Time Var: %f\n", (*t_noise));
 
   sigma_handles = new std::future<double>[my_threads];
 };
@@ -297,25 +271,35 @@ void UKF::add_model_noise(mjModel* t_m) {
 
 }
 
-void UKF::add_ctrl_noise(double * noise) {
+void UKF::add_ctrl_noise(double * ctrl) {
   static std::mt19937 c_rng(505050);
   //static std::normal_distribution<double> nd(0, _sigma);
   if (diag > 0) {
     for (int i=0; i<nu; i++) {
       double r = ct_vec[i](c_rng);
-      noise[i] += r;
+      ctrl[i] += r;
     }
   }
 }
 
-void UKF::add_snsr_noise(double * noise) {
+void UKF::add_snsr_noise(double * snsr) {
   static std::mt19937 s_rng(494949);
   // make a vector ns in length with appropriate sigmas / variances
 
   for (int i=0; i<ns; i++) {
-    double r = rd_vec[i](s_rng);
-    //printf("%1.2f ", r);
-    noise[i] += r;
+    if (noise > 0) { // should be bool...?
+      double r = rd_vec[i](s_rng);
+      snsr[i] += r;
+    }
+    // clamp sensor values
+    if (snsr[i] > snsr_limit[i]) {
+      //printf("snsr changed: %d : %f -> %f\n", i, snsr[i], snsr_limit[i]);
+      snsr[i] = snsr_limit[i];
+    }
+    if (snsr[i] < -1.0*snsr_limit[i]) {
+      //printf("snsr changed: %d : %f -> %f\n", i, snsr[i], snsr_limit[i]);
+      snsr[i] = -1.0*snsr_limit[i];
+    }
   }
 }
 
@@ -446,7 +430,7 @@ double UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
     // step through all the perturbation cols and collect the data
     int i = j+1;
     ///////////////////////////////////////////////////// sigma point
-    x[i+0] = x[0]+m_sqrt->col(i-1);// + qhat;
+    x[i+0] = x[0]+m_sqrt->col(i-1);// + q_hat;
 
     t_d->time = d->time;
 
@@ -466,7 +450,7 @@ double UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
 
     fast_forward(t_m, t_d, 0, 0); // dont skip sensor
 
-    //add_snsr_noise(t_d->sensordata);
+    add_snsr_noise(t_d->sensordata);
     mju_copy(&(gamma[i](0)), t_d->sensordata, ns);
     mju_copy(&(m_gamma.col(i)(0)), d->sensordata, ns);
 
@@ -475,7 +459,7 @@ double UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
     }
 
     ///////////////////////////////////////////////////// symmetric point
-    x[i+L] = x[0]-m_sqrt->col(i-1);// + qhat;
+    x[i+L] = x[0]-m_sqrt->col(i-1);// + q_hat;
 
     t_d->time = d->time;
     set_data(t_d, &(x[i+L]));
@@ -493,7 +477,7 @@ double UKF::sigma_samples(mjModel *t_m, mjData *t_d, mjData *d, double* ctrl,
 
     fast_forward(t_m, t_d, 0, 0); // dont skip sensor
 
-    //add_snsr_noise(t_d->sensordata);
+    add_snsr_noise(t_d->sensordata);
     mju_copy(&(gamma[i+L](0)), t_d->sensordata, ns);
     mju_copy(&(m_gamma.col(i+L)(0)), d->sensordata, ns);
 
@@ -589,8 +573,9 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
 
   fast_forward(m, d, 0, 0); // dont skip sensor
   //gamma[0] = Map<VectorXd>(d->sensordata, ns);
-  //add_snsr_noise(d->sensordata);
+  add_snsr_noise(d->sensordata);
   mju_copy(&(gamma[0](0)), d->sensordata, ns);
+
   mju_copy(&(m_gamma.col(0)(0)), d->sensordata, ns);
 
   mju_copy(sigma_states[0]->qpos, d->qpos, nq);
@@ -625,9 +610,10 @@ void UKF::predict_correct_p1(double * ctrl, double dt, double* sensors, double* 
   for (int i=1; i<N; i++) {
     x_t += W_s[i]*x[i];
     z_k += W_s[i]*gamma[i];
+    //std::cout<<i<<" : "<<gamma[i].segment(40,18).transpose()<<std::endl;
   }
   x_t = W_s[0]*x[0]     + x_t;
-  z_k = W_s[0]*gamma[0] + z_k;
+  z_k = W_s[0]*gamma[0] + z_k; // offset the sensors with an adaptive bias
   // TODO  can optimize more if all the weights are the same
 
   // even weighting
@@ -717,13 +703,36 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
 
   VectorXd s = Map<VectorXd>(sensors, ns); // map our real z to vector
 
+  //z_k = z_k + s_hat;
   VectorXd c_v = (K*(s-z_k));
 
+  set_data(d, &(x_t)); // set corrected state into mujoco data struct
+  mj_forward(m, d); // dont skip sensor
+  std::cout<<"Predict Energy: "<<d->energy[0]<<", "<<d->energy[1]<<std::endl;
+  double total_energy = d->energy[0] + d->energy[1];
 
-  VectorXd new_x_t = x_t + (K*(s-z_k));
 
+  x_t = x_t + (K*(s-z_k));
   P_t = P_t - (K * P_z * K.transpose());
 
+  set_data(d, &(x_t)); // set corrected state into mujoco data struct
+
+  double dk = 0.09; //0.99;
+  s_hat = (1-dk)*s_hat + dk*(s-z_k);
+
+  //std::cout<<"Before sensor max: "<<z_k.maxCoeff()<<std::endl;
+  //std::cout<<"Before sensor limit:\n"<<z_k.segment(40,12).transpose()<<std::endl;
+  add_snsr_noise(&(z_k(0)));
+  //std::cout<<"After sensor max: "<<z_k.maxCoeff()<<std::endl;
+  //std::cout<<"After sensor limit:\n"<<z_k.segment(40,12).transpose()<<std::endl;
+
+  //std::cout<<"Sensor Vector     :\n" << s.segment(40,18).transpose() << "\n";
+  //std::cout<<"Sensor Esti Vector:\n" << z_k.segment(40,18).transpose() << "\n";
+  //std::cout<<"Sensor Bias Vector:\n" << s_hat.segment(40,18).transpose() << "\n";
+
+  //std::cout<<"Summed:\n" << (s-z_k).transpose() << "\n";
+
+  //VectorXd new_x_t = x_t + (K*(s-z_k));
   //set_data(d, &(x_t)); // set corrected state into mujoco data struct
   //std::cout<< "Correction constraint violation norm predict:" << constraint_violated(d) << "\n";
   //set_data(d, &(new_x_t)); // set corrected state into mujoco data struct
@@ -736,17 +745,27 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
   //std::cout<< "Correction constraint violation scale:" << scale << "\n";
   //std::cout<< "Correction constraint violation norm scaled :" << constraint_violated(d) << "\n";
 
-
-  x_t = x_t + (K*(s-z_k));
-  set_data(d, &(x_t)); // set corrected state into mujoco data struct
-
-  mju_copy(d->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
+  //mju_copy(sigma_states[0]->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
 #if 1
   fast_forward(m, d, 0, 0); // dont skip sensor
+
+  //mj_forward(m, d); // dont skip sensor
+  std::cout<<"Correct Energy: "<<d->energy[0]<<", "<<d->energy[1]<<std::endl;
+  total_energy = d->energy[0] + d->energy[1];
+
+  //if (total_energy > 20) {
+  //  x_t = x_t - (K*(s-z_k));
+  //  P_t = P_t + (K * P_z * K.transpose());
+  //  printf("IGNORING UPDATE STEP!!\n");
+  //  printf("IGNORING UPDATE STEP!!\n");
+  //  printf("IGNORING UPDATE STEP!!\n");
+  //  printf("IGNORING UPDATE STEP!!\n");
+  //  printf("IGNORING UPDATE STEP!!\n");
+  //}
 #endif
 
-  int end = (nq > 26) ? 26 : nq;
   if (NUMBER_CHECK) {
+    int end = (nq > 26) ? 26 : nq;
     IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
     std::cout << "\nKalman Gain:\n"<< K.block(0,0,end,end).format(CleanFmt) << "\n";
     std::cout << "\nraw sensors:\n"<< (s).transpose().format(CleanFmt) << "\n";
@@ -782,7 +801,6 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
   LLT<MatrixXd> chol((L+lambda)*(P_t));
   MatrixXd m_sqrt = chol.matrixL(); // chol
 #endif
-  // compilation time.... 
 
   double t4 = util::now_t();
 
@@ -865,7 +883,7 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
       double scale;
 
       ///////////////////////////////////////////////////// sigma point
-      x[i+0] = x[0]+m_sqrt.col(i-1) + qhat;
+      x[i+0] = x[0]+m_sqrt.col(i-1) + q_hat;
 
       t_d->time = d->time;
       set_data(t_d, &(x[i+0]));
@@ -927,7 +945,7 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
       }
 
       ///////////////////////////////////////////////////// symmetric point
-      x[i+L] = x[0]-m_sqrt.col(i-1) + qhat;
+      x[i+L] = x[0]-m_sqrt.col(i-1) + q_hat;
 
       t_d->time = d->time;
       set_data(t_d, &(x[i+L]));
@@ -1038,7 +1056,7 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
   x_t = W_s[0]*x[0] + (W_s[1])*x_t;
   // TODO  can optimize more if all the weights are the same
 
-  VectorXd z_k = shat; //VectorXd::Zero(ns);
+  VectorXd z_k = s_hat; //VectorXd::Zero(ns);
   //for (int i=0; i<N; i++) { z_k += W_s[i]*gamma[i]; }
   for (int i=1; i<N; i++) { z_k += gamma[i]; }
   z_k = W_s[0]*gamma[0] + (W_s[1])*z_k;
@@ -1137,17 +1155,17 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
 
   // Sage-Husa Adaptive Estimate
   //double dk = 0.95;
-  //MatrixXd F = x_t - qhat;
-  //qhat = (1-dk)*qhat + dk*(x_t - x_minus);
+  //MatrixXd F = x_t - q_hat;
+  //q_hat = (1-dk)*q_hat + dk*(x_t - x_minus);
   //dk = 0.5;
-  //shat = (1-dk)*shat + dk*(s-z_k);
-  //shat.setZero();
-  //qhat.setZero();
+  //s_hat = (1-dk)*s_hat + dk*(s-z_k);
+  //s_hat.setZero();
+  //q_hat.setZero();
 
-  // x_t = F*x_minus + qhat;
+  // x_t = F*x_minus + q_hat;
   //Q = (1-dk) * Q + dk*(K*V*V.transpose()*K.transpose() + P_t );
 
-  //std::cout << "\nqhat:\n"<< qhat.transpose().format(CleanFmt) << std::endl;
+  //std::cout << "\nq_hat:\n"<< q_hat.transpose().format(CleanFmt) << std::endl;
 
   //double a2 = abs(P_t.determinant());
   //double b2 = pow(2*3.14159265*exp(1), (double)L);

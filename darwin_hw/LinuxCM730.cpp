@@ -106,7 +106,7 @@ bool LinuxCM730::OpenPort()
 
 	// Why is there a * 8 in the other function?
 	//m_ByteTransferTime = (1000.0 / baudrate) * 12.0;
-	m_ByteTransferTime = (1000.0 / baudrate) * 12.0 * 80.0f;
+	m_ByteTransferTime = (1000.0 / baudrate) * 12.0 * 8.0f;
 
 	return true;
 
@@ -234,7 +234,7 @@ double LinuxCM730::GetCurrentTime()
 void LinuxCM730::SetPacketTimeout(int lenPacket)
 {
 	m_PacketStartTime = GetCurrentTime();
-	m_PacketWaitTime = m_ByteTransferTime * (double)lenPacket + 20.0;
+	m_PacketWaitTime = m_ByteTransferTime * (double)lenPacket + 40.0;
 }
 
 bool LinuxCM730::IsPacketTimeout()

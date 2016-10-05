@@ -17,7 +17,8 @@ hw = util.get_real_data(hw_f, -1)
 if hw_f.startswith('clean_fallen') == True:
     matplotlib.rcParams.update({'font.size': 16})
     fig, axs = plt.subplots(1, 1, sharex=False, figsize=(16,9), dpi=128)
-elif hw_f.startswith('clean_straight') == True:
+#elif hw_f.startswith('clean_straight') == True:
+else:
     matplotlib.rcParams.update({'font.size': 14})
     fig, axs = plt.subplots(1, 1, sharex=False, figsize=(21,9), dpi=128)
 my_lw = 3
@@ -46,7 +47,8 @@ if hw_f.startswith('clean_fallen') == True:
     init_spos = init_spos.reshape(16,3)
     print "fallen cols is: ", cols
 
-elif hw_f.startswith('clean_straight') == True:
+#elif hw_f.startswith('clean_straight') == True:
+else:
     cols = [2,4,6,7,8,11,12] # straight walk
     #cols = [2] # straight walk full
     #cols = [2, 8, 14] # straight walk full torso
@@ -107,10 +109,11 @@ axs.set_ylabel('RMSE (Meters)')
 axs.grid(True)
 axs.legend()
 if hw_f.startswith('clean_fallen') == True:
-    plt.ylim(0, 0.3)
-    plt.xlim(0, 7.15)
+    #plt.ylim(0, 0.3)
+    #plt.xlim(0, 7.15)
     plt.legend(bbox_to_anchor=(0.6, 0.9), bbox_transform=plt.gcf().transFigure)
-elif hw_f.startswith('clean_straight') == True:
+#elif hw_f.startswith('clean_straight') == True:
+else:
     plt.ylim(0, 0.7)
     plt.legend(bbox_to_anchor=(0.3, 0.9), bbox_transform=plt.gcf().transFigure)
 

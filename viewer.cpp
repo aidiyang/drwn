@@ -237,7 +237,7 @@ int main(int argc, const char** argv) {
       //("velocity,v", po::value<std::string>(vel_file), "Binary file of joint velocity data")
       ("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
       ("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
-      ("e_noise,e", po::value<double>(&e_noise)->default_value(1.0), "Gaussian amount of estimator noise to corrupt data with.")
+      ("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
       ("alpha,a", po::value<double>(&alpha)->default_value(1e-3), "Alpha: UKF param")
       ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
       ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
@@ -407,14 +407,14 @@ double time = 0.0;
           use_accel, use_gyro, use_ati, p_gain, ps_server, p);
 
       // MARKER ROTATION AND OFFSET
-      double *ps = new double[MARKER_SIZE];
-      double *ps_c = new double[NMARKERS];
       Matrix3d rot;
       rot<<0.996336648486483, -0.0855177343170566, 0, 0.0855177343170566, 0.996336648486483, 0, 0, 0, 1;
       if (use_markers || use_rigid) {
+        double *ps = new double[MARKER_SIZE];
+        double *ps_c = new double[NMARKERS];
         robot->set_frame_rotation(rot);
-        int c1 = 7; // marker positions
-        int c2 = 3;
+        int c1 = 8; //7; // chest marker positions
+        int c2 = 9; //3;
         double* mrkr = sensors+mrkr_idx;
         kb_changemode(1);
         while (!kbhit()) { // double check the chest marker positioning
@@ -439,6 +439,9 @@ double time = 0.0;
 
         // set these at the same time?
         robot->set_initpos_rt(vec_r, vec_s, ps, ps_c, s_ps_walk); // pass the clean data
+
+        delete[] ps;
+        delete[] ps_c;
       }
       else {
         printf("Skipping Rotation Calibration\n");

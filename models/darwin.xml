@@ -12,11 +12,11 @@
 soft:
         margin="0.001" solref="1 1" solimp=".001 .001 .01" material="meshmat"/>
       <flag constraint="disable"/>
+      <flag energy="enable"/>
       <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
    -->
 
     <option	timestep="0.002" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
-      <flag energy="enable"/>
     </option>
 
     <default>
@@ -82,13 +82,13 @@ soft:
         1e-2
         1e-0
 
-        1e-6
+        1e-7
         1e-5
         1e-0
         1e-0
         1e-8 1e-0 1e-0 1e-0 1e-8
 
-        1e-6
+        1e-7
         1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
         "
         />
@@ -125,7 +125,7 @@ soft:
 <!-- SUBTREEANGMOM -->
       <numeric name="snsr_range" size="29" data="
         1e+1
-        80.0
+        20.0
         1e+1
         6.0
         250.0
@@ -147,7 +147,7 @@ soft:
       <numeric name="t_rot2" size="9" data=" 
         1 2 2 0 1 0 2 2 1"/>
       <numeric name="covar_diag" size="26" data="
-          1e-5
+          1e-3
           1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
         <!-- sensor range limited by hardware, or a guess-->
             <!--

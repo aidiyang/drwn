@@ -413,8 +413,8 @@ double time = 0.0;
         double *ps = new double[MARKER_SIZE];
         double *ps_c = new double[NMARKERS];
         robot->set_frame_rotation(rot);
-        int c1 = 9; //7; // chest marker positions
-        int c2 = 8; //3;
+        int c1 = 8; //7; // chest marker positions
+        int c2 = 9; //3;
         double* mrkr = sensors+mrkr_idx;
         kb_changemode(1);
         while (!kbhit()) { // double check the chest marker positioning

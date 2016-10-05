@@ -162,11 +162,10 @@ int main (int argc, char* argv[]) {
   Matrix3d rot;
   rot<<0.996451773800196, -0.0841656847559736, 0, 0.0841656847559736, 0.996451773800196, 0, 0, 0, 1;
 
-
   if (use_markers || use_rigid) {
     d->set_frame_rotation(rot);
-    int c1 = 9; //7; // chest marker positions
-    int c2 = 8; //3;
+    int c1 = 8; //7; // chest marker positions
+    int c2 = 9; //3;
     double* mrkr = sensors+mrkr_idx;
     kb_changemode(1);
     while (!kbhit()) { // double check the chest marker positioning

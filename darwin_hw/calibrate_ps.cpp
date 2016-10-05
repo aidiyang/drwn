@@ -227,8 +227,8 @@ int main (int argc, char* argv[]) {
   d->set_frame_rotation(rot);
 
   printf("Press enter to accept foot markers...\n");
-  int c1 = 9; //7; // chest marker positions
-  int c2 = 8; //3;
+  int c1 = 8; //7; // chest marker positions
+  int c2 = 9; //3;
 
   while (!kbhit()) {
     d->get_sensors(&time, sensors, conf);

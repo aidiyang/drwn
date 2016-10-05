@@ -745,13 +745,11 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
   //std::cout<< "Correction constraint violation scale:" << scale << "\n";
   //std::cout<< "Correction constraint violation norm scaled :" << constraint_violated(d) << "\n";
 
-
-
-  mju_copy(sigma_states[0]->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
+  //mju_copy(sigma_states[0]->sensordata, &(z_k(0)), ns); // copy estimated data for viewing 
 #if 1
-  //fast_forward(m, d, 0, 0); // dont skip sensor
+  fast_forward(m, d, 0, 0); // dont skip sensor
 
-  mj_forward(m, d); // dont skip sensor
+  //mj_forward(m, d); // dont skip sensor
   std::cout<<"Correct Energy: "<<d->energy[0]<<", "<<d->energy[1]<<std::endl;
   total_energy = d->energy[0] + d->energy[1];
 
@@ -803,7 +801,6 @@ void UKF::predict_correct(double * ctrl, double dt, double* sensors, double* con
   LLT<MatrixXd> chol((L+lambda)*(P_t));
   MatrixXd m_sqrt = chol.matrixL(); // chol
 #endif
-  // compilation time.... 
 
   double t4 = util::now_t();
 

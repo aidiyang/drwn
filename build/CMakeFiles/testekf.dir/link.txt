@@ -1,1 +1,0 @@
-/usr/bin/c++    -fPIC -Wall -lpthread -std=c++11 -fopenmp -O2 -O3 -DNDEBUG    CMakeFiles/testekf.dir/testEKF.cpp.o  -o ../bin/testekf  -L/opt/intel/mkl/lib/intel64  -L/opt/mujoco131/bin -rdynamic -lglfw -lmujoco -lboost_program_options -lboost_random -lboost_filesystem -lboost_system -Wl,-rpath,/opt/intel/mkl/lib/intel64:/opt/mujoco131/bin 

@@ -1,1 +1,0 @@
-/usr/bin/c++    -fPIC -Wall -lpthread -std=c++11 -fopenmp -O2 -O3 -DNDEBUG    CMakeFiles/test_eigen.dir/test_eigen.cpp.o  -o ../../bin/test_eigen  -L/opt/intel/mkl/lib/intel64  -L/opt/mujoco131/bin  -L/home/jdao/Work/drwn/darwin_hw/phasespace/lib -rdynamic 

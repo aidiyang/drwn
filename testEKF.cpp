@@ -3,6 +3,10 @@
 #include <iostream>
 #include <random>
 #include <functional>
+<<<<<<< HEAD
+=======
+#include <omp.h>
+>>>>>>> 2d7aee414a3958122ca2a1dc7400b68bf8b14694
 
 #include <math.h>
 #include <vector>
@@ -51,4 +55,8 @@ int main(int argc, const char** argv) {
 
 
 
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2d7aee414a3958122ca2a1dc7400b68bf8b14694

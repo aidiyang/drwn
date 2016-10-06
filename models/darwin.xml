@@ -16,7 +16,7 @@ soft:
       <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
    -->
 
-    <option	timestep="0.002" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
+    <option	timestep="0.008" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
     </option>
 
     <default>
@@ -35,14 +35,14 @@ soft:
       </default>
       <default class='left leg'>
         <geom contype='2' conaffinity='0' rgba='.69 .72 .43 1' condim='1'
-          solref=".02 0.1" solimp="0.8 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
+          solref=".02 0.1" solimp="0.9 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
         <!-- 
              solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
               -->
       </default>
       <default class='right leg'>
         <geom contype='4' conaffinity='0' rgba='.29 .72 .43 1' condim='1'
-          solref=".02 0.1" solimp="0.8 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
+          solref=".02 0.1" solimp="0.9 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
         <!--
              solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
               -->
@@ -147,7 +147,7 @@ soft:
       <numeric name="t_rot2" size="9" data=" 
         1 2 2 0 1 0 2 2 1"/>
       <numeric name="covar_diag" size="26" data="
-          1e-2
+          1e-6
           1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
         <!-- sensor range limited by hardware, or a guess-->
             <!--

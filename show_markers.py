@@ -36,7 +36,7 @@ f = sys.argv[1]
 #    mrkr = mrkr.reshape(len(t), 16,3)
 #ps = np.copy(mrkr[:,:,0:3])
 
-hw = util.get_real_data(f, -1)
+hw = util.get_real_data(f, 0, -1)
 
 mrkr =hw['ps']
 t = hw['time']

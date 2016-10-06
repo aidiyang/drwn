@@ -3,32 +3,18 @@ import pandas as pd
 import sys
 
 import matplotlib.pyplot as plt
-<<<<<<< HEAD
-
-import py_utils as util
-
-=======
 import matplotlib
 
 import py_utils as util
 
 matplotlib.rcParams.update({'font.size': 14})
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
 
 if len(sys.argv) >= 2:
     hw_f = sys.argv[1]
 
 print "Hardware File:", hw_f
-hw = util.get_real_data(hw_f, -1)
+hw = util.get_real_data(hw_f, 0, -1)
 
-<<<<<<< HEAD
-my_lw = 2
-lw2 = 2
-my_alpha = 0.9
-conf_lvl = 0
-conf = hw['conf']
-my_ls = ['-','--','-.',':']
-=======
 my_lw = 4
 my_lw2 = 7
 lw2 = 2
@@ -39,12 +25,12 @@ conf_lvl = 0
 conf = hw['conf']
 my_ls = ['-','--','-.',':']
 ls2='-'
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
 
 #conf[:,0] = -1
 #conf[:,1] = -1
 
 new_c = util.clean_mrkr_data(hw['time'], hw['ps'], conf, 3, 0.01, 0)
+hw = util.get_real_data(hw_f, 1, -1)
 
 if hw_f.startswith('clean_fallen') == True:
     #cols = [1, 2] # n_fall_1
@@ -61,14 +47,10 @@ if hw_f.startswith('clean_fallen') == True:
     init_spos = init_spos.reshape(16,3)
     print "fallen cols is: ", cols
 
-elif hw_f.startswith('clean_straight') == True:
+elif hw_f.startswith('s_') == True:
     #cols = [2,4,6,7,8,11,12] # straight walk
-<<<<<<< HEAD
-    cols = [2] # straight walk full
-=======
     cols = [2] # straight walk full torso
     #cols = [8, 14] # straight walk full torso
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
     #init_spos = np.zeros((16,3))
     #init_spos = np.array([0.0112 , 0.0562 , 0.3778 , -0.0361,  -0.0537,  0.3186,  0.0566 , 0.0452  ,0.3616,
     #0.0768 , 0.0181 , 0.3156 , 0.0110 , -0.0558 , 0.3778 , -0.0359 , 0.0543  ,0.3186,
@@ -83,12 +65,8 @@ elif hw_f.startswith('clean_straight') == True:
 init_delta = hw['ps'][0,:,:] - init_spos
 hw['ps'] = hw['ps'][:,:,:] - init_delta
 
-<<<<<<< HEAD
-fig, axs = plt.subplots(4, 3, sharex=True, figsize=(15,10))
-=======
 #fig, axs = plt.subplots(4, 3, sharex=True, figsize=(15,10))
 fig, axs = plt.subplots(4, 3, sharex=True, figsize=(21,9), dpi=128)
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
 
 f0 = 'all_snsr.csv' 
 f1 = 'no_accel.csv' 
@@ -118,16 +96,10 @@ s = ss['accl']
 r = hw['accl']
 g = fu['accl']
 for i in range(3):
-    axs[0,i].plot(t, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f1)
-<<<<<<< HEAD
-    axs[0,i].plot(tr,r[:,i], color=c2, lw=my_lw, alpha=my_alpha, label=f1)
-    axs[0,i].plot(tg,g[:,i], color=c3, lw=lw2, ls='--', alpha=my_alpha, label=f1)
-axs[0,1].set_title('Accelerometer')
-=======
+    axs[0,i].plot(tr, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f1)
     axs[0,i].plot(tr,r[:,i], color=c2, lw=my_lw2, alpha=a1, label=f1)
-    axs[0,i].plot(tg,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f1)
+    axs[0,i].plot(tr,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f1)
 axs[0,1].set_title('Accelerometer (m/s^2)')
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
 
 es = util.get_est_data(f2)
 t = es['time']
@@ -136,17 +108,11 @@ s = ss['gyro']
 r = hw['gyro']
 g = fu['gyro']
 for i in range(3):
-    axs[1,i].plot(t, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f2)
-<<<<<<< HEAD
-    axs[1,i].plot(tr,r[:,i], color=c2, lw=my_lw, alpha=my_alpha, label=f2)
-    axs[1,i].plot(tg,g[:,i], color=c3, lw=lw2, ls='--', alpha=my_alpha, label=f0)
-axs[1,1].set_title('Gyroscope')
-=======
+    axs[1,i].plot(tr, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f2)
     axs[1,i].plot(tr,r[:,i], color=c2, lw=my_lw2, alpha=a1, label=f2)
-    axs[1,i].plot(tg,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f0)
+    axs[1,i].plot(tr,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f0)
     axs[1,i].set_ylim([-2, 2])
 axs[1,1].set_title('Gyroscope (rad/sec)')
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
 
 es = util.get_est_data(f3)
 t = es['time']
@@ -156,16 +122,10 @@ r = hw['ctct'][:,0:3]
 g = fu['ctct'][:,0:3]
 print "ctct f shape:", s.shape
 for i in range(3):
-    axs[2,i].plot(t, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f3)
-<<<<<<< HEAD
-    axs[2,i].plot(tr,r[:,i], color=c2, lw=my_lw, alpha=my_alpha, label=f3)
-    axs[2,i].plot(tg,g[:,i], color=c3, lw=lw2, ls='--', alpha=my_alpha, label=f0)
-axs[2,1].set_title('Force Sensors (Right)')
-=======
+    axs[2,i].plot(tr, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f3)
     axs[2,i].plot(tr,r[:,i], color=c2, lw=my_lw2, alpha=a1, label=f3)
-    axs[2,i].plot(tg,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f0)
+    axs[2,i].plot(tr,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f0)
 axs[2,1].set_title('Right Force Sensors (N)')
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
 
 es = util.get_est_data(f4)
 t = es['time']
@@ -175,16 +135,9 @@ r = hw['ctct'][:,3:6]
 g = fu['ctct'][:,3:6]
 print "ctct t shape:", s.shape
 for i in range(3):
-    axs[3,i].plot(t, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f4)
-<<<<<<< HEAD
-    axs[3,i].plot(tr,r[:,i], color=c2, lw=my_lw, alpha=my_alpha, label=f4)
-    axs[3,i].plot(tg,g[:,i], color=c3, lw=lw2, ls='--', alpha=my_alpha, label=f0)
-axs[3,1].set_title('Torque Sensors (Right)')
-
-plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-=======
+    axs[3,i].plot(tr, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f4)
     axs[3,i].plot(tr,r[:,i], color=c2, lw=my_lw2, alpha=a1, label=f4)
-    axs[3,i].plot(tg,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f0)
+    axs[3,i].plot(tr,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f0)
 axs[3,1].set_title('Right Torque Sensors (N-m)')
 
 axs[3,1].set_xlabel('Time (Seconds)')
@@ -193,18 +146,13 @@ axs[3,1].set_xlabel('Time (Seconds)')
 #axs[3,2].set_xlabel('Z axis')
 
 plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.1)
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
 
-start = 2.50
-end = 4.50
+start = 0 #2.50
+end = 3.50
 plt.xlim(start, end)
 
-<<<<<<< HEAD
-fig2, axs2 = plt.subplots(1,1, sharex=True, figsize=(15,10))
-=======
 #fig2, axs2 = plt.subplots(1,1, sharex=True, figsize=(15,10))
 fig2, axs2 = plt.subplots(1, 1, sharex=True, figsize=(16,9), dpi=128)
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
 
 for f in range(len(files)):
     r = files[f]
@@ -217,12 +165,8 @@ for f in range(len(files)):
     rms = util.dist_diff_v_time_limited(ss['ps'], hw['ps'], new_c, conf_lvl, cols)
     
     idx = (f-2)%len(my_ls)
-<<<<<<< HEAD
-    print "ls:", idx
-=======
     good = np.count_nonzero(~np.isnan(rms))
     print names[f], "&", np.nanmean(rms) , " \\\\" #, "len:", good
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
     axs2.plot(t, rms, ls=my_ls[idx],
         lw=3, alpha=1.0, label=names[f])
 
@@ -241,11 +185,7 @@ if ymax > 1:
 #axs.legend()
 #plt.legend(bbox_to_anchor=(0.5, 0.8), bbox_transform=plt.gcf().transFigure)
 
-<<<<<<< HEAD
-plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-=======
 plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.1)
->>>>>>> 02428076898ede0e8c845fadd142cd9e13a44b5b
 
 plt.show()
 

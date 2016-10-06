@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.signal
 import pandas as pd
 import sys
 
@@ -11,7 +12,7 @@ if len(sys.argv) > 2:
     hw_f = sys.argv[1]
 
 print "Hardware File:", hw_f
-hw = util.get_real_data(hw_f, -1)
+hw = util.get_real_data(hw_f, 0, -1)
 
 
 if hw_f.startswith('clean_fallen') == True:
@@ -20,7 +21,7 @@ if hw_f.startswith('clean_fallen') == True:
 #elif hw_f.startswith('clean_straight') == True:
 else:
     matplotlib.rcParams.update({'font.size': 14})
-    fig, axs = plt.subplots(1, 1, sharex=False, figsize=(21,9), dpi=128)
+    fig, axs = plt.subplots(1, 1, sharex=False, figsize=(16,9), dpi=128)
 my_lw = 3
 my_alpha = 0.7
 conf_lvl = 0
@@ -49,7 +50,8 @@ if hw_f.startswith('clean_fallen') == True:
 
 #elif hw_f.startswith('clean_straight') == True:
 else:
-    cols = [2,4,6,7,8,11,12] # straight walk
+    #cols = [0,1,2,3,4,5,6,7] # straight walk
+    cols = [0,2, 3, 4, 5, 6,7,8,9,10,11,12,13,14,15] # straight walk
     #cols = [2] # straight walk full
     #cols = [2, 8, 14] # straight walk full torso
     #init_spos = np.zeros((16,3))
@@ -80,10 +82,15 @@ print dist
 names = ['No Noise', 'Ctrl Noise', 'Time Noise', 'Mass Noise', 'Time/Control',
         'Mass/Control', 'Time/Mass', 'Time/Mass/Control']
 
+t = hw['time']
+print t.shape
+
 for f in range(2, len(sys.argv)):
     r = sys.argv[f]
     es = util.get_est_data(r)
-    t = es['time']
+    #t = es['time']
+    #print t.shape
+    #t = hw['time']
     ss = util.snsr_breakout(es['est_snsr'])
 
     
@@ -94,8 +101,13 @@ for f in range(2, len(sys.argv)):
 
     idx = (f-2)%len(my_ls)
     print names[f-2], "mean:", np.nanmean(rms), "offset:", rms[-1:]-rms[1]
+    print np.nanmin(rms)
+    print rms.shape
+    smooth_rms = scipy.signal.savgol_filter(rms[1:,0], 51, 3)
+    print smooth_rms.shape
+    smooth = smooth_rms[:,None]
 
-    axs.plot(t, rms-rms[1], ls=my_ls[idx],
+    axs.plot(t[3:], smooth-np.nanmin(rms), ls=my_ls[idx],
         lw=my_lw, alpha=my_alpha, label=names[f-2])
 
 
@@ -103,19 +115,19 @@ for f in range(2, len(sys.argv)):
 #if ymax > 1:
 #    ymax = 0.7
 
-axs.set_title('RMSE for Noise Sources')
+axs.set_title('RMSE Longer Period')
 axs.set_xlabel('Time')
 axs.set_ylabel('RMSE (Meters)')
 axs.grid(True)
-axs.legend()
-if hw_f.startswith('clean_fallen') == True:
-    #plt.ylim(0, 0.3)
-    #plt.xlim(0, 7.15)
-    plt.legend(bbox_to_anchor=(0.6, 0.9), bbox_transform=plt.gcf().transFigure)
-#elif hw_f.startswith('clean_straight') == True:
-else:
-    #plt.ylim(0, 0.7)
-    plt.legend(bbox_to_anchor=(0.3, 0.9), bbox_transform=plt.gcf().transFigure)
+#axs.legend()
+#if hw_f.startswith('clean_fallen') == True:
+#    #plt.ylim(0, 0.3)
+#    #plt.xlim(0, 7.15)
+#    plt.legend(bbox_to_anchor=(0.6, 0.9), bbox_transform=plt.gcf().transFigure)
+##elif hw_f.startswith('clean_straight') == True:
+#else:
+#    #plt.ylim(0, 0.7)
+#    plt.legend(bbox_to_anchor=(0.3, 0.9), bbox_transform=plt.gcf().transFigure)
 
 
 

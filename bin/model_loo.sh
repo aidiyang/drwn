@@ -1,8 +1,10 @@
 #!/bin/bash
 
 
-dd="1e-4"
-f="clean_straight_walk.csv"
+dd="-1"
+f="s_long_walk2.csv"
+
+#f="clean_straight_walk.csv"
 #f="clean_fallen_3.csv"
 
 ./viewer -m ../models/darwin_tm.xml -r1 -f $f -R0 -d $dd -i -1 -t 1 -o all_snsr.csv >/dev/null &

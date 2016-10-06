@@ -9,9 +9,11 @@
         margin="0.001" solref=".02 1" solimp=".8 .8 .01" material="meshmat"/>
       <geom material="meshmat" margin='0.0000000001' />
 
-      <flag constraint="disable"/>
 soft:
         margin="0.001" solref="1 1" solimp=".001 .001 .01" material="meshmat"/>
+      <flag constraint="disable"/>
+      <flag energy="enable"/>
+      <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
    -->
 
     <option	timestep="0.008" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
@@ -25,7 +27,8 @@ soft:
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
       <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
-      <position ctrllimited='true' kp='20'/>
+
+      <position ctrllimited='true' kp='20' forcelimited='true' forcerange='-2.7 2.7'/>
 
       <default class='torso'>
         <geom contype='1' conaffinity='0' rgba='.79 .52 .43 1'/>
@@ -70,46 +73,88 @@ soft:
          1e-0 1e-7 1e-0 1e-0 1e-7 1e-5 1e-4 1e-5 1e-4 1e-5 1e-3 1e-2 1e-4 1e-5 1e-2"/>
          -->
     <custom>
-        <numeric name="snsr_covar" size="15" data="
-        1e-3
+        <numeric name="snsr_covar" size="29" data="
+          1e+1
+        1e-4
+        1e+1
         1e-6
+        1e-3
         1e-2
-        1e-2
+        1e-0
+
         1e-7
         1e+100
         1e-0
         1e-0
-        1e-0
-        1e-0
-        1e-0
-        1e+100 1e-0 1e-0 1e-0
+        1e-8 1e-0 1e-0 1e-0 1e-8
+
+        1e-7
+        1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
         "
         />
-<!-- Accelerometer -->
-<!-- Gyro          -->
-<!-- Force         -->
-<!-- Torque        -->
-<!-- JointPos      -->
-<!-- JointVel      -->
-<!-- TendonPos     -->
-<!-- TendonVel     -->
-<!-- ActuatorPos   -->
-<!-- ActuatorVel   -->
-<!-- ActuatorFrc   -->
-<!-- SitePos       -->
-<!-- SiteQuat      -->
-<!-- Magnetometer  -->
-<!-- Default       -->
+<!-- TOUCH         -->
+<!-- ACCELEROMETER -->
+<!-- VELOCIMETER,  -->
+<!-- GYRO,         -->
+<!-- FORCE,        -->
+<!-- TORQUE,       -->
+<!-- MAGNETOMETER, -->
+<!--               -->
+<!-- JOINTPOS,     -->
+<!-- JOINTVEL,     -->
+<!-- TENDONPOS,    -->
+<!-- TENDONVEL,    -->
+<!-- ACTUATORPOS,  -->
+<!-- ACTUATORVEL,  -->
+<!-- ACTUATORFRC,  -->
+<!-- BALLQUAT,     -->
+<!-- BALLANGVEL,   -->
+
+<!-- FRAMEPOS,     -->
+<!-- FRAMEQUAT,    -->
+<!-- FRAMEXAXIS,   -->
+<!-- FRAMEYAXIS,   -->
+<!-- FRAMEZAXIS,   -->
+<!-- FRAMELINVEL,  -->
+<!-- FRAMEANGVEL,  -->
+<!-- FRAMELINACC,  -->
+<!-- FRAMEANGACC,  -->
+
+<!-- SUBTREECOM,   -->
+<!-- SUBTREELINVEL -->
+<!-- SUBTREEANGMOM -->
+      <numeric name="snsr_range" size="29" data="
+        1e+1
+        20.0
+        1e+1
+        6.0
+        250.0
+        3.4
+        1e-0
+
+        3.14
+        8.0
+        1e-0
+        1e-0
+        1e-8 1e-0 1e-0 1e-0 1e-8
+
+        2.0
+        1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
+        "
+        />
       <numeric name="t_rot" size="9" data=" 
         1 0 0 0 1 0 0 0 1"/>
       <numeric name="t_rot2" size="9" data=" 
         1 2 2 0 1 0 2 2 1"/>
       <numeric name="covar_diag" size="26" data="
-        1e-100
-        1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
+          1e-6
+          1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
+        <!-- sensor range limited by hardware, or a guess-->
+            <!--
+           1e-4 covar_diag when theres sensor noise
+           1e-3 without sensor noise
       <numeric name="time_var" size='1' data='0.00032' />
       <numeric name="mass_var" size='1' data='0.04' />
-      <!--
       -->
     </custom>
 
@@ -177,9 +222,6 @@ soft:
         <joint name="rootb" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <joint name="rootc" type="hinge" axis="0 0 1" pos="0 0 0" limited="false" frictional="false" damping="0" armature="0"/>
         <!--
-        -->
-        <!--
-        <joint type="free" limited='false' />
         -->
         <geom name="torso" material="meshmat" contype="0" conaffinity="0" mesh="body_coll" type="mesh" class='torso'/> <!-- TODO fix contact -->
         <site name="imu" pos="0.0 0 -0.04" type="box" size="0.0158 0.0158 0.004" rgba="1 0 0 1" />
@@ -433,28 +475,28 @@ soft:
       <force  name="left_f"    site="left_ati" />
       <torque name="left_t"    site="left_ati" />
 
-      <sitepos name="mocap_t1"       site="ps_t0" />
-      <sitepos name="mocap_t2"       site="ps_t1" />
-      <sitepos name="mocap_t3"       site="ps_t2" />
-      <sitepos name="mocap_t4"       site="ps_t3" />
-      <sitepos name="mocap_t5"       site="ps_t4" />
-      <sitepos name="mocap_t6"       site="ps_t5" />
-      <sitepos name="mocap_t7"       site="ps_t6" />
-      <sitepos name="mocap_t8"       site="ps_t7" />
+      <framepos name="mocap_t1" objtype="site"    objname="ps_t0" />
+      <framepos name="mocap_t2" objtype="site"    objname="ps_t1" />
+      <framepos name="mocap_t3" objtype="site"    objname="ps_t2" />
+      <framepos name="mocap_t4" objtype="site"    objname="ps_t3" />
+      <framepos name="mocap_t5" objtype="site"    objname="ps_t4" />
+      <framepos name="mocap_t6" objtype="site"    objname="ps_t5" />
+      <framepos name="mocap_t7" objtype="site"    objname="ps_t6" />
+      <framepos name="mocap_t8" objtype="site"    objname="ps_t7" />
 
-      <sitepos name="mocap1"       site="ps8" />
-      <sitepos name="mocap2"       site="ps9" />
-      <sitepos name="mocap3"       site="ps10" />
-      <sitepos name="mocap4"       site="ps11" />
-      <sitepos name="mocap5"       site="ps12" />
-      <sitepos name="mocap6"       site="ps13" />
-      <sitepos name="mocap7"       site="ps14" />
-      <sitepos name="mocap8"       site="ps15" />
+      <framepos name="mocap1"   objtype="site"    objname="ps8" />
+      <framepos name="mocap2"   objtype="site"    objname="ps9" />
+      <framepos name="mocap3"   objtype="site"    objname="ps10" />
+      <framepos name="mocap4"   objtype="site"    objname="ps11" />
+      <framepos name="mocap5"   objtype="site"    objname="ps12" />
+      <framepos name="mocap6"   objtype="site"    objname="ps13" />
+      <framepos name="mocap7"   objtype="site"    objname="ps14" />
+      <framepos name="mocap8"   objtype="site"    objname="ps15" />
 
       <!--
-      <sitepos name="mocap"       site="imu" />
-      <sitepos name="mocap1"       site="right_ati" />
-      <sitepos name="mocap2"       site="left_ati" />
+      <framepos name="test_mocap"    objtype="site"    objname="imu" />
+      <framepos name="test_mocap1"   objtype="site"    objname="right_ati" />
+      <framepos name="test_mocap2"   objtype="site"    objname="left_ati" />
       -->
     </sensor>
 
@@ -564,5 +606,4 @@ soft:
     </actuator>
 
   </mujoco>
-
 

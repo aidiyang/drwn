@@ -85,14 +85,14 @@ def get_pure_mrkr(f): # from outputs that are not mine
 
     return {'mrkr': mrkr, 'conf': conf}
 
-def get_real_data(f, max_t):
+def get_real_data(f, min_t, max_t):
     df = pd.read_csv(f, sep=',')
     t = df['time']
     #t = t[t<=max_t]
     if max_t < 0:
         max_t = len(t)
 
-    t = t[0:max_t]
+    t = t[min_t:max_t]
     e = len(t)
     #if limit < len(t):
     #    e = limit
@@ -137,7 +137,6 @@ def dist_diff_whole_run(x1, x2):
 
 
 def dist_diff_v_time(x1, x2, c, conf):
-    # one rms value for the entire trajectory
     #y = np.sqrt(np.sum(np.sum(np.square(x1-x2), axis=2), axis=1))
     y = np.zeros((x1.shape[0], 1))
     for t in range(x1.shape[0]):
@@ -152,7 +151,6 @@ def dist_diff_v_time(x1, x2, c, conf):
     return y
 
 def dist_diff_v_time_limited(x1, x2, c, conf, cols):
-    # one rms value for the entire trajectory
     #y = np.sqrt(np.sum(np.sum(np.square(x1-x2), axis=2), axis=1))
     y = np.zeros((x1.shape[0], 1))
     for t in range(x1.shape[0]):
@@ -163,8 +161,10 @@ def dist_diff_v_time_limited(x1, x2, c, conf, cols):
                 #print x1[t,i,:], "::", x2[t,i,:], "==", dist
                 y[t, 0] += dist
                 count += 1
-        y[t, 0] = np.sqrt(y[t, 0]/count)
+        #y[t, 0] = np.sqrt(y[t, 0]/count)
+        y[t, 0] = np.sqrt(y[t, 0])/ count
 
+    print count
     return y
 
 def clean_mrkr_data(time, mrkr, c, conf, vel_limit, min_t):
@@ -175,7 +175,7 @@ def clean_mrkr_data(time, mrkr, c, conf, vel_limit, min_t):
     last = np.zeros((16)) # remember the last good values
     for t in range(1, T):
         if time[t] > min_t:
-            for n in range(N):
+            for n in range(1,N):
                 if c[t,n] > conf and c[t,n] < 10:
                     l = last[n]
                     d = mrkr[t,n,:]-mrkr[l,n,:]

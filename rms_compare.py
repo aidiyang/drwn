@@ -114,7 +114,7 @@ if hw_f.startswith('clean_fallen') == True:
     plt.legend(bbox_to_anchor=(0.6, 0.9), bbox_transform=plt.gcf().transFigure)
 #elif hw_f.startswith('clean_straight') == True:
 else:
-    plt.ylim(0, 0.7)
+    #plt.ylim(0, 0.7)
     plt.legend(bbox_to_anchor=(0.3, 0.9), bbox_transform=plt.gcf().transFigure)
 
 

@@ -3,7 +3,6 @@
 #include <iostream>
 #include <random>
 #include <functional>
-#include <omp.h>
 
 #include <math.h>
 #include <vector>

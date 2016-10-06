@@ -143,7 +143,7 @@ def dist_diff_v_time(x1, x2, c, conf):
     for t in range(x1.shape[0]):
         count = 0
         for i in range(16):
-            if c[t,i] > conf:
+            if c[t,i] > conf and c[t,i] < 10:
                 dist = np.sum(np.square(x1[t,i,:]-x2[t,i,:]))
                 y[t, 0] += dist
                 count += 1
@@ -158,7 +158,7 @@ def dist_diff_v_time_limited(x1, x2, c, conf, cols):
     for t in range(x1.shape[0]):
         count = 0
         for i in cols:
-            if c[t,i] > conf:
+            if c[t,i] > conf and c[t,i] < 10:
                 dist = np.sum(np.square(x1[t,i,:]-x2[t,i,:]))
                 #print x1[t,i,:], "::", x2[t,i,:], "==", dist
                 y[t, 0] += dist
@@ -176,7 +176,7 @@ def clean_mrkr_data(time, mrkr, c, conf, vel_limit, min_t):
     for t in range(1, T):
         if time[t] > min_t:
             for n in range(N):
-                if c[t,n] > conf:
+                if c[t,n] > conf and c[t,n] < 10:
                     l = last[n]
                     d = mrkr[t,n,:]-mrkr[l,n,:]
                     vel = d.dot(d) / (time[t] - time[l])

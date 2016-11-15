@@ -92,9 +92,8 @@ class UKF : public Estimator {
 
     double add_time_noise();
     void add_model_noise(mjModel* t_m);
-    void add_ctrl_noise(double * ctrl);
-    void add_snsr_noise(double * snsr);
-    void add_snsr_limit(double * snsr);
+    void add_ctrl_noise(double * noise);
+    void add_snsr_noise(double * noise);
     void set_data(mjData* data, Eigen::VectorXd *x);
     void get_data(mjData* data, Eigen::VectorXd *x);
     void copy_state(mjData * dst, mjData * src);
@@ -173,5 +172,56 @@ class UKF : public Estimator {
 
     double *m_noise;
     double *t_noise;
+};
+
+class PF : public Estimator {
+    public:
+      PF(mjModel *m, mjData * d, double eps, int numPart, double snoise, double cnoise, double* P_covar, double std_dev, bool debug = false);
+
+      ~PF();
+
+      void predict_correct(double* ctrl, double dt, double* sensors, double* conf);
+      void set_data(mjData* data, Eigen::VectorXd *x);
+      Eigen::VectorXd get_posvel(mjData* data);
+      void clampWeights(Eigen::VectorXd &weights);
+      mjData* get_state();
+      std::vector<mjData*> get_sigmas();
+    
+    private:
+      bool debug;
+      int numPart;
+      double snoise;
+      double cnoise;
+      double eps;     //Spacing of particles
+      double std_dev;
+      
+      std::vector<mjData*> particles;
+      Eigen::VectorXd weights;
+      Eigen::MatrixXd sensDiff;
+      Eigen::MatrixXd partSens;
+      Eigen::VectorXd sumWeights;
+      Eigen::VectorXd sensNorm;
+      Eigen::VectorXd mu;
+      Eigen::VectorXd diff;
+      Eigen::VectorXd rms;
+      Eigen::MatrixXd covar;
+      Eigen::VectorXd P_add;
+      
+      std::default_random_engine gen;
+      std::mt19937 s_rng;
+      std::uniform_real_distribution<double> rand;
+      std::normal_distribution<double> crand;
+      std::normal_distribution<>* rd_vec; 
+      std::uniform_real_distribution<double> resamp;
+      //std::uniform_real_distribution<>* qposResamp;
+      //std::uniform_real_distribution<>* qvelResamp;
+      std::normal_distribution<>* qposResamp;
+      std::normal_distribution<>* qvelResamp; 
+
+      double sample;
+      std::vector<mjData*> newParticles;
+      Eigen::VectorXd partCount;
+
+      std::vector<mjData *> sigma_states;
 };
 

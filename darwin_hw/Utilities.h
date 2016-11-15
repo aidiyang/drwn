@@ -27,7 +27,7 @@ double GetCurrentTimeMS() {
 // joint positions for converting to and from
 double joint2radian(const int joint_value) {
   //return (joint_value * 0.088) * 3.14159265 / 180.0;
-  return ((double)joint_value-2048.0) * 0.00153398078;
+  return ((double)joint_value-2048.0) * 0.001534;
 }
 
 int radian2joint(const double radian) {

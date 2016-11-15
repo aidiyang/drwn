@@ -92,8 +92,9 @@ class UKF : public Estimator {
 
     double add_time_noise();
     void add_model_noise(mjModel* t_m);
-    void add_ctrl_noise(double * noise);
-    void add_snsr_noise(double * noise);
+    void add_ctrl_noise(double * ctrl);
+    void add_snsr_noise(double * snsr);
+    void add_snsr_limit(double * snsr);
     void set_data(mjData* data, Eigen::VectorXd *x);
     void get_data(mjData* data, Eigen::VectorXd *x);
     void copy_state(mjData * dst, mjData * src);

@@ -62,11 +62,32 @@ namespace util {
         printf("    Default      : %e\n", snsr_ptr[28]);
     }
 
+    // assumes snsr_vec and snsr_ptr have been allocated
+    void fill_sensor_vector(const mjModel* m, double* snsr_vec, double* snsr_ptr) {
+      int my_sensordata=0;
+      for (int i = 0; i < m->nsensor; i++) {      
+        int type = m->sensor_type[i];
+        // different sensors have different number of fields
+        for (int j=my_sensordata; j<(m->sensor_dim[i]+my_sensordata); j++) {
+          snsr_vec[j] = snsr_ptr[type];
+          //if (snsr_range) snsr_limit[j] = snsr_range[type];
+          //else snsr_limit[j] = 1e6; // filler
+        }
+        my_sensordata += m->sensor_dim[i];
+      }
+    }
+
     void darwin_torques(double * torques, const mjModel * m, mjData *d, double * ctrl, double min_t, double kp) {
-        //double max_t = 2.5;
-        //double min_t = 0.08;
         // servo torque = kp * (goal - sensor position)
-        printf("\nlimited torques:\n");
+        //printf("\nctrl input:\n");
+        //for(int i = 0; i < m->nu; i++) {
+        //    printf("%f %f\n", ctrl[i], d->sensordata[i]);
+        //}
+        //printf("\npositional difference:\n");
+        //for(int i = 0; i < m->nu; i++) {
+        //    printf("%f ", ctrl[i] - d->sensordata[i]);
+        //}
+        //printf("\nlimited torques:\n");
         for(int i = 0; i < m->nu; i++) {
             torques[i] = kp * (ctrl[i] - d->sensordata[i]);
             // use built in force limiting
@@ -77,7 +98,7 @@ namespace util {
 
             // dead band
             torques[i] = abs(torques[i]) < min_t ? 0.0 : torques[i];
-            //printf("%1.4f ", torques[i]);
+            //printf("%f ", torques[i]);
         }
         //printf("\n");
     }

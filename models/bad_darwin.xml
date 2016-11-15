@@ -1,5 +1,5 @@
 <mujoco model="darwin">
-  <compiler angle="radian" coordinate="local" inertiafromgeom="false" meshdir="meshes/" settotalmass="2.97" />
+  <compiler angle="radian" coordinate="local" inertiafromgeom="true" meshdir="meshes/" settotalmass="2.97" />
   <!--
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
     <option	timestep="0.00025" gravity="0 0 0"/>
@@ -17,7 +17,7 @@ soft:
       <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
    -->
 
-    <option	timestep="0.008" iterations="100" tolerance="1e-6" solver="elliptic" gravity="0 0 -9.81" >
+    <option	timestep="0.0081" iterations="100" tolerance="1e-6" solver="elliptic" gravity="0 0 -9.81" >
     </option>
 
     <default>
@@ -27,7 +27,7 @@ soft:
       <!--
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
-      <joint limited='false' frictional="false" frictionloss="0.02" damping="0.06" armature="0.011" />
+      <joint limited='false' frictional="false" frictionloss="0.02" damping="1.09" armature="0.011" />
 
       <position ctrllimited='true' kp='20' forcelimited='true' forcerange='-2.7 2.7'/>
       <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
@@ -90,7 +90,7 @@ soft:
         1e-0
         1e-8 1e-0 1e-0 1e-0 1e-8
 
-        1e-3
+        1e-4
         1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
         "
         />
@@ -158,9 +158,9 @@ soft:
             <!--
            1e-4 covar_diag when theres sensor noise
            1e-3 without sensor noise
+      -->
       <numeric name="time_var" size='1' data='0.00096' />
       <numeric name="mass_var" size='1' data='0.012' />
-      -->
     </custom>
 
     <asset>

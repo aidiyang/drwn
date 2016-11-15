@@ -5,6 +5,8 @@
 //#include "Utilities.h"
 #include "robot.h"
 
+#include "util_func.h"
+
 #include <string.h>
 #include <random>
 
@@ -25,10 +27,12 @@ class SimDarwin : public MyRobot {
     std::normal_distribution<> sen_noise;
     std::normal_distribution<> ctrl_noise;
 
+    std::normal_distribution<> * rd_vec; 
 
     // model helpers
     int nq;
     int nv;
+    int ns;
     //int nu;
 
     bool sensor_noise;
@@ -37,7 +41,7 @@ class SimDarwin : public MyRobot {
   public:
     SimDarwin(
         mjModel *m, mjData * d, double dt,
-        double s_noise, double s_time_noise, double c_noise) : gen(rd()),
+        double s_noise, double *s_cov, double s_time_noise, double c_noise) : gen(rd()),
     t_noise(0, s_time_noise), sen_noise(0, s_noise), ctrl_noise(0, c_noise) {
       // s_noise ; magnitude of sensors noise 
       // s_time_noise ; noise is getting sensor values
@@ -53,6 +57,7 @@ class SimDarwin : public MyRobot {
 
       nq = m->nq;
       nv = m->nv;
+      ns = m->nsensordata;
       //nu = m->nu;
 
       sensor_noise = s_noise > 0 ? true : false;
@@ -60,27 +65,26 @@ class SimDarwin : public MyRobot {
 
       if (sensor_noise) printf("Adding SENSOR noise to Simulation\n");
       if (control_noise) printf("Adding CONTROL noise to Simulation\n");
+
+      double *snsr_vec = new double[ns];
+      util::fill_sensor_vector(m, snsr_vec, s_cov); // fill up array with covariances
+      rd_vec = new std::normal_distribution<>[ns]; 
+      for (int i=0; i<ns; i++) {
+        rd_vec[i] = std::normal_distribution<>( 0, sqrt(snsr_vec[i]) );
+      }
+      delete[] snsr_vec;
     }
 
     ~SimDarwin() {
       //mj_deleteData(d);
       //mj_deleteModel(m);
       //delete[] this->i_pose;
+      delete[] rd_vec;
     }
 
-    //void init_pose(double *p) { // supposed to be for phasespace stuff
-    //  if (!i_pose) {
-    //	i_pose = new double[7];
-    //  }
-    //  if (p) {
-    //	memcpy(i_pose, p, sizeof(double)*7);
-    //  }
-    //  else {
-    //	memset(i_pose, 0, sizeof(double)*7);
-    //  }
-    //}
-
     bool get_sensors(double * time, double* sensor, double* conf) {
+      static std::mt19937 s_rng(20212223);
+
       *time = d->time;
       if (d->time < sensor_time ) {
         //mj_step(m, d); // advanced simulation until we can get new sensor data
@@ -96,9 +100,9 @@ class SimDarwin : public MyRobot {
       mj_forwardSkip(m, d, 0, 0); // all calculations
 
       if (sensor) {
-        for (int id=0; id<m->nsensordata; id++) {
+        for (int id=0; id<ns; id++) {
           double r = 0.0; 
-          if (sensor_noise) r = sen_noise(gen);
+          if (sensor_noise) r = rd_vec[id](s_rng);
           sensor[id] = d->sensordata[id] + r; //cs_noise perturbation;
         }
       }
@@ -118,10 +122,11 @@ class SimDarwin : public MyRobot {
 
     // mujoco controls to mujoco controls
     bool set_controls(double * u, int nu, int *pgain, int *dgain) {
+      static std::mt19937 c_rng(987612345);
       // converts controls to darwin positions
       for(int id = 0; id < nu; id++) {
         double r = 0.0;
-        if (control_noise) r = ctrl_noise(gen);
+        if (control_noise) r = ctrl_noise(c_rng);
         d->ctrl[id] = u[id] + r;
         //printf("%f %f %f\n", u[id], d->ctrl[id], r);
       }

@@ -151,6 +151,10 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
 
   PtAdd = MatrixXd::Identity(L, L);
   if (P_covar) {
+    double* pos_c = NULL;
+    double* ang_c = NULL;
+    pos_c = util::get_numeric_field(m, "root_pos_covar", NULL); 
+    ang_c = util::get_numeric_field(m, "root_ang_covar", NULL); 
     // HACK TODO fix this; assumes nq is the same as nv
     for (int i=0; i<nq; i++) {
       PtAdd(i,i) = P_covar[0];
@@ -158,6 +162,18 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
 
       P_t(i,i) = P_covar[0];
       P_t(i+nq,i+nq) = P_covar[0];
+    }
+    if (pos_c) {
+      for (int i=0; i<3; i++) {
+        PtAdd(i,i) = pos_c[i];
+        P_t(i,i) = pos_c[i];
+      }
+    }
+    if (ang_c) {
+      for (int i=3; i<6; i++) {
+        PtAdd(i,i) = ang_c[i];
+        P_t(i,i) = ang_c[i];
+      }
     }
   }
   std::cout<<"Ptadd:\n"<<PtAdd.diagonal().transpose()<<std::endl;
@@ -168,7 +184,6 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
   s_hat = VectorXd::Zero(ns);
 
   PzAdd = MatrixXd::Identity(ns, ns);
-  snsr_limit = new double[ns];
   double default_snsr[29] = {
     1e-4,1e-4,1e-4,1e-7,1e-4,1e-6,1e-3,
     1e-7,1e-5,1e-4,1e-5,1e-4,1e-5,1e-3,
@@ -186,6 +201,22 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
   }
   util::show_snsr_weights(snsr_ptr);
 
+
+  double * snsr_vec = new double[ns];
+  snsr_limit = new double[ns];
+  util::fill_sensor_vector(m, snsr_vec, snsr_ptr); // fill up array with covariances
+  if (snsr_range) {
+    util::fill_sensor_vector(m, snsr_limit, snsr_range); // fill up array with covariances
+  }
+  else {
+    for (int i=0; i<ns; i++) { snsr_limit[i] = 1e6; }
+  }
+  for (int i=0; i<ns; i++){
+      PzAdd(i, i) = snsr_vec[i];
+  }
+  mrkr_conf = snsr_ptr[16]; // TODO hardcoded value
+
+  /*
   int my_sensordata=0;
   for (int i = 0; i < m->nsensor; i++) {      
     int type = m->sensor_type[i];
@@ -197,13 +228,14 @@ UKF::UKF(mjModel *m, mjData * d, double * snsr_weights, double *P_covar,
     }
     my_sensordata += m->sensor_dim[i];
   }
-  mrkr_conf = snsr_ptr[16];
   printf("Filled PzAdd: %d %d\n", my_sensordata, ns);
-
+  */
   rd_vec = new std::normal_distribution<>[ns]; 
   for (int i=0; i<ns; i++) {
-    rd_vec[i] = std::normal_distribution<>( 0, sqrt(PzAdd(i,i)) );
+    rd_vec[i] = std::normal_distribution<>( 0, sqrt(snsr_vec[i]) );
   }
+
+  delete[] snsr_vec;
 
   ct_vec = NULL;
   if (diag > 0) {
@@ -278,6 +310,18 @@ void UKF::add_ctrl_noise(double * ctrl) {
     for (int i=0; i<nu; i++) {
       double r = ct_vec[i](c_rng);
       ctrl[i] += r;
+    }
+  }
+}
+
+void UKF::add_snsr_limit(double *snsr) {
+  for (int i=0; i<ns; i++) {
+    // clamp sensor values
+    if (snsr[i] > snsr_limit[i]) {
+      snsr[i] = snsr_limit[i];
+    }
+    if (snsr[i] < -1.0*snsr_limit[i]) {
+      snsr[i] = -1.0*snsr_limit[i];
     }
   }
 }
@@ -701,10 +745,32 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
 
   MatrixXd K = Pxz * P_z.inverse();
 
-  VectorXd s = Map<VectorXd>(sensors, ns); // map our real z to vector
 
   //z_k = z_k + s_hat;
-  VectorXd c_v = (K*(s-z_k));
+  //std::cout<<"Before sensor limit:\n"<<z_k.segment(40,12).transpose()<<std::endl;
+  add_snsr_limit(&(z_k(0)));
+  //add_snsr_limit(sensors);
+  //std::cout<<"After  sensor limit:\n"<<z_k.segment(40,12).transpose()<<std::endl;
+  
+  VectorXd s = Map<VectorXd>(sensors, ns); // map our real z to vector
+
+  VectorXd diff = s-z_k;
+  // messes up the simulation, helpful for real data?
+  for (int i=ns-(16*3); i< ns; i++) { // have a required min error
+      double min_dist = 0.02;
+    if (std::abs(diff(i)) < min_dist) diff(i) = 0.0; // TODO better function for
+    else {
+    if (diff(i) > min_dist) diff(i) -= min_dist; // TODO better function for
+    if (diff(i) < -min_dist) diff(i) += min_dist; // TODO better function for
+    }
+    // this, something that takes the diff linearly until the min 0.3, then
+    // quick dropoff
+  }
+  //for (int i=0; i<nu; i++) {
+  //  if (std::abs(diff(i)) < 0.7) // 0.1 rad = 5.7 degress
+  //    diff(i) = 0.0;
+  //}
+  VectorXd c_v = (K*(diff));
 
   set_data(d, &(x_t)); // set corrected state into mujoco data struct
   mj_forward(m, d); // dont skip sensor
@@ -712,7 +778,7 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
   double total_energy = d->energy[0] + d->energy[1];
 
 
-  x_t = x_t + (K*(s-z_k));
+  x_t = x_t + (K*(diff));
   P_t = P_t - (K * P_z * K.transpose());
 
   set_data(d, &(x_t)); // set corrected state into mujoco data struct
@@ -722,7 +788,7 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
 
   //std::cout<<"Before sensor max: "<<z_k.maxCoeff()<<std::endl;
   //std::cout<<"Before sensor limit:\n"<<z_k.segment(40,12).transpose()<<std::endl;
-  add_snsr_noise(&(z_k(0)));
+  //add_snsr_noise(&(z_k(0)));
   //std::cout<<"After sensor max: "<<z_k.maxCoeff()<<std::endl;
   //std::cout<<"After sensor limit:\n"<<z_k.segment(40,12).transpose()<<std::endl;
 
@@ -750,8 +816,8 @@ void UKF::predict_correct_p2(double * ctrl, double dt, double* sensors, double* 
   fast_forward(m, d, 0, 0); // dont skip sensor
 
   //mj_forward(m, d); // dont skip sensor
-  std::cout<<"Correct Energy: "<<d->energy[0]<<", "<<d->energy[1]<<std::endl;
-  total_energy = d->energy[0] + d->energy[1];
+  //std::cout<<"Correct Energy: "<<d->energy[0]<<", "<<d->energy[1]<<std::endl;
+  //total_energy = d->energy[0] + d->energy[1];
 
   //if (total_energy > 20) {
   //  x_t = x_t - (K*(s-z_k));

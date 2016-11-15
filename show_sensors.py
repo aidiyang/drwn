@@ -142,6 +142,17 @@ if f.startswith('clean_') == False:
     np.savetxt('clean_'+f, new_data, delimiter=',', header=head, fmt='%.8f',
             comments='')
 
+print "First datas, 0-20:"
+end=20
+print "accel:", accl[0,:],   "\n mean:", np.mean(accl[0:end,:], axis=0)
+print "gyro :", gyro[0,:],   "\n mean:", np.mean(gyro[0:end,:], axis=0)
+print "r_frc:", ctct[0,0:3], "\n mean:", np.mean(ctct[0:end,0:3], axis=0)
+print "r_trq:", ctct[0,3:6], "\n mean:", np.mean(ctct[0:end,3:6], axis=0)
+print "l_frc:", ctct[0,6:9], "\n mean:", np.mean(ctct[0:end,6:9], axis=0)
+print "l_trq:", ctct[0,9:12],"\n mean:", np.mean(ctct[0:end,9:12], axis=0)
+print "\n"
+
+
 ############### plot
 
 fig, axs = plt.subplots(8, 3, sharex=False)
@@ -272,7 +283,6 @@ axs[7,2].set_title('fft ctct-z')
 
 plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 plt.show()
-
 
 #Initial Contact values: straight_walk.csv
 #[  3.60828500e+00   2.38952850e+00  -1.55573900e+01   1.00925960e-02

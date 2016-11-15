@@ -28,13 +28,13 @@ find_package(Boost 1.55 COMPONENTS program_options random filesystem system)
 
 set(MUJOCO_INCLUDE_DIRS 
    #"${PROJECT_SOURCE_DIR}/source/mujoco"
-   #"/opt/mujoco140/include"
-   "/opt/mjfast/include"
+   "/opt/mujoco140/include"
+   #"/opt/mjfast/include"
 )
 set(MUJOCO_LIBRARY_DIRS
   #"/opt/mujoco/"
-  #"/opt/mujoco140/bin/"
-	"/opt/mjfast/bin/"
+  "/opt/mujoco140/bin/"
+	#"/opt/mjfast/bin/"
 )
 set(MUJOCO_LIBRARIES
 	"glfw"
@@ -117,7 +117,7 @@ if (NOT APPLE)
    # Darwin Code
    subdirs(darwin_hw)
    # Viewer Rendering
-   add_executable(viewer "viewer.cpp" "ukf.cpp" "util_func.cpp" )
+   add_executable(viewer "viewer.cpp" "ukf.cpp" "util_func.cpp" "lodepng.cpp")
    #target_link_libraries(viewer ${MUJOCO_LIBRARIES} )
    if(USE_EIGEN_MKL)
      target_link_libraries(viewer ${MUJOCO_LIBRARIES} ${MY_LINKER_LIBS} ${MKL_LIBRARIES}

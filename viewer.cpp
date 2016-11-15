@@ -23,25 +23,29 @@
 namespace po = boost::program_options;
 
 extern mjModel* m; // defined in viewer_lib.h to capture perturbations
+mjModel* bad_m; // defined in viewer_lib.h to capture perturbations
 extern mjData* d;
 
 double s_ps_walk[16*3] = {
-   -0.0246,  0.0560, 0.3758,
-   -0.0711, -0.0540, 0.3161,
-    0.0210,  0.0450, 0.3601,
-    0.0417,  0.0180, 0.3144,
-   -0.0246, -0.0560, 0.3758,
-   -0.0711,  0.0540, 0.3161,
-    0.0210, -0.0450, 0.3601,
-    0.0417, -0.0180, 0.3144,
-   -0.0795, -0.0743, 0.0169,
-   -0.0795,  0.0743, 0.0169,
-    0.0084, -0.0742, 0.0117,
-    0.0084,  0.0742, 0.0117,
-    0.0061, -0.1081, 0.2651,
-    0.0205, -0.1174, 0.2375,
-    0.0161,  0.1082, 0.2655,
-    0.0337,  0.1176, 0.2399};
+  -0.0246,  0.0560, 0.3758,
+  -0.0711, -0.0540, 0.3161,
+  0.0210,  0.0450, 0.3601,
+  0.0417,  0.0180, 0.3144,
+  -0.0246, -0.0560, 0.3758,
+  -0.0711,  0.0540, 0.3161,
+  0.0210, -0.0450, 0.3601,
+  0.0417, -0.0180, 0.3144,
+  -0.0795, -0.0743, 0.0169,
+  -0.0795,  0.0743, 0.0169,
+  0.0084, -0.0742, 0.0117,
+  0.0084,  0.0742, 0.0117,
+  0.0061, -0.1081, 0.2651,
+  0.0205, -0.1174, 0.2375,
+  0.0161,  0.1082, 0.2655,
+  0.0337,  0.1176, 0.2399};
+
+#define TORQUE_MOTORS
+//#define USE_BAD_MODEL
 
 
 double init_qpos[26] = {
@@ -293,10 +297,10 @@ int main(int argc, const char** argv) {
   if (from_file) printf("Using real data from file!!!\n");
 
   // Start Initializations
-//#ifndef __APPLE__
-//  omp_set_dynamic(0);
-//  omp_set_num_threads(num_threads);
-//#endif
+  //#ifndef __APPLE__
+  //  omp_set_dynamic(0);
+  //  omp_set_num_threads(num_threads);
+  //#endif
 
   if (render_robot) {
     if (init_viz(model_name)) { return 1; }
@@ -308,6 +312,7 @@ int main(int argc, const char** argv) {
 
     // activate MuJoCo license
     mj_activate("mjkey.txt");
+    printf("MuJoCo Activated.\n");
 
     if (!model_name.empty()) {
       //m = mj_loadModel(model_name.c_str(), 0, 0);
@@ -321,12 +326,13 @@ int main(int argc, const char** argv) {
       d = mj_makeData(m);
       mj_forward(m, d);
     }
+    printf("Model Loaded.\n");
   }
   int nq = m->nq;
   int nv = m->nv;
   int nu = m->nu;
   int nsensordata = m->nsensordata;
-  
+
   bool darwin_model = model_name.find("darwin") != std::string::npos;
 
   ////// SIMULATED ROBOT
@@ -338,22 +344,28 @@ int main(int argc, const char** argv) {
   int CONTACTS_SIZE=12;
   int NMARKERS=16;
   int MARKER_SIZE = NMARKERS*3;
-  
-double time = 0.0;
+
+  double time = 0.0;
   double prev_time = 0.0;
   double *qpos = new double[nq];
   double *qvel = new double[nv];
   double *ctrl = new double[nu];
   double *trqs = new double[nu];
+  double *prev_ctrl = new double[nu];
   for (int i=0; i<nu; i++) {
     ctrl[i] = 0.0;
     trqs[i] = 0.0;
+    prev_ctrl[i] = 0.0;
   }
   double *sensors = new double[nsensordata];
   double *conf = new double[NMARKERS];
   //double lp_dt = dt;
   printf("DT of mujoco model %f\n", dt);
   MyRobot *robot;
+
+  double * s_cov = util::get_numeric_field(m, "snsr_covar", NULL);
+  double * p_cov = util::get_numeric_field(m, "covar_diag", NULL);
+
   int mrkr_idx = 0;
 #ifndef __APPLE__
   if (real_robot) {
@@ -385,13 +397,13 @@ double time = 0.0;
     for (int i=0; i<nu; i++) { // use sensors based on mujoco model
       p_gain[i] = (int) m->actuator_gainprm[i*mjNGAIN];
     }
+#ifdef TORQUE_MOTORS
+    kp = 20;
+#else
     kp = p_gain[0];
+#endif
     printf("KP: %f\n", kp);
-    double * min_t_ptr = util::get_numeric_field(m, "min_torque", NULL);
-    if (min_t_ptr) {
-      min_t = min_t_ptr[0];
-      printf("Torque Minimium for Deadband: %f\n", min_t);
-    }
+    
 
     printf("\n\n");
     if (use_accel) printf("Using Accelerometer\n");
@@ -408,7 +420,8 @@ double time = 0.0;
 
       // MARKER ROTATION AND OFFSET
       Matrix3d rot;
-      rot<<0.996336648486483, -0.0855177343170566, 0, 0.0855177343170566, 0.996336648486483, 0, 0, 0, 1;
+      //rot<<0.996336648486483, -0.0855177343170566, 0, 0.0855177343170566, 0.996336648486483, 0, 0, 0, 1;
+      rot<<0.996451773800196, -0.0841656847559736, 0, 0.0841656847559736, 0.996451773800196, 0, 0, 0, 1;
       if (use_markers || use_rigid) {
         double *ps = new double[MARKER_SIZE];
         double *ps_c = new double[NMARKERS];
@@ -452,43 +465,74 @@ double time = 0.0;
   }
   else
 #endif
-    robot = new SimDarwin(m, d, dt, s_noise, s_time_noise, c_noise);
+    robot = new SimDarwin(m, d, dt, s_noise, s_cov, s_time_noise, c_noise);
 
 
   // init darwin to walker pose
   Walking * walker = new Walking();
   if (nu >= 20) {
     walker->Initialize(ctrl);
+    printf("initial control from walking module\n");
+    for (int i=0; i<20; i++) printf("%f ", ctrl[i]);
+    printf("\n");
   }
   if (from_file) {
+    double * file_init;
     if (input_file.find("fallen") < input_file.length()) { // fallen initial condition
       printf("Loading fallen initial position.\n");
-      for (int i=0; i<20; i++) d->ctrl[i] = ctrl[i];
-      for (int i=0; i<nq; i++) d->qpos[i] = fall_qpos[i];
+      file_init = fall_qpos;
     }
     else {
       printf("Loading crouched initial position.\n");
-      for (int i=0; i<20; i++) d->ctrl[i] = ctrl[i];
-      for (int i=0; i<nq; i++) d->qpos[i] = init_qpos[i];
+      file_init = init_qpos;
     }
-    //for (int i=0; i<nv; i++) d->qvel[i] = 0;
-
+    for (int i=0; i<nq; i++) d->qpos[i] = file_init[i];
+#ifdef TORQUE_MOTORS
+    mj_forward(m, d); // to init the sensor values before we grab them for our pd control
+    for (int i=0; i<100; i++) {
+      util::darwin_torques(trqs, m, d, ctrl, min_t, kp); // set controls from above
+      for (int i=0; i<20; i++) d->ctrl[i] = trqs[i];
+      mj_step(m, d);
+    }
+#else
+    for (int i=0; i<20; i++) d->ctrl[i] = ctrl[i];
     for (int i=0; i<100; i++)
       mj_step(m, d);
+#endif
   }
-  //if (from_hardware) 
-  if (darwin_model)
+  else if (darwin_model)
   {
-      std::cout<< model_name << "\n";
+    double * min_t_ptr = util::get_numeric_field(m, "min_torque", NULL);
+    if (min_t_ptr) {
+      min_t = min_t_ptr[0];
+    }
+    else {
+      min_t = 0.08;
+    }
+    printf("Torque Minimium for Deadband: %f\n", min_t);
+    std::cout<< model_name << "\n";
     printf("Loading crouched initial position.\n");
-    for (int i=0; i<20; i++) d->ctrl[i] = ctrl[i];
     for (int i=0; i<nq; i++) d->qpos[i] = init_qpos[i];
-    for (int i=0; i<1000; i++)
+#ifdef TORQUE_MOTORS
+    mj_forward(m, d); // to init the sensor values before we grab them for our pd control
+    for (int i=0; i<100; i++) {
+      util::darwin_torques(trqs, m, d, ctrl, min_t, kp); // set controls from above
+      for (int i=0; i<20; i++) d->ctrl[i] = trqs[i];
       mj_step(m, d);
+    }
+#else
+    for (int i=0; i<20; i++) d->ctrl[i] = ctrl[i];
+    for (int i=0; i<100; i++)
+      mj_step(m, d);
+#endif
   }
-  //util::darwin_torques(trqs, m, d, d->ctrl, min_t, kp); // set controls from above
-  //robot->set_controls(trqs, 20, NULL, NULL);
+
+#ifdef TORQUE_MOTORS
+  util::darwin_torques(trqs, m, d, d->ctrl, min_t, kp); // set controls from above
+  robot->set_controls(trqs, 20, NULL, NULL);
+#else
   robot->set_controls(ctrl, 20, NULL, NULL);
+#endif
 
   Estimator * est = 0;
 
@@ -496,9 +540,6 @@ double time = 0.0;
   printf("DT is set %f\n", dt);
   mjData * est_data = 0;
   bool render_inplace = false;
-
-  double * s_cov = util::get_numeric_field(m, "snsr_covar", NULL);
-  double * p_cov = util::get_numeric_field(m, "covar_diag", NULL);
 
 
   if (render_robot == false) { // if we are not rendering just make the ukf
@@ -515,7 +556,7 @@ double time = 0.0;
   bool exit = render_robot ? true : !closeViewer();
   double real_dt = 0.007;
   double lp_alpha = 0.09;
-  while ( exit ) {
+  while ( exit ) { /////////////////////////////////////////////////// main loop
 
     if (render_robot) {
       switch (viewer_signal()) { // signal for keyboard presses (triggers walking)
@@ -537,8 +578,22 @@ double time = 0.0;
           if (useUKF) {
             printf("New UKF initialization\n");
 
+#ifdef USE_BAD_MODEL
+            char error[1000] = "could not load binary model";
+            bad_m = mj_loadXML("../models/bad_darwin.xml", 0, error, 1000);
+            if (!m) {
+              printf("%s\n", error);
+              return 1;
+            }
+            s_cov = util::get_numeric_field(bad_m, "snsr_covar", NULL);
+            p_cov = util::get_numeric_field(bad_m, "covar_diag", NULL);
+            printf("Loaded bad darwin\n");
+            est = new UKF(bad_m, d, s_cov, p_cov,
+                alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
+#else
             est = new UKF(m, d, s_cov, p_cov,
                 alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
+#endif
           } else {
             printf("New EKF initialization\n");
             //est = new EKF(m, d, e_noise, tol, diag, debug, num_threads);
@@ -585,8 +640,6 @@ double time = 0.0;
     }
 
     // simulate and render
-    //printf("time: %f\t", d->time);
-    //printf("time to get sensors: %f\n", util::now_t() - thread_t);
     if (get_data_and_estimate) {
 
       printf("robot hw time: %f\n", time);
@@ -601,7 +654,6 @@ double time = 0.0;
 
       //////////////////////////////////
       double t0 = util::now_t();
-      //if (est) est->predict(ctrl, time-prev_time);
       if (est) {
         if (from_hardware) {
           t_predict.get(); // waits for this completion
@@ -617,8 +669,6 @@ double time = 0.0;
 
       //////////////////////////////////
       double t1 = util::now_t();
-      //if (est) est->correct(sensors);
-      //if (est) est->predict_correct(ctrl, time-prev_time, sensors, conf);
       if (est) {
         //est->predict_correct_p2(trqs, time-prev_time, sensors, conf);
         est->predict_correct_p2(ctrl, time-prev_time, sensors, conf);
@@ -638,26 +688,19 @@ double time = 0.0;
       }
 
       if (darwin_model) {
-          printf("\n\nSensor Compare:\nreal: ");
-          int s = mrkr_idx;
+        printf("\n\nSensor Compare:\nreal: ");
+        int s = mrkr_idx;
+        for (int i=s; i<s+MARKER_SIZE; i++) {
+          if (real_robot) printf("%1.4f ", sensors[i]);
+          else printf("%1.4f ", d->sensordata[i]);
+        }
+        if (est) {
+          printf("\n est: ");
           for (int i=s; i<s+MARKER_SIZE; i++) {
-              if (real_robot) printf("%1.4f ", sensors[i]);
-              else printf("%1.4f ", d->sensordata[i]);
+            printf("%1.4f ", est_data->sensordata[i]);
           }
-          if (est) {
-              printf("\n est: ");
-              for (int i=s; i<s+MARKER_SIZE; i++) {
-                  printf("%1.4f ", est_data->sensordata[i]);
-              }
-          }
+        }
       }
-
-      //printf("\n");
-      //printf("\nctrl: ");
-      //for (int i=0; i<nu; i++) {
-      //    printf("%1.4f ", ctrl[i]);
-      //}
-      //printf("\n\n");
 
       if (est && est_data) {
         if (from_hardware) save_states(output_file, time, NULL, est_data, est->get_stddev(), t1-thread_t, t2-thread_t, "a");
@@ -666,14 +709,24 @@ double time = 0.0;
 
       // we have estimated and logged the data,
       // now get new controls
+      for (int i=0; i<nu; i++) prev_ctrl[i] = ctrl[i];
       if (nu >= 20) {
         walker->Process(time-prev_time, 0, ctrl);
       }
-      robot->set_controls(ctrl, 20, NULL, NULL);
+      // Filter controls
+      //for (int i=0; i<nu; i++) {
+      //  if (std::abs(prev_ctrl[i] - ctrl[i]) < 0.1) // 0.1 rad = 5.7 degress
+      //    ctrl[i] = 0.0;
+      //}
       //calc_torques(m, d, ctrl);
-      //util::darwin_torques(trqs, m, d, ctrl, min_t, kp);
-      //robot->set_controls(trqs, 20, NULL, NULL);
-
+#ifdef TORQUE_MOTORS
+      robot->set_controls(ctrl, 20, NULL, NULL); // file_interface gets ctrl @ t+1
+      util::darwin_torques(trqs, m, d, ctrl, min_t, kp);
+      for (int i=0; i<nu; i++) { ctrl[i] = trqs[i]; }
+      if (!from_file) robot->set_controls(trqs, 20, NULL, NULL);
+#else
+      robot->set_controls(ctrl, 20, NULL, NULL); // file_interface gets ctrl @ t+1
+#endif
 
       prev_time = time;
       if (est && estimation_counts > 0) {
@@ -729,6 +782,7 @@ double time = 0.0;
     // close file
   }
 
+  printf("\n\n");
   //printf("\n");
   delete[] qpos;
   delete[] qvel;

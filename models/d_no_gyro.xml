@@ -1,9 +1,9 @@
 <mujoco model="darwin"> 
-  <compiler angle="radian" coordinate="local" inertiafromgeom="true" meshdir="meshes/" settotalmass="2.97" />
+  <compiler angle="radian" coordinate="local" inertiafromgeom="false" meshdir="meshes/" settotalmass="2.97" />
   <!--
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
     <option	timestep="0.00025" gravity="0 0 0"/>
-    <option timestep='0.0025' iterations="50" solver="PGS" gravity="0 0 -9.81 ">
+    <option timestep='0.0025' iterations="50" solver="elliptic" gravity="0 0 -9.81 ">
 
       <geom contype='1' conaffinity='1' condim='1' rgba='0.8 0.6 .4 1'
         margin="0.001" solref=".02 1" solimp=".8 .8 .01" material="meshmat"/>
@@ -16,7 +16,7 @@ soft:
       <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
    -->
 
-    <option	timestep="0.008" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
+    <option	timestep="0.008" iterations="100" tolerance="1e-6" solver="elliptic" gravity="0 0 -9.81" >
     </option>
 
     <default>
@@ -26,26 +26,21 @@ soft:
       <!--
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
-      <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
+      <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="37000.011" />
 
       <position ctrllimited='true' kp='20' forcelimited='true' forcerange='-2.7 2.7'/>
+      <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
 
       <default class='torso'>
         <geom contype='1' conaffinity='0' rgba='.79 .52 .43 1'/>
       </default>
       <default class='left leg'>
         <geom contype='2' conaffinity='0' rgba='.69 .72 .43 1' condim='1'
-          solref=".02 0.1" solimp="0.9 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
-        <!-- 
-             solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
-              -->
+          solref=".02 1" solimp="0.8 0.99 0.001" friction="1 0.005 0.001" margin='0.001' />
       </default>
       <default class='right leg'>
         <geom contype='4' conaffinity='0' rgba='.29 .72 .43 1' condim='1'
-          solref=".02 0.1" solimp="0.9 0.99 0.01" friction="1 0.05 0.001" margin='0.001' />
-        <!--
-             solref=".02 0.1" solimp="1 0.99 0.001" friction="1 0.05 0.001" margin='0.00' />
-              -->
+          solref=".02 1" solimp="0.8 0.99 0.001" friction="1 0.005 0.001" margin='0.001' />
       </default>
       <default class='forearm'>
         <geom contype='8' conaffinity='0' rgba='.49 .22 .43 1'/>
@@ -75,20 +70,20 @@ soft:
     <custom>
         <numeric name="snsr_covar" size="29" data="
           1e+1
-        1e-4
+        1e-1
         1e+1
-        1e+100
-        1e-3
-        1e-2
+        1e+10
+        1e-6
+        1e-1
         1e-0
-
+            
         1e-7
         1e-5
         1e-0
         1e-0
         1e-8 1e-0 1e-0 1e-0 1e-8
-
-        1e-7
+            
+        1e+100
         1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
         "
         />
@@ -146,8 +141,11 @@ soft:
         1 0 0 0 1 0 0 0 1"/>
       <numeric name="t_rot2" size="9" data=" 
         1 2 2 0 1 0 2 2 1"/>
+      <numeric name="root_pos_covar" size="3" data="1e-1 1e-1 1e-1"/>
+      <numeric name="root_ang_covar" size="3" data="1e-1 1e-1 1e-2"/>
+      <numeric name="min_torque" size="1" data="0.14"/>
       <numeric name="covar_diag" size="26" data="
-          1e-6
+          1
           1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
         <!-- sensor range limited by hardware, or a guess-->
             <!--
@@ -501,107 +499,28 @@ soft:
     </sensor>
 
     <actuator>
-      <position name='0_r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
-      <position name='1_l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5 1.5' />
-      <position name='2_r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.25'  	/>
-      <position name='3_l_shoulder_roll'  	joint='l_shoulder_roll'     ctrlrange='-1.25 .85' />
-      <position name='4_r_elbow'          	joint='r_elbow'             ctrlrange='-1.55 1.25'	/>
-      <position name='5_l_elbow'          	joint='l_elbow'             ctrlrange='-1.25 1.55' />
-      <position name='6_r_hip_yaw'        	joint='r_hip_yaw'           ctrlrange='-1 .9'   	/>
-      <position name='7_l_hip_yaw'        	joint='l_hip_yaw'           ctrlrange='-.9 1'   />
-      <position name='8_r_hip_roll'       	joint='r_hip_roll'          ctrlrange='-.7 .45'   />
-      <position name='9_l_hip_roll'       	joint='l_hip_roll'          ctrlrange='-.45 .7'   />
-      <position name='10_r_hip_pitch'      	joint='r_hip_pitch'         ctrlrange='-1.7 .45'  />
-      <position name='11_l_hip_pitch'      	joint='l_hip_pitch'         ctrlrange='-.45 1.7'  />
-      <position name='12_r_knee'           	joint='r_knee'              ctrlrange='-0.05 2.2' />
-      <position name='13_l_knee'           	joint='l_knee'              ctrlrange='-2.2 0.05' />
-      <position name='14_r_ankle_pitch'    	joint='r_ankle_pitch'       ctrlrange='-1.2 1.35' />
-      <position name='15_l_ankle_pitch'    	joint='l_ankle_pitch'       ctrlrange='-1.35 1.2' />
-      <position name='16_r_ankle_roll'     	joint='r_ankle_roll'        ctrlrange='-.7 .95'   />
-      <position name='17_l_ankle_roll'     	joint='l_ankle_roll'        ctrlrange='-.95 .7'   />
+      <motor name='0_r_shoulder_pitch' joint='r_shoulder_pitch'    />
+      <motor name='1_l_shoulder_pitch' joint='l_shoulder_pitch'    />
+      <motor name='2_r_shoulder_roll'  joint='r_shoulder_roll'     />
+      <motor name='3_l_shoulder_roll'  joint='l_shoulder_roll'     />
+      <motor name='4_r_elbow'          joint='r_elbow'             />
+      <motor name='5_l_elbow'          joint='l_elbow'             />
+      <motor name='6_r_hip_yaw'        joint='r_hip_yaw'           />
+      <motor name='7_l_hip_yaw'        joint='l_hip_yaw'           />
+      <motor name='8_r_hip_roll'       joint='r_hip_roll'          />
+      <motor name='9_l_hip_roll'       joint='l_hip_roll'          />
+      <motor name='10_r_hip_pitch'     joint='r_hip_pitch'      	  />
+      <motor name='11_l_hip_pitch'     joint='l_hip_pitch'      	  />
+      <motor name='12_r_knee'          joint='r_knee'           	  />
+      <motor name='13_l_knee'          joint='l_knee'           	  />
+      <motor name='14_r_ankle_pitch'   joint='r_ankle_pitch'    	  />
+      <motor name='15_l_ankle_pitch'   joint='l_ankle_pitch'    	  />
+      <motor name='16_r_ankle_roll'    joint='r_ankle_roll'     	  />
+      <motor name='17_l_ankle_roll'    joint='l_ankle_roll'     	  />
 
-      <position name='18_head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
-      <position name='19_head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
+      <motor name='18_head_pan'      		joint='head_pan'        	  /> 
+      <motor name='19_head_tilt'     		joint='head_tilt'       	  /> 
 
-      <!--
-      <position name='0_r_shoulder_pitch' kp='20' joint='r_shoulder_pitch' ctrlrange='-1.5 1.5'  	/>
-      <position name='1_l_shoulder_pitch' kp='20' joint='l_shoulder_pitch' ctrlrange='-1.5 1.5' />
-      <position name='2_r_shoulder_roll'  kp='12' joint='r_shoulder_roll'  ctrlrange='-.85 1.25'  	/>
-      <position name='3_l_shoulder_roll'  kp='12' joint='l_shoulder_roll'  ctrlrange='-1.25 .85' />
-      <position name='4_r_elbow'          kp='8' joint='r_elbow'          ctrlrange='-1.55 1.25'	/>
-      <position name='5_l_elbow'          kp='8' joint='l_elbow'          ctrlrange='-1.25 1.55' />
-      <position name='6_r_hip_yaw'        kp='20' joint='r_hip_yaw'        ctrlrange='-1 .9'   	/>
-      <position name='7_l_hip_yaw'        kp='20' joint='l_hip_yaw'        ctrlrange='-.9 1'   />
-      <position name='8_r_hip_roll'       kp='20' joint='r_hip_roll'       ctrlrange='-.7 .45'   />
-      <position name='9_l_hip_roll'       kp='20' joint='l_hip_roll'       ctrlrange='-.45 .7'   />
-      <position name='10_r_hip_pitch'     kp='20' joint='r_hip_pitch'      ctrlrange='-1.7 .45'  />
-      <position name='11_l_hip_pitch'     kp='20' joint='l_hip_pitch'      ctrlrange='-.45 1.7'  />
-      <position name='12_r_knee'          kp='20' joint='r_knee'           ctrlrange='-0.05 2.2' />
-      <position name='13_l_knee'          kp='20' joint='l_knee'           ctrlrange='-2.2 0.05' />
-      <position name='14_r_ankle_pitch'   kp='18' joint='r_ankle_pitch'    ctrlrange='-1.2 1.35' />
-      <position name='15_l_ankle_pitch'   kp='18' joint='l_ankle_pitch'    ctrlrange='-1.35 1.2' />
-      <position name='16_r_ankle_roll'    kp='4' joint='r_ankle_roll'     ctrlrange='-.7 .95'   />
-      <position name='17_l_ankle_roll'    kp='4' joint='l_ankle_roll'     ctrlrange='-.95 .7'   />
-
-      <position name='18_head_pan'        kp='20' joint='head_pan'         ctrlrange='-2 2'      /> 
-      <position name='19_head_tilt'       kp='20' joint='head_tilt'        ctrlrange='-.4 .9'    /> 
-      -->
-
-
-      <!--
-      <position name='0_r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
-      <position name='1_r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.3'  	/>
-      <position name='2_r_elbow'          	joint='r_elbow'             ctrlrange='-1.55 1.25'	/>
-
-      <position name='3_r_hip_yaw'        	joint='r_hip_yaw'           ctrlrange='-1 .9'   	/>
-      <position name='4_r_hip_roll'       	joint='r_hip_roll'          ctrlrange='-.7 .45'   />
-      <position name='5_r_hip_pitch'      	joint='r_hip_pitch'         ctrlrange='-1.7 .45'  />
-      <position name='6_r_knee'           	joint='r_knee'              ctrlrange='-0.05 2.2' />
-      <position name='7_r_ankle_pitch'    	joint='r_ankle_pitch'       ctrlrange='-1.2 1.35' />
-      <position name='8_r_ankle_roll'     	joint='r_ankle_roll'        ctrlrange='-.7 .95'   />
-
-      <position name='9_l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5  1.5' />
-      <position name='10_l_shoulder_roll'  	joint='l_shoulder_roll'     ctrlrange='-1.25 .85' />
-      <position name='11_l_elbow'          	joint='l_elbow'             ctrlrange='-1.25 1.55' />
-
-      <position name='12_l_hip_yaw'        	joint='l_hip_yaw'           ctrlrange='-.9 1'   />
-      <position name='13_l_hip_roll'       	joint='l_hip_roll'          ctrlrange='-.45 .7'   />
-      <position name='14_l_hip_pitch'      	joint='l_hip_pitch'         ctrlrange='-.45 1.7'  />
-      <position name='15_l_knee'           	joint='l_knee'              ctrlrange='-2.2  .05' />
-      <position name='16_l_ankle_pitch'    	joint='l_ankle_pitch'       ctrlrange='-1.35 1.2' />
-      <position name='17_l_ankle_roll'     	joint='l_ankle_roll'        ctrlrange='-.95 .7'   />
-
-      <position name='18_head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
-      <position name='19_head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
-
-
-      <motor name='r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
-      <motor name='r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.3'  	/>
-      <motor name='r_elbow'          	joint='r_elbow'             ctrlrange='-1.55 1.25'	/>
-
-      <motor name='r_hip_yaw'        	joint='r_hip_yaw'           ctrlrange='-1 .9'   	/>
-      <motor name='r_hip_roll'       	joint='r_hip_roll'          ctrlrange='-.7 .45'   />
-      <motor name='r_hip_pitch'      	joint='r_hip_pitch'         ctrlrange='-1.7 .45'  />
-      <motor name='r_knee'           	joint='r_knee'              ctrlrange='-0.05 2.2' />
-      <motor name='r_ankle_pitch'    	joint='r_ankle_pitch'       ctrlrange='-1.2 1.35' />
-      <motor name='r_ankle_roll'     	joint='r_ankle_roll'        ctrlrange='-.7 .95'   />
-
-      <motor name='l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5  1.5' />
-      <motor name='l_shoulder_roll'  	joint='l_shoulder_roll'     ctrlrange='-1.25 .85' />
-      <motor name='l_elbow'          	joint='l_elbow'             ctrlrange='-1.25 1.55' />
-
-      <motor name='l_hip_yaw'        	joint='l_hip_yaw'           ctrlrange='-.9 1'   />
-      <motor name='l_hip_roll'       	joint='l_hip_roll'          ctrlrange='-.45 .7'   />
-      <motor name='l_hip_pitch'      	joint='l_hip_pitch'         ctrlrange='-.45 1.7'  />
-      <motor name='l_knee'           	joint='l_knee'              ctrlrange='-2.2  .05' />
-      <motor name='l_ankle_pitch'    	joint='l_ankle_pitch'       ctrlrange='-1.35 1.2' />
-      <motor name='l_ankle_roll'     	joint='l_ankle_roll'        ctrlrange='-.95 .7'   />
-
-      <motor name='head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
-      <motor name='head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
-      -->
-      <!--
-      -->
 
     </actuator>
 

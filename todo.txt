@@ -219,3 +219,44 @@ still need to:
         video of these data sets?
     regenerate plots on these data sets
     rebut the comments re: other papers
+
+11/02
+  Fixing code to make videos
+    perfect model, no noise
+      ./viewer -m ../models/darwin.xml -s -1
+    perfect model, noise from system
+      ./viewer -m ../models/darwin.xml -s 1
+    imperfect model, no noise
+      ./viewer -m ../models/darwin.xml -s -1
+    imperfect model, noise from system
+      ./viewer -m ../models/darwin.xml -s -1
+  Do the joint / phasespace reverse clamping trick in the estimator.
+
+11/03
+  comparing the UKF between a good and bad model, trying to show model noise is useful
+    probably need to set mass closer, and change other params
+    snsr_limit in bad model?
+
+  added in root specific ptadd regularization; very helpful
+  also had a min cutoff for the s-z_k difference to try and model backlash
+      should probablly switch to the torque model
+
+  long data seems to be working:
+    ./viewer -m ../models/darwin_tm.xml -r 1 -f long_walk2.csv -R 1 -d -1
+    ready to render a video
+
+11/05
+    inertiafromgeom=false is more correct, but the inertias are fucked regardless
+    torque motors seem more realistic, but some bugs remain in getting data from file
+    
+
+    bad_motors.mov: has half kp and wrong damping / armature
+
+    bad_darwin has wrong mass, contacts, motors, and no phasespace
+
+
+11/08
+    make darwin in sim walk a few slow steps, compare sensor output to
+    real sensor output
+        bring simulated sensors more in line with real -> system id
+        better simulator for testing estimator parameters

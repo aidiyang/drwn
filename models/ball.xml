@@ -49,7 +49,7 @@
         "
         />
       <numeric name="covar_diag" size="4" data="
-        1e+1
+        1e+2
         1e+1 
 
         1e-2

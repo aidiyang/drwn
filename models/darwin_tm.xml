@@ -1,9 +1,9 @@
 <mujoco model="darwin">
-  <compiler angle="radian" coordinate="local" inertiafromgeom="true" meshdir="meshes/" settotalmass="2.97" />
+  <compiler angle="radian" coordinate="local" inertiafromgeom="false" meshdir="meshes/" settotalmass="2.97" />
   <!--
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
     <option	timestep="0.00025" gravity="0 0 0"/>
-    <option timestep='0.0025' iterations="50" solver="PGS" gravity="0 0 -9.81 ">
+    <option timestep='0.0025' iterations="50" solver="elliptic" gravity="0 0 -9.81 ">
 
       <geom contype='1' conaffinity='1' condim='1' rgba='0.8 0.6 .4 1'
         margin="0.001" solref=".02 1" solimp=".8 .8 .01" material="meshmat"/>
@@ -12,11 +12,11 @@
 soft:
         margin="0.001" solref="1 1" solimp=".001 .001 .01" material="meshmat"/>
       <flag constraint="disable"/>
+      <flag energy="enable"/>
       <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
    -->
 
-    <option	timestep="0.002" iterations="100" tolerance="1e-6" solver="PGS" gravity="0 0 -9.81" >
-      <flag energy="enable"/>
+    <option	timestep="0.008" iterations="100" tolerance="1e-6" solver="elliptic" gravity="0 0 -9.81" >
     </option>
 
     <default>
@@ -29,6 +29,7 @@ soft:
       <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="0.011" />
 
       <position ctrllimited='true' kp='20' forcelimited='true' forcerange='-2.7 2.7'/>
+      <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
 
       <default class='torso'>
         <geom contype='1' conaffinity='0' rgba='.79 .52 .43 1'/>
@@ -75,20 +76,20 @@ soft:
     <custom>
         <numeric name="snsr_covar" size="29" data="
           1e+1
-        1e-4
+        1e-3
         1e+1
         1e-6
-        1e-3
+        1e-4
         1e-2
         1e-0
 
-        1e-6
+        1e-7
         1e-5
         1e-0
         1e-0
         1e-8 1e-0 1e-0 1e-0 1e-8
 
-        1e-9
+        1e-7
         1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
         "
         />
@@ -146,11 +147,14 @@ soft:
         1 0 0 0 1 0 0 0 1"/>
       <numeric name="t_rot2" size="9" data=" 
         1 2 2 0 1 0 2 2 1"/>
+      <numeric name="root_pos_covar" size="3" data="1e-1 1e-1 1e-2"/>
+      <numeric name="root_ang_covar" size="3" data="1e+0 1e+0 1e-2"/>
+      <numeric name="min_torque" size="1" data="0.14"/>
       <numeric name="covar_diag" size="26" data="
-          1e-1
+          1e-2
           1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
       <numeric name="time_var" size='1' data='0.00032' />
-      <numeric name="mass_var" size='1' data='0.03' />
+      <numeric name="mass_var" size='1' data='0.3' />
       <!--
       -->
     </custom>
@@ -501,6 +505,7 @@ soft:
 
     <actuator>
 
+      <!--
       <position name='0_r_shoulder_pitch' 	joint='r_shoulder_pitch'    ctrlrange='-1.5 1.5'  	/>
       <position name='1_l_shoulder_pitch' 	joint='l_shoulder_pitch'    ctrlrange='-1.5 1.5' />
       <position name='2_r_shoulder_roll'  	joint='r_shoulder_roll'     ctrlrange='-.85 1.25'  	/>
@@ -522,8 +527,8 @@ soft:
 
       <position name='18_head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
       <position name='19_head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
+      -->
 
-      <!--
       <motor name='0_r_shoulder_pitch' joint='r_shoulder_pitch'    />
       <motor name='1_l_shoulder_pitch' joint='l_shoulder_pitch'    />
       <motor name='2_r_shoulder_roll'  joint='r_shoulder_roll'     />
@@ -545,7 +550,6 @@ soft:
 
       <motor name='18_head_pan'      		joint='head_pan'        	  /> 
       <motor name='19_head_tilt'     		joint='head_tilt'       	  /> 
-      -->
 
       <!--
       <position name='0_r_shoulder_pitch' kp='20' joint='r_shoulder_pitch' ctrlrange='-1.5 1.5'  	/>

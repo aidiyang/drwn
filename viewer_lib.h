@@ -11,6 +11,8 @@
 #include <mutex>
 
 #include <vector>
+
+#include "lodepng.h"
 //-------------------------------- global variables -------------------------------------
 
 // synchronization
@@ -19,7 +21,7 @@ std::mutex gui_mutex;
 // model
 mjModel *m = 0;
 mjData *d = 0;
-mjData *d2 = 0;
+mjData *d_inplace = 0;
 char lastfile[1000] = "";
 
 // user state
@@ -31,6 +33,7 @@ bool showfullscreen = false;
 bool slowmotion = false;
 bool showdepth = false;
 bool show_sensor = false;
+bool save_frames = false;
 int my_signal = 0;
 int showhelp = 1;               // 0: none; 1: brief; 2: full
 int speedtype = 1;              // 0: slow; 1: normal; 2: max
@@ -91,6 +94,8 @@ char opt_title[1000] = "";
 char opt_content[1000];
 
 GLFWwindow *window = 0;
+
+unsigned char * im2;
 
 //-------------------------------- utility functions ------------------------------------
 void print_sensor_data(mjModel *m, mjData *d) {
@@ -166,8 +171,8 @@ void loadmodel(GLFWwindow * window, const char *filename,
   m = mnew;
   d = mj_makeData(m);
   mj_forward(m, d);
-  //d2 = mj_makeData(m);
-  //mj_forward(m, d2);
+  d_inplace = mj_makeData(m);
+  mj_forward(m, d_inplace);
 
 
   // save filename for reload
@@ -321,6 +326,8 @@ void keyboard(GLFWwindow * window, int key, int scancode, int act,
           my_signal = 1;
         else if (key == GLFW_KEY_I)
           my_signal = 2;
+        else if (key == GLFW_KEY_B)
+          save_frames=!save_frames;
         else if (key == GLFW_KEY_P) {
           // print state and sensors
           if (d) {
@@ -521,7 +528,6 @@ void simulation(void)
     // slow motion factor: 10x
     /*
        mjtNum factor = (slowmotion ? 10 : 1);
-
     // advance effective simulation time by 1/refreshrate
     mjtNum startsimtm = d->time;
     while ((d->time - startsimtm) * factor < 1.0 / refreshrate) {
@@ -579,14 +585,12 @@ void render(GLFWwindow * window,
   char camstr[20];
   if (paused) {
     //TODO Uncomment this stuffto get paused control back
-    
 
     // recompute to refresh rendering
     //mj_forward(m, d);
 
     if (increment) {
       printf("Step\n");
-
       for (int i = 0; i < increment; i++) {
         simulation();
       }
@@ -601,7 +605,6 @@ void render(GLFWwindow * window,
     //int n = 0;
     simulation();
     //n++;
-
     // compute duration if not already computed
     //if (duration == 0 && n)
     //  duration = 1000 * (glfwGetTime() - starttm) / n;
@@ -639,16 +642,15 @@ void render(GLFWwindow * window,
   }
   lastrendertm = glfwGetTime();
 
-  // update scene
-  mjv_updateScene(m, d, &vopt, &pert, &cam, mjCAT_ALL, &scn);
-
   if (render_inplace) {
     // set this d to be the model from estimation
-    mju_copy(d->qpos, frame[0]->qpos, m->nq);
-    mju_copy(d->qvel, frame[0]->qvel, m->nv);
-    //mj_kinematics(m, d);
-    mj_forward(m, d);
+    mju_copy(d_inplace->qpos, frame[0]->qpos, m->nq);
+    mju_copy(d_inplace->qvel, frame[0]->qvel, m->nv);
+    mj_kinematics(m, d_inplace);
+    //mj_forward(m, d_inplace);
+    mjv_updateScene(m, d_inplace, &vopt, &pert, &cam, mjCAT_ALL, &scn);
   } else {
+    mjv_updateScene(m, d, &vopt, &pert, &cam, mjCAT_ALL, &scn);
     if (frame.size()) {
       for (unsigned int idx = 0; idx < frame.size(); idx++) {
         mj_kinematics(m, frame[idx]);
@@ -674,8 +676,6 @@ void render(GLFWwindow * window,
       }
     }
   }
-
-
 
   // selection
   if (needselect) {
@@ -709,17 +709,14 @@ void render(GLFWwindow * window,
     // set body selection
     else {
       if (selbody) {
-
         // record selection
         pert.select = selbody;
-
         // compute localpos
         mjtNum tmp[3];
         mju_sub3(tmp, pos, d->xpos + 3 * pert.select);
         mju_mulMatTVec(pert.localpos, d->xmat + 9 * pert.select, tmp, 3,
             3);
       }
-
       else
         pert.select = 0;
     }
@@ -808,9 +805,38 @@ void render(GLFWwindow * window,
     mjr_overlay(mjFONT_NORMAL, mjGRID_TOPRIGHT, rect, opt_title,
         opt_content, &con);
   }
+
   // swap buffers
   glfwSwapBuffers(window);
+
+  if (save_frames) {
+    std::string basename = "/tmp/frame_";
+    static int nframe=0;
+    int sizex, sizey;
+    glfwGetWindowSize(window, &sizex, &sizey);
+    //unsigned char * im=(unsigned char*)malloc(sizex*sizey*4);
+    //unsigned char * imj=(unsigned char*)malloc(sizex*sizey*3);
+
+    glPixelStorei(GL_PACK_ALIGNMENT,1);
+    glReadPixels(0,0,sizex,sizey,GL_RGB,GL_UNSIGNED_BYTE,im2); 
+
+    unsigned int error;
+    unsigned char*png;
+    size_t pngsize;
+    error=lodepng_encode24(&png,&pngsize,im2,sizex,sizey);
+    std::string filename = basename+std::to_string(nframe)+".png";
+    nframe++;
+    if(!error)
+      lodepng_save_file(png, pngsize, filename.c_str());
+    if(error)
+      printf("error %u: %s\n", error, lodepng_error_text(error));
+
+    //free(im2);
+    free(png);
+  }
 }
+
+void save_buffers_to_image(bool t) {save_frames = t;}
 
 int viewer_signal()
 {
@@ -853,6 +879,7 @@ int init_viz(std::string model_name)
 
   // activate MuJoCo license
   mj_activate("mjkey.txt");
+  printf("MuJoCo Activated.\n");
 
   // init GLFW
   if (!glfwInit())
@@ -881,6 +908,8 @@ int init_viz(std::string model_name)
   glfwGetWindowSize(window, &width, &height);
   glfwGetFramebufferSize(window, &width1, &height);
   window2buffer = (double) width1 / (double) width;
+
+  im2=(unsigned char*)malloc(width*height*4);
 
   // init MuJoCo rendering
   mjv_makeScene(&scn, 10000);

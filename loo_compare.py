@@ -47,7 +47,8 @@ if hw_f.startswith('clean_fallen') == True:
     init_spos = init_spos.reshape(16,3)
     print "fallen cols is: ", cols
 
-elif hw_f.startswith('s_') == True:
+#elif hw_f.startswith('s_') == True:
+else:
     #cols = [2,4,6,7,8,11,12] # straight walk
     cols = [2] # straight walk full torso
     #cols = [8, 14] # straight walk full torso
@@ -80,8 +81,10 @@ good = util.get_est_data(f0)
 fu = util.snsr_breakout(good['est_snsr'])
 tg = good['time']
 
-files = [f0,f1,f2,f3,f4,f5,f6]
-names = ['All', 'No Accl', 'No Gyro', 'No Force', 'No Torque', 'No J.Pos', 'No J.Vel']
+#files = [f0,f1,f2,f3,f4,f5,f6]
+#names = ['All', 'No Accl', 'No Gyro', 'No Force', 'No Torque', 'No J.Pos', 'No J.Vel']
+files = [f0,f1,f2,f3,f4]
+names = ['All', 'No Accl', 'No Gyro', 'No Force', 'No Torque']
 
 c1 = 'red'
 c2 = 'blue'
@@ -100,6 +103,9 @@ for i in range(3):
     axs[0,i].plot(tr,r[:,i], color=c2, lw=my_lw2, alpha=a1, label=f1)
     axs[0,i].plot(tr,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f1)
 axs[0,1].set_title('Accelerometer (m/s^2)')
+axs[0,0].set_ylim([-4, 0])
+axs[0,1].set_ylim([-2, 2])
+axs[0,2].set_ylim([-2, 15])
 
 es = util.get_est_data(f2)
 t = es['time']
@@ -111,7 +117,7 @@ for i in range(3):
     axs[1,i].plot(tr, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f2)
     axs[1,i].plot(tr,r[:,i], color=c2, lw=my_lw2, alpha=a1, label=f2)
     axs[1,i].plot(tr,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f0)
-    axs[1,i].set_ylim([-2, 2])
+    axs[1,i].set_ylim([-1, 1])
 axs[1,1].set_title('Gyroscope (rad/sec)')
 
 es = util.get_est_data(f3)
@@ -126,19 +132,38 @@ for i in range(3):
     axs[2,i].plot(tr,r[:,i], color=c2, lw=my_lw2, alpha=a1, label=f3)
     axs[2,i].plot(tr,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f0)
 axs[2,1].set_title('Right Force Sensors (N)')
+axs[2,0].set_ylim([-5, 5])
+axs[2,1].set_ylim([-10, 5])
+axs[2,2].set_ylim([-50, 5])
 
-es = util.get_est_data(f4)
-t = es['time']
-ss = util.snsr_breakout(es['est_snsr'])
-s = ss['ctct'][:,3:6]
-r = hw['ctct'][:,3:6]
-g = fu['ctct'][:,3:6]
-print "ctct t shape:", s.shape
+#es = util.get_est_data(f3)
+#t = es['time']
+#ss = util.snsr_breakout(es['est_snsr'])
+s = ss['ctct'][:,6:9]
+r = hw['ctct'][:,6:9]
+g = fu['ctct'][:,6:9]
+print "ctct f shape:", s.shape
 for i in range(3):
-    axs[3,i].plot(tr, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f4)
-    axs[3,i].plot(tr,r[:,i], color=c2, lw=my_lw2, alpha=a1, label=f4)
+    axs[3,i].plot(tr, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f3)
+    axs[3,i].plot(tr,r[:,i], color=c2, lw=my_lw2, alpha=a1, label=f3)
     axs[3,i].plot(tr,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f0)
-axs[3,1].set_title('Right Torque Sensors (N-m)')
+axs[3,1].set_title('Left Force Sensors (N)')
+axs[3,0].set_ylim([-5, 5])
+axs[3,1].set_ylim([-10, 5])
+axs[3,2].set_ylim([-50, 5])
+
+#es = util.get_est_data(f4)
+#t = es['time']
+#ss = util.snsr_breakout(es['est_snsr'])
+#s = ss['ctct'][:,3:6]
+#r = hw['ctct'][:,3:6]
+#g = fu['ctct'][:,3:6]
+#print "ctct t shape:", s.shape
+#for i in range(3):
+#    axs[3,i].plot(tr, s[:,i], color=c1, lw=my_lw, alpha=my_alpha, label=f4)
+#    axs[3,i].plot(tr,r[:,i], color=c2, lw=my_lw2, alpha=a1, label=f4)
+#    axs[3,i].plot(tr,g[:,i], color=c3, lw=lw2, ls=ls2, alpha=a2, label=f0)
+#axs[3,1].set_title('Right Torque Sensors (N-m)')
 
 axs[3,1].set_xlabel('Time (Seconds)')
 #axs[3,0].set_xlabel('X axis')
@@ -147,43 +172,44 @@ axs[3,1].set_xlabel('Time (Seconds)')
 
 plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.1)
 
-start = 0 #2.50
-end = 3.50
+start = 1 #2.50
+end = 2.50
 plt.xlim(start, end)
 
 #fig2, axs2 = plt.subplots(1,1, sharex=True, figsize=(15,10))
-fig2, axs2 = plt.subplots(1, 1, sharex=True, figsize=(16,9), dpi=128)
-
-for f in range(len(files)):
-    r = files[f]
-    es = util.get_est_data(r)
-    t = es['time']
-    ss = util.snsr_breakout(es['est_snsr'])
-    
-    #rms = util.dist_diff_v_time(ss['ps'], hw['ps'], conf, conf_lvl)
-    #rms = util.dist_diff_v_time(ss['ps'], hw['ps'], new_c, conf_lvl)
-    rms = util.dist_diff_v_time_limited(ss['ps'], hw['ps'], new_c, conf_lvl, cols)
-    
-    idx = (f-2)%len(my_ls)
-    good = np.count_nonzero(~np.isnan(rms))
-    print names[f], "&", np.nanmean(rms) , " \\\\" #, "len:", good
-    axs2.plot(t, rms, ls=my_ls[idx],
-        lw=3, alpha=1.0, label=names[f])
-
-axs2.set_title('RMS of Leave-One-Out')
-axs2.set_xlabel('Time')
-axs2.set_ylabel('RMSE (Meters)')
-axs2.grid(True)
-axs2.legend()
-
-
-ymin, ymax = plt.ylim()
-if ymax > 1:
-    ymax = 0.3
-    plt.ylim(ymin, ymax)
+###fig2, axs2 = plt.subplots(1, 1, sharex=True, figsize=(16,9), dpi=128)
+###
+###for f in range(len(files)):
+###    r = files[f]
+###    es = util.get_est_data(r)
+###    t = es['time']
+###    ss = util.snsr_breakout(es['est_snsr'])
+###    
+###    #rms = util.dist_diff_v_time(ss['ps'], hw['ps'], conf, conf_lvl)
+###    #rms = util.dist_diff_v_time(ss['ps'], hw['ps'], new_c, conf_lvl)
+###    rms = util.dist_diff_v_time_limited(ss['ps'], hw['ps'], new_c, conf_lvl, cols)
+###    
+###    idx = (f-2)%len(my_ls)
+###    good = np.count_nonzero(~np.isnan(rms))
+###    print names[f], "&", np.nanmean(rms) , " \\\\" #, "len:", good
+###    axs2.plot(t, rms, ls=my_ls[idx],
+###        lw=3, alpha=1.0, label=names[f])
+###
+###axs2.set_title('RMS of Leave-One-Out')
+###axs2.set_xlabel('Time')
+###axs2.set_ylabel('RMSE (Meters)')
+###axs2.grid(True)
+###axs2.legend()
+###
+###
+###ymin, ymax = plt.ylim()
+###if ymax > 1:
+###    ymax = 0.3
+###    plt.ylim(ymin, ymax)
 
 #axs.legend()
 #plt.legend(bbox_to_anchor=(0.5, 0.8), bbox_transform=plt.gcf().transFigure)
+
 
 plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.1)
 

@@ -342,14 +342,14 @@ void Walking::Initialize(double * ctrl)
 
   ctrl[0] = joint2radian(MX28::Angle2Value(-45)); // ID_R_SHOULDER_PITCH, -48.345
   ctrl[1] = joint2radian(MX28::Angle2Value( 45)); // ID_L_SHOULDER_PITCH,  41.313
-  ctrl[2] = joint2radian(MX28::Angle2Value(-17)); // ID_R_SHOULDER_ROLL,  -17.873
-  ctrl[3] = joint2radian(MX28::Angle2Value( 17)); // ID_L_SHOULDER_ROLL,   17.580
+  ctrl[2] = joint2radian(MX28::Angle2Value(-20)); // ID_R_SHOULDER_ROLL,  -17.873
+  ctrl[3] = joint2radian(MX28::Angle2Value( 20)); // ID_L_SHOULDER_ROLL,   17.580
   ctrl[4] = joint2radian(MX28::Angle2Value( 29)); // ID_R_ELBOW,           29.300
   ctrl[5] = joint2radian(MX28::Angle2Value(-29)); // ID_L_ELBOW,          -29.593
 
   ctrl[18] = joint2radian(2048);
-  //m_Joint.SetAngle(JointData::ID_HEAD_TILT, Kinematics_EYE_TILT_OFFSET_ANGLE);
   ctrl[19] = joint2radian(MX28::Angle2Value(-1.0*Kinematics_EYE_TILT_OFFSET_ANGLE));
+  //m_Joint.SetAngle(JointData::ID_HEAD_TILT, Kinematics_EYE_TILT_OFFSET_ANGLE);
 
   //m_Joint.SetSlope(JointData::ID_R_SHOULDER_PITCH, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
   //m_Joint.SetSlope(JointData::ID_L_SHOULDER_PITCH, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
@@ -624,6 +624,14 @@ void Walking::Process(double dt, double * gyro, double* ctrl)
   // make ctrl output NEW ORDERING
   ctrl[0] = joint2radian(outValue[12]); // R_shoulder_pitch
   ctrl[1] = joint2radian(outValue[13]); // L_shoulder_pitch
+
+  ctrl[2] = joint2radian(MX28::Angle2Value(-15)); // ID_R_SHOULDER_ROLL,  -17.873
+  ctrl[3] = joint2radian(MX28::Angle2Value( 15)); // ID_L_SHOULDER_ROLL,   17.580
+  ctrl[4] = joint2radian(MX28::Angle2Value( 29)); // ID_R_ELBOW,           29.300
+  ctrl[5] = joint2radian(MX28::Angle2Value(-29)); // ID_L_ELBOW,          -29.593
+
+  ctrl[18] = joint2radian(2048);
+  ctrl[19] = joint2radian(MX28::Angle2Value(-1.0*Kinematics_EYE_TILT_OFFSET_ANGLE));
 
   /*
   ctrl[JointData::ID_R_HIP_YAW -1] = joint2radian(outValue[0]);

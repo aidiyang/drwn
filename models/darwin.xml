@@ -1,5 +1,5 @@
 <mujoco model="darwin">
-  <compiler angle="radian" coordinate="local" inertiafromgeom="false" meshdir="meshes/" settotalmass="2.97" />
+  <compiler angle="radian" coordinate="local" inertiafromgeom="true" meshdir="meshes/" settotalmass="2.97" />
   <!--
    <size nciodim="0" nconmax="100" njmax="500" nstack="-1"/>
     <option	timestep="0.00025" gravity="0 0 0"/>
@@ -26,9 +26,9 @@ soft:
       <!--
         margin="0.001" solref=".02 1" solimp=".6 .9 .01" material="meshmat"/>
         -->
-      <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="37000.011" />
+      <joint limited='false' frictional="true" frictionloss="0.2" damping="1.06" armature="000.011" />
 
-      <position ctrllimited='true' kp='20' forcelimited='true' forcerange='-2.7 2.7'/>
+      <position ctrllimited='true' kp='200' forcelimited='true' forcerange='-2.7 2.7'/>
       <motor ctrllimited='false' forcelimited='true' forcerange='-2.7 2.7' />
 
       <default class='torso'>
@@ -68,6 +68,8 @@ soft:
          1e-0 1e-7 1e-0 1e-0 1e-7 1e-5 1e-4 1e-5 1e-4 1e-5 1e-3 1e-2 1e-4 1e-5 1e-2"/>
          -->
     <custom>
+       
+       <!--
         <numeric name="snsr_covar" size="29" data="
           1e+1
         1e-3
@@ -85,6 +87,29 @@ soft:
 
         1e-6
         1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
+        "
+        /> 
+        -->
+       
+        <numeric name="snsr_covar" size="29" data="
+        1e-9
+        1e-5
+        1e-9
+        1e-3
+        1e-3
+        1e-9
+        1e-9
+
+        1e-9
+        1e-9
+        1e-9
+        1e-9
+        1e-9 1e-9 1e-9 1e-9 1e-9
+
+        1e-2
+        1e-2 1e-7 1e-7 1e-7 1e-8 1e-8 1e-8 1e-8 
+        
+        1e-9 1e-9 1e-9
         "
         />
 <!-- TOUCH         -->
@@ -118,6 +143,28 @@ soft:
 <!-- SUBTREECOM,   -->
 <!-- SUBTREELINVEL -->
 <!-- SUBTREEANGMOM -->
+      <numeric name="snsr_weights" size="29" data="
+        1e-5
+        1e-1
+        1e-2
+        1e-2
+        1e-2
+        1e-4
+        1e-3
+
+        1e+1
+        1e-1
+        1e-0
+        1e-0
+        1e-1 1e-0 1e-0 1e-0 1e-0
+
+        1e+1
+        1e+1 1e-0 1e-0 1e-0 1e-3 1e-3 1e-3 1e-3
+		
+		    1e-8 1e-8 1e-8
+        "
+        />
+      
       <numeric name="snsr_range" size="29" data="
         1e+1
         20.0
@@ -137,6 +184,26 @@ soft:
         1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8 1e-8
         "
         />
+
+        <numeric name="snsr_add" size="191" data="
+        1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9
+        1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9
+        1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9
+        1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9
+        1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9
+        1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9
+        1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9
+        1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9
+        1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9
+        1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9 1e-9
+        "
+        />
+
+        <numeric name="qfrc_constraint" size="26" data=
+        "4 5 40 4 4 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+        "
+        />
+
       <numeric name="t_rot" size="9" data=" 
         1 0 0 0 1 0 0 0 1"/>
       <numeric name="t_rot2" size="9" data=" 
@@ -148,9 +215,14 @@ soft:
       <numeric name="root_pos_covar" size="3" data="1e+1 1e+1 1e+1"/>
       <numeric name="root_ang_covar" size="3" data="1e+1 1e+1 1e+0"/>
       <numeric name="min_torque" size="1" data="0.14"/>
-      <numeric name="covar_diag" size="26" data="
-          300
-          1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1 1e-1"/>
+      <numeric name="covar_diag" size="52" data="
+          1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
+          1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
+          1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
+          1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
+          1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
+          1e-4 1e-4
+          "/>
         <!-- sensor range limited by hardware, or a guess-->
             <!--
            1e-4 covar_diag when theres sensor noise
@@ -441,13 +513,24 @@ soft:
       <jointpos joint="head_tilt" />
 
       <!--
+      <jointpos joint="rootx" />
+      <jointpos joint="rooty" />
+      <jointpos joint="rootz" />
+      <jointpos joint="roota" />
+      <jointpos joint="rootb" />
+      <jointpos joint="rootc" />
+
       <jointvel joint="rootx" />
       <jointvel joint="rooty" />
       <jointvel joint="rootz" />
-      <jointvel joint="rootc" />
+
+      
+
       <jointvel joint="roota" />
       <jointvel joint="rootb" />
+      <jointvel joint="rootc" />
       -->
+      
 
       <jointvel joint="r_shoulder_pitch" />
       <jointvel joint="l_shoulder_pitch" />
@@ -482,7 +565,7 @@ soft:
       <torque name="left_t"    site="left_ati" />
       <!--
       -->
-
+      <!---->
       <framepos name="mocap_t1" objtype="site"    objname="ps_t0" />
       <framepos name="mocap_t2" objtype="site"    objname="ps_t1" />
       <framepos name="mocap_t3" objtype="site"    objname="ps_t2" />
@@ -501,11 +584,30 @@ soft:
       <framepos name="mocap7"   objtype="site"    objname="ps14" />
       <framepos name="mocap8"   objtype="site"    objname="ps15" />
 
-      <!--
+      
+      <framequat name="quat_mocap_t1" objtype="site"    objname="ps_t0" />
+      <framequat name="quat_mocap_t2" objtype="site"    objname="ps_t1" />
+      <framequat name="quat_mocap_t3" objtype="site"    objname="ps_t2" />
+      <framequat name="quat_mocap_t4" objtype="site"    objname="ps_t3" />
+      <framequat name="quat_mocap_t5" objtype="site"    objname="ps_t4" />
+      <framequat name="quat_mocap_t6" objtype="site"    objname="ps_t5"/>
+      <framequat name="quat_mocap_t7" objtype="site"    objname="ps_t6" />
+      <framequat name="quat_mocap_t8" objtype="site"    objname="ps_t7" />
+
+      <framequat name="quat_mocap1"   objtype="site"    objname="ps8" />
+      <framequat name="quat_mocap2"   objtype="site"    objname="ps9" />
+      <framequat name="quat_mocap3"   objtype="site"    objname="ps10" />
+      <framequat name="quat_mocap4"   objtype="site"    objname="ps11" />
+      <framequat name="quat_mocap5"   objtype="site"    objname="ps12" />
+      <framequat name="quat_mocap6"   objtype="site"    objname="ps13" />
+      <framequat name="quat_mocap7"   objtype="site"    objname="ps14" />
+      <framequat name="quat_mocap8"   objtype="site"    objname="ps15" />
+
+      
       <framepos name="test_mocap"    objtype="site"    objname="imu" />
       <framepos name="test_mocap1"   objtype="site"    objname="right_ati" />
       <framepos name="test_mocap2"   objtype="site"    objname="left_ati" />
-      -->
+      
     </sensor>
 
     <actuator>
@@ -533,6 +635,7 @@ soft:
       <position name='18_head_pan'      		joint='head_pan'        	ctrlrange='-2 2'      /> 
       <position name='19_head_tilt'     		joint='head_tilt'       	ctrlrange='-.4 .9'    /> 
       -->
+
 
       <motor name='0_r_shoulder_pitch' joint='r_shoulder_pitch'    />
       <motor name='1_l_shoulder_pitch' joint='l_shoulder_pitch'    />

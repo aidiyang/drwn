@@ -13,10 +13,11 @@
 #include "darwin_hw/robot.h"
 
 #include "estimator.h"
-//#include "ekf_estimator.h"
+#include "ekf_estimator.h"
 
 #include <iostream>
 #include <fstream>
+#include <cmath>
 
 #include <boost/program_options.hpp>
 
@@ -44,7 +45,7 @@ double s_ps_walk[16*3] = {
   0.0161,  0.1082, 0.2655,
   0.0337,  0.1176, 0.2399};
 
-#define TORQUE_MOTORS
+#define TORQUE_MOTORS 
 //#define USE_BAD_MODEL
 
 
@@ -65,6 +66,7 @@ void save_states(std::string filename, double time,
     mjData * real, mjData * est, mjData * stddev,
     double t1, double t2,
     std::string mode = "w") {
+      printf("Saving states!!!!!\n\n");
   int nu = m->nu;
   //int nu = 20;
   if (mode=="w") {
@@ -162,7 +164,6 @@ void save_states(std::string filename, double time,
 
 }
 
-
 void print_state(const mjModel* m, const mjData* d) {
   printf("qpos:\n");
   for (int i=0; i<m->nq; i++) {
@@ -178,6 +179,32 @@ void print_state(const mjModel* m, const mjData* d) {
     printf("%1.4f ", d->ctrl[i]);
   }
   printf("\n");
+}
+
+double print_diff(const mjModel* m, const mjData* real_d, const mjData* est_d) {
+  double error = 0;
+  printf("qpos:\n");
+  for (int i=0; i<m->nq; i++) {
+    double temp = real_d->qpos[i] - est_d->qpos[i];
+    error += pow(temp, 2);
+    printf("%1.4f ", temp);
+  }
+  printf("\nqvel:\n");
+  for (int i=0; i<m->nv; i++) {
+    double temp = real_d->qvel[i] - est_d->qvel[i];
+    error += pow(temp, 2);
+    printf("%1.4f ", temp);
+  }
+  printf("\nctrl:\n");
+  for (int i=0; i<m->nu; i++) {
+    //printf("%1.4f ", d->qacc[i]);
+    double temp = real_d->ctrl[i] - est_d->ctrl[i];
+    error += pow(temp,2);
+    printf("%1.4f ", temp);
+  }
+  printf("\n");
+  error = sqrt(error);
+  return error;
 }
 
 void calc_torques(mjModel * m, mjData *d, double * u) {
@@ -224,6 +251,11 @@ int main(int argc, const char** argv) {
   bool real_robot;
   bool useUKF;
   bool render_robot;
+  bool est_only;
+  int num_render;
+  int counter = 0;
+  double rms = 0;
+  double kNNrms = 0;
 
   try {
     po::options_description desc("Allowed options");
@@ -242,13 +274,14 @@ int main(int argc, const char** argv) {
       ("s_noise,s", po::value<double>(&s_noise)->default_value(0.0), "Gaussian amount of sensor noise to corrupt data with.")
       ("c_noise,p", po::value<double>(&c_noise)->default_value(0.0), "Gaussian amount of control noise to corrupt data with.")
       ("e_noise,e", po::value<double>(&e_noise)->default_value(0.0), "Gaussian amount of estimator noise to corrupt data with.")
-      ("alpha,a", po::value<double>(&alpha)->default_value(1e-3), "Alpha: UKF param")
-      ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param")
-      ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param")
+      ("alpha,a", po::value<double>(&alpha)->default_value(1e-3), "Alpha: UKF param, or initial sample spread of PF")
+      ("beta,b", po::value<double>(&beta)->default_value(2), "Beta: UKF param, or number of PF particles")
+      ("kappa,k", po::value<double>(&kappa)->default_value(0), "Kappa: UKF param, or number of PF particles to resample.")
       ("diagonal,d", po::value<double>(&diag)->default_value(1), "Diagonal amount to add to UKF covariance matrix.")
       ("weight_s,w", po::value<double>(&Ws0)->default_value(-1.0), "Set inital Ws weight.")
       ("tol,i", po::value<double>(&tol)->default_value(-1.0), "Set Constraint Tolerance (default NONE).")
-      ("UKF,u", po::value<bool>(&useUKF)->default_value(true), "Use UKF or EKF")
+      ("UKF,u", po::value<bool>(&useUKF)->default_value(true), "Use UKF or PF")
+      ("est,g", po::value<bool>(&est_only)->default_value(false), "Render only the estimate")
       //("dt,t", po::value<double>(&dt)->default_value(0.02), "Timestep in binary file -- checks for file corruption.")
 #ifndef __APPLE__
       ("threads,t", po::value<int>(&num_threads)->default_value(std::thread::hardware_concurrency()>>1), "Number of OpenMP threads to use.")
@@ -282,6 +315,14 @@ int main(int argc, const char** argv) {
     printf("Inputted weight was larger than 1, Ws0 has been clamped to 1\n\n");
   }
 
+  if (est_only) {
+    num_render = 0;
+  } else if(beta*.10 < 10) {
+    num_render = 2;
+  } else{
+    num_render = 2;
+  }
+
   printf("Model:\t\t%s\n", model_name.c_str());
   printf("OMP threads:\t\t%d\n", num_threads);
   printf("Timesteps:\t\t%d\n", estimation_counts);
@@ -293,6 +334,8 @@ int main(int argc, const char** argv) {
   printf("UKF diag:\t\t%f\n", diag);
   printf("UKF Ws0:\t\t%f\n", Ws0);
   printf("UKF Tol:\t\t%f\n", tol);
+  printf("Num_render:\t\t%d\n", num_render);
+  std::cout<<"From file:\t\t"<<from_file<<std::endl;
   if (from_hardware) printf("Using real robot!!!\n");
   if (from_file) printf("Using real data from file!!!\n");
 
@@ -313,7 +356,6 @@ int main(int argc, const char** argv) {
     // activate MuJoCo license
     mj_activate("mjkey.txt");
     printf("MuJoCo Activated.\n");
-
     if (!model_name.empty()) {
       //m = mj_loadModel(model_name.c_str(), 0, 0);
       char error[1000] = "could not load binary model";
@@ -525,7 +567,7 @@ int main(int argc, const char** argv) {
     for (int i=0; i<100; i++)
       mj_step(m, d);
 #endif
-  }
+//Originally end if(darwin model) here  
 
 #ifdef TORQUE_MOTORS
   util::darwin_torques(trqs, m, d, d->ctrl, min_t, kp); // set controls from above
@@ -533,6 +575,7 @@ int main(int argc, const char** argv) {
 #else
   robot->set_controls(ctrl, 20, NULL, NULL);
 #endif
+  }
 
   Estimator * est = 0;
 
@@ -595,8 +638,9 @@ int main(int argc, const char** argv) {
                 alpha, beta, kappa, diag, Ws0, e_noise, tol, debug, num_threads);
 #endif
           } else {
-            printf("New EKF initialization\n");
-            //est = new EKF(m, d, e_noise, tol, diag, debug, num_threads);
+            printf("New PF initialization\n");
+            est = new kNNPF(m, d, alpha, beta, kappa, diag, s_noise, c_noise, p_cov, num_render, num_threads, debug);
+            // est = new EKF(m, d, 0, 0, 0, 1e-9);
           }
 
           est_data = est->get_state();
@@ -644,7 +688,7 @@ int main(int argc, const char** argv) {
 
       printf("robot hw time: %f\n", time);
       printf("true state:\n");
-      //print_state(m, d);
+      print_state(m, d);
 
       //////////////////////////////////
       printf("robot sensor time: %f, est DT: %f\n", time, time-prev_time);
@@ -659,9 +703,13 @@ int main(int argc, const char** argv) {
           t_predict.get(); // waits for this completion
           //est->predict_correct_p1(ctrl, time-prev_time, sensors, conf);
         }
-        else {  
-          ///est->predict_correct_p1(trqs, time-prev_time, sensors, conf);
-          est->predict_correct_p1(ctrl, time-prev_time, sensors, conf);
+        else {
+          if (useUKF) {
+            est->predict_correct_p1(ctrl, time-prev_time, sensors, conf);
+          }else{
+            est->predict_correct(ctrl, time-prev_time, sensors, conf);
+          }  
+          //est->predict_correct_p1(trqs, time-prev_time, sensors, conf);
         }
       }
       //double a = 0.5;
@@ -670,8 +718,10 @@ int main(int argc, const char** argv) {
       //////////////////////////////////
       double t1 = util::now_t();
       if (est) {
-        //est->predict_correct_p2(trqs, time-prev_time, sensors, conf);
-        est->predict_correct_p2(ctrl, time-prev_time, sensors, conf);
+        if (useUKF) {
+          //est->predict_correct_p2(trqs, time-prev_time, sensors, conf);
+          est->predict_correct_p2(ctrl, time-prev_time, sensors, conf);
+        }
       }
       double t2 = util::now_t();
 
@@ -682,12 +732,24 @@ int main(int argc, const char** argv) {
         printf("\n\t\t estimator predict %f ms, correct %f ms, total %f ms\n",
             t1-t0, t2-t1, t2-t0);
 
-      if (est) {
+      if (est && debug) {
         printf("est  state:\n");
-        //print_state(m, est_data);
+        print_state(m, est_data);
+
+        // printf("\n\nState Diff:\n");
+        // print_diff(m, d, est_data);
       }
 
-      if (darwin_model) {
+      if (est) {
+        printf("\n\nState Diff:\n");
+        double kNNrms = print_diff(m, d, est->get_stddev());
+        rms = print_diff(m, d, est_data);
+        // counter += 1;
+        printf("RMS error: %f \n", rms);
+        printf("kNNRMS error: %f\n", kNNrms);
+      }
+
+      if (darwin_model && debug) {
         printf("\n\nSensor Compare:\nreal: ");
         int s = mrkr_idx;
         for (int i=s; i<s+MARKER_SIZE; i++) {
@@ -721,7 +783,9 @@ int main(int argc, const char** argv) {
       //calc_torques(m, d, ctrl);
 #ifdef TORQUE_MOTORS
       robot->set_controls(ctrl, 20, NULL, NULL); // file_interface gets ctrl @ t+1
-      util::darwin_torques(trqs, m, d, ctrl, min_t, kp);
+      if (nu >= 20) {
+        util::darwin_torques(trqs, m, d, ctrl, min_t, kp);
+      }
       for (int i=0; i<nu; i++) { ctrl[i] = trqs[i]; }
       if (!from_file) robot->set_controls(trqs, 20, NULL, NULL);
 #else
@@ -752,7 +816,13 @@ int main(int argc, const char** argv) {
         else { render_inplace = false; }
         //render_inplace = true;
 
-        render(window, est->get_sigmas(), render_inplace); // get state updated model / data, mj_steps
+        if(est_only){
+          std::vector<mjData*> temp = est->get_sigmas();
+          // temp.resize(2);
+          render(window, temp, render_inplace);
+        } else {
+          render(window, est->get_sigmas(), render_inplace); // get state updated model / data, mj_steps
+        }
       }
       else {
         std::vector<mjData*> a;
@@ -777,9 +847,12 @@ int main(int argc, const char** argv) {
   }
 
   if (est && est_data) {
-    if (real_robot) save_states(output_file, time, NULL, est_data, est->get_stddev(), 0, 0, "c");
-    else save_states(output_file, time, d, est_data, est->get_stddev(), 0, 0, "c");
+    if (real_robot) {
+      save_states(output_file, time, NULL, est_data, est->get_stddev(), 0, 0, "c");
+    } else {
+      save_states(output_file, time, d, est_data, est->get_stddev(), 0, 0, "c");
     // close file
+    }
   }
 
   printf("\n\n");

@@ -1,11 +1,14 @@
 #pragma once
 
 #include "mujoco.h"
+#include "kNN.h"
 #include <string.h>
 #include <iostream>
 #include <random>
 #include <functional>
 #include <future>
+#include <set>
+#include <chrono>
 
 #ifndef __APPLE__
 //#include <omp.h>
@@ -30,17 +33,6 @@
 //#include <boost/random.hpp>
 //#include <boost/random/normal_distribution.hpp>
 
-#ifdef __APPLE__
-double omp_get_wtime() {
-  std::chrono::time_point<std::chrono::high_resolution_clock> t
-    = std::chrono::high_resolution_clock::now();
-
-  std::chrono::duration<double, std::milli> d=t.time_since_epoch();
-  return d.count() / 1000.0 ; // returns milliseconds
-}
-int omp_get_thread_num() { return 0; }
-int omp_get_num_threads() { return 1; }
-#endif
 
 class Estimator {
   public:
@@ -177,52 +169,129 @@ class UKF : public Estimator {
 
 class PF : public Estimator {
     public:
-      PF(mjModel *m, mjData * d, double eps, int numPart, double snoise, double cnoise, double* P_covar, double std_dev, bool debug = false);
+      PF(mjModel *m, mjData * d, double eps, int numPart, int nResamp, double diag, double snoise, double cnoise, 
+      double* P_covar, int render, int thread, bool debug = false);
 
       ~PF();
 
       void predict_correct(double* ctrl, double dt, double* sensors, double* conf);
       void set_data(mjData* data, Eigen::VectorXd *x);
-      Eigen::VectorXd get_posvel(mjData* data);
       void clampWeights(Eigen::VectorXd &weights);
+      double forward_particles(mjModel* m, mjData* d, double* ctrl, int s, int e, int num);
       mjData* get_state();
+      mjData* get_kNNstate();
       std::vector<mjData*> get_sigmas();
+      void resampPart(int index);
+      void kNN_resampPart(int index);
+      void printState();
+      double getDiff(Eigen::VectorXd part, double* est);
     
     private:
       bool debug;
       int numPart;
+      int nResamp;
       double snoise;
       double cnoise;
       double eps;     //Spacing of particles
-      double std_dev;
+      double num_diag;
+      double* snsr_weights;
+      double* S_cov;
+      int render;
+      int threads;
+
+      double minQfrc;
+      double maxQfrc;
       
-      std::vector<mjData*> particles;
+      //std::vector<mjData*> particles;
+      double* p_states;
+      double* p_sensors;
+      double* p_ctrl;
       Eigen::VectorXd weights;
       Eigen::MatrixXd sensDiff;
-      Eigen::MatrixXd partSens;
       Eigen::VectorXd sumWeights;
-      Eigen::VectorXd sensNorm;
       Eigen::VectorXd mu;
       Eigen::VectorXd diff;
       Eigen::VectorXd rms;
+      Eigen::VectorXd estSens; 
       Eigen::MatrixXd covar;
+      Eigen::MatrixXd sensCovar;
+      Eigen::MatrixXd crossCovar;
       Eigen::VectorXd P_add;
+      Eigen::MatrixXd S_add;
+      Eigen::MatrixXd Kgain;
+      Eigen::VectorXd sensor;
       
       std::default_random_engine gen;
       std::mt19937 s_rng;
       std::uniform_real_distribution<double> rand;
       std::normal_distribution<double> crand;
       std::normal_distribution<>* rd_vec; 
-      std::uniform_real_distribution<double> resamp;
-      //std::uniform_real_distribution<>* qposResamp;
-      //std::uniform_real_distribution<>* qvelResamp;
       std::normal_distribution<>* qposResamp;
-      std::normal_distribution<>* qvelResamp; 
+      std::normal_distribution<>* qvelResamp;
 
-      double sample;
-      std::vector<mjData*> newParticles;
       Eigen::VectorXd partCount;
+      std::set<int> resample;
 
       std::vector<mjData *> sigma_states;
+      std::future<double>* thread_handles;
+      mjData** thread_datas;
 };
 
+class kNNPF : public Estimator {
+    public:
+      kNNPF(mjModel *m, mjData * d, double eps, int numPart, int nResamp, double diag, double snoise, double cnoise, 
+      double* P_covar, int render, int thread, bool debug = false);
+
+      ~kNNPF();
+
+      void predict_correct(double* ctrl, double dt, double* sensors, double* conf);
+      void set_data(mjData* data, Eigen::VectorXd *x);
+      void clampWeights(Eigen::VectorXd &weights);
+      mjData* get_state();
+      mjData* get_kNNstate();
+      std::vector<mjData*> get_sigmas();
+      void printState();
+      double getDiff(Eigen::VectorXd part, double* est);
+    
+    private:
+      bool debug;
+      int numPart;
+      int nResamp;
+      double snoise;
+      double cnoise;
+      double eps;     //Spacing of particles
+      double num_diag;
+      double* snsr_weights;
+
+      int render;
+      kNN* kNNdata;
+      
+      double* kNN_states;
+      double* kNN_sensors;
+      Eigen::VectorXd kNN_weights;
+      Eigen::MatrixXd sensDiff;
+      Eigen::VectorXd kNN_mu;
+      Eigen::VectorXd kNN_diff;
+      Eigen::VectorXd kNN_rms;
+      Eigen::MatrixXd kNN_covar;
+      Eigen::MatrixXd kNN_sensCovar;
+      Eigen::MatrixXd kNN_crossCovar;
+      Eigen::VectorXd P_add;
+      Eigen::MatrixXd S_add;
+      Eigen::MatrixXd kNN_Kgain;
+      Eigen::VectorXd sensor;
+      Eigen::VectorXd kNNest;
+      Eigen::VectorXd kNN_estSens;
+      
+      std::default_random_engine gen;
+      std::mt19937 s_rng;
+      std::uniform_real_distribution<double> rand;
+      std::normal_distribution<double> crand;
+      std::normal_distribution<>* rd_vec; 
+
+      std::set<int> kNN_resample;
+
+      std::vector<mjData *> sigma_states;
+      std::list<diffIndex> closeList;
+      mjData* saveData;
+};

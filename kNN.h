@@ -50,7 +50,6 @@ class kNN {
         Eigen::VectorXd getEst(double* sensors, int n);
         std::vector<double*> getClose(double* sensors, int n);
         std::list<diffIndex> parallel_Est(double* sensors, VectorXd *rms, int n, int s, int e);
-        double* parallel_min(VectorXd* rms, int n, int shift);
         void saveData(std::string FILE_NAME);
         void readFile(std::string FILE_NAME);
         void flatMatrix(MatrixXd data, double* arr, int dim1, int dim2);

@@ -161,6 +161,7 @@ PF::~PF() {
     delete[] thread_handles;
 };
 
+//Parallel function to step for the particles
 double PF::forward_particles(mjModel* m, mjData* data, double* ctrl, int s, int e, int num) {
     //printf("Launching thread num %i \n", num);
     double t1 = util::now_t();
@@ -194,15 +195,13 @@ void PF::predict_correct(double * ctrl, double dt, double* sensors, double* conf
         }
     }
 
-    //Add sensor noise
-
-
     // if(debug) {
     //     std::cout << "ctrl" << "\n";
     //     for (int i = 0; i < nu; i++) {
     //         std::cout << ctrl[i] << "\n";
     //     }
     // }
+
     //Step particles forward
     double t1 = util::now_t();
     for (int i = 0; i < threads; i++) {
@@ -256,11 +255,11 @@ void PF::predict_correct(double * ctrl, double dt, double* sensors, double* conf
         //resample[i] = min;
         resample.insert(min);
     }
+    //Particles being resampled are not used in mu calculations and correction calculations
     for (std::set<int>::iterator it = resample.begin(); it!=resample.end(); ++it) {
         weights[*it] = 0;
     }
     weights /= weights.sum();       //Renormalize weights
-   
     sumWeights = VectorXd::Zero(numPart);
     sumWeights(0) = weights(0);
     for (int i = 1; i < numPart; i++) {
@@ -277,9 +276,6 @@ void PF::predict_correct(double * ctrl, double dt, double* sensors, double* conf
             mu(j+nq) += weights[i] * p_states[(nq+nv)*i + nq + j];
         }        
     }
-    // std::cout << "mu \n" << mu.format(CleanFmt) << "\n";
-    // set_data(d, &mu);
-    // mj_forward(m, d);
 
     //Calc predicted covar
     covar.setZero();
@@ -320,26 +316,11 @@ void PF::predict_correct(double * ctrl, double dt, double* sensors, double* conf
         sensCovar += weights[i]*(tempsens - estSens)*((tempsens - estSens).transpose());
         crossCovar += weights[i]*(temp-mu)*((tempsens-estSens).transpose());
     }
-    Kgain = crossCovar * (sensCovar + S_add).inverse();      //Add S_add to take inverse?
+    Kgain = crossCovar * (sensCovar + S_add).inverse();      
     covar = covar - Kgain*sensCovar*Kgain.transpose();
     VectorXd diag = covar.diagonal() + P_add;
     mu = mu + Kgain*(sensor - estSens);
     set_data(d, &mu);
-
-    // mj_forward(m, d);
-    // double qfrc_sum = 0;
-    // for (int i = 0; i < nv; i++) {
-    //     qfrc_sum += std::abs(d->qfrc_constraint[i]);
-    // }
-    // if (qfrc_sum < minQfrc) {
-    //     minQfrc = qfrc_sum;
-    // }
-    // if (qfrc_sum > maxQfrc) {
-    //     maxQfrc = qfrc_sum;
-    // }
-    // printf("qfrc_constraint: %f\n", qfrc_sum);
-    // printf("Max Qfrc: %f\n", maxQfrc);
-    // printf("Min Qfrc: %f\n", minQfrc);
 
     // Make distributions to resample from
     for (int i=0; i<nq; i++) {

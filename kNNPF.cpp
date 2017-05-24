@@ -43,7 +43,7 @@ kNNPF::kNNPF(mjModel *m, mjData * d, double _eps, int _numPart, int _nResamp, do
 
     kNNdata = new kNN(nq, nv, ns, 100000);
 
-    //Set up sigma_states
+    //Set up sigma_states (for rendering in viewer)
     sigma_states.resize(render+1);
     for (int i = 0; i < render + 1; i++) {
         sigma_states[i] = mj_makeData(m);
@@ -61,6 +61,8 @@ kNNPF::kNNPF(mjModel *m, mjData * d, double _eps, int _numPart, int _nResamp, do
     kNN_states = new double[(numPart) * (nq + nv)];
     kNN_sensors = new double[(numPart) * (ns)];
     //Put in rest of particles (perturbed)
+    //This is actually kinda pointless since the kNN_states are gonna be set in predict_correct anyway
+    //But kept for fear of breaking working code
     for (int i = 0; i < numPart; i++){
         //Make rand vector
         for (int j = 0; j < nq; j++) {
@@ -98,7 +100,7 @@ kNNPF::kNNPF(mjModel *m, mjData * d, double _eps, int _numPart, int _nResamp, do
         snsr_weights[i] = 1.0;
     }
 
-    //Get sensor weights
+    //Get sensor weights (Not actually used, but can use when taking sensor differences)
     double* snsr_vec = util::get_numeric_field(m, "snsr_weights", NULL);
     if (snsr_vec) {
         util::fill_sensor_vector(m, snsr_weights, snsr_vec);
@@ -136,7 +138,6 @@ kNNPF::kNNPF(mjModel *m, mjData * d, double _eps, int _numPart, int _nResamp, do
     printf("Building knn Database\n");
     double t1 = util::now_t();
 
-
     kNNdata->readFile("small_traj_darwin.h5");
 
     printf("Time to build database: %f ms\n", util::now_t() - t1);
@@ -163,19 +164,11 @@ void kNNPF::predict_correct(double * ctrl, double dt, double* sensors, double* c
 
     m->opt.timestep = dt;
     //Add control noise
-    for (int i = 0; i < numPart; i++) {
-        for (int j = 0; j < nu; j++) {
+    // for (int i = 0; i < numPart; i++) {
+    //     for (int j = 0; j < nu; j++) {
             // kNN_ctrl[(nu)*i + j] = ctrl[j] + crand(gen);
-        }
-    }
-
-    // if(debug) {
-    //     std::cout << "ctrl" << "\n";
-    //     for (int i = 0; i < nu; i++) {
-    //         std::cout << ctrl[i] << "\n";
     //     }
     // }
-
     //Step forward real_data
     mju_copy(this->d->ctrl, ctrl, nu);
     mj_step(m, this->d);
@@ -238,7 +231,6 @@ void kNNPF::predict_correct(double * ctrl, double dt, double* sensors, double* c
     kNN_weights /= kNN_weights.sum();
 
     //Calc predicted covar
-
     kNN_covar.setZero();
     for (int i = 0; i < numPart; i++) {
         VectorXd temp = VectorXd::Zero(nq+nv);
@@ -250,6 +242,7 @@ void kNNPF::predict_correct(double * ctrl, double dt, double* sensors, double* c
         }
         kNN_covar += kNN_weights[i] * (temp - kNN_mu) * ((temp - kNN_mu).transpose());
     }
+
     //CORRECTION UPDATE
 
     //Calc covariances
@@ -259,11 +252,6 @@ void kNNPF::predict_correct(double * ctrl, double dt, double* sensors, double* c
     for (int j=0; j < ns; j++) {
         sensor(j) = sensors[j];
         kNN_estSens(j) = this->d->sensordata[j];
-    }
-    for (int i = 0; i < numPart; i++) {
-        for (int j=0; j < ns; j++) {
-            // kNN_estSens(j) += kNN_weights[i] * kNN_sensors[ns*i + j];
-        }
     }
     for (int i = 0; i < numPart; i++) {
         VectorXd kNN_temp = VectorXd::Zero(nq+nv);
@@ -278,7 +266,7 @@ void kNNPF::predict_correct(double * ctrl, double dt, double* sensors, double* c
         kNN_crossCovar += kNN_weights[i]*(kNN_temp-kNN_mu)*((kNN_tempsens - kNN_estSens).transpose());
     }
 
-    kNN_Kgain = kNN_crossCovar * (kNN_sensCovar + S_add).inverse();      //Add S_add to take inverse?
+    kNN_Kgain = kNN_crossCovar * (kNN_sensCovar + S_add).inverse();     
     kNN_covar = kNN_covar - kNN_Kgain*kNN_sensCovar*kNN_Kgain.transpose();
     VectorXd kNN_diag = kNN_covar.diagonal() + P_add;
     kNN_mu = kNN_mu + kNN_Kgain*(sensor - kNN_estSens);

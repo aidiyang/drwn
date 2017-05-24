@@ -29,6 +29,11 @@ void reshapeMatrix(MatrixXd &out, double* data, int dim1, int dim2);
 double getDiff(VectorXd part, double* est, int size);
 bool checkConstraint(double* data, double* limit, int size);
 
+/*
+Makes a database of inputted size and saves it to a output file. If a file is inputted, the database is based off of that
+inputted trajectory. Note that num_part input must be large enough to accomidate the input trajectory if one is used. 100 random controls
+are applied at each timestep, so if the trajectory is n timesteps long, num_part must be at least 101*n (it also saves the timestep itself)
+*/
 int main (int argc, const char* argv[]) {
 
     std::string model_name;
@@ -128,6 +133,7 @@ int main (int argc, const char* argv[]) {
     }
 
     //Build database
+    //If there is an input file, use it
     if (input_file != "") {
         std::ifstream myfile(input_file);
         std::string line, stateItem;
@@ -161,12 +167,7 @@ int main (int argc, const char* argv[]) {
                     }
                 }
 
-                // mju_copy(saveData->qpos, trajState, nq);
-                // mju_copy(saveData->qvel, trajState + nq, nv);
-                // mj_forward(m, saveData);
-                // mju_copy(savesens, saveData->sensordata, ns);
-                // kNNdata->savePart(trajState, savenext, savesens, saveSensNext);
-
+                //Set random controls and step forward to make new particles
                 for (int j = 0; j < 100; j++) {
                     //Set random control
                     for (int k = 9; k < nu; k++) {
@@ -190,6 +191,7 @@ int main (int argc, const char* argv[]) {
             }
         }
         printf("Size of database: %i\n", kNNdata->getSize());
+    //Otherwise make database normally by randomly sampling in space. 
     }else {
         //Build Database
         printf("Building knn Database\n");
@@ -213,6 +215,7 @@ int main (int argc, const char* argv[]) {
             mj_step(m, saveData); // mj_Euler(m, saveData);
             mj_forward(m, saveData);
 
+            //If qfrc_constraint is not as expected, resample. Doesn't seem to work very well.
             if (isDarwin) {
                 // if (*std::max_element(savesens, savesens + ns) > 5 || *std::max_element(saveSensNext, saveSensNext + ns) > 5) {
                 //     counter++;
@@ -241,6 +244,8 @@ int main (int argc, const char* argv[]) {
                 mju_copy(saveSensNext, saveData->sensordata, ns);
                 kNNdata->savePart(savepos, savenext, savesens, saveSensNext);
 
+                //Code to ensure particle diversity. If generated particle is too closed to one that is already saved,
+                //throw it away and generate another one.
                 // if (getDiff(kNNdata->findPart(savesens), savepos, nq+nv) > 0.3) {
                 //     kNNdata->savePart(savepos, savenext, savesens, saveSensNext);
                 // } else {
@@ -252,14 +257,11 @@ int main (int argc, const char* argv[]) {
                 // }   
             }
         }
-        
-
-        //Save database to h5 file
-        
     }
     printf("Number of particles skipped: %i\n", counter);
     printf("Number of particles saved: %i\n", kNNdata->getSize());
     printf("Time to build database: %f ms\n", util::now_t() - t1);
+    //Save database to h5 file
     kNNdata->saveData(output_file);
     printf("Saved data to file\n\n");
 }
@@ -283,45 +285,3 @@ bool checkConstraint(double* data, double* limits, int size) {
     return false;
 }
 
-
-/* TESTING CODE
- //Flatten data matricies to arrays
-    MatrixXd test = MatrixXd::Zero(2,2);
-    test(0,0) = 1;
-    test(0,1) = 2;
-    test(1,0) = 3;
-    test(1,1) = 4;
-    double* testArr = new double[test.size()];
-    flatMatrix(test, testArr, test.rows(), test.cols());
-    hsize_t dimsf[1];
-    herr_t ret;
-    dimsf[0] = test.size();
-    hid_t dataset, fid, file, plist, rfile;
-    file = H5Fcreate("test_kNN.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-    
-    fid = H5Screate_simple(1, dimsf, NULL);
-    plist = H5Pcreate(H5P_DATASET_CREATE);
-    dataset = H5Dcreate(file, "dset", H5T_NATIVE_DOUBLE, fid, H5P_DEFAULT, plist, H5P_DEFAULT);
-    ret = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &testArr);
-    ret = H5Dclose(dataset);
-    ret = H5Fclose(file);
-
-
-
-    // Get dataspace of the dataset.
-    rfile = H5Fopen("test_kNN.h5", H5F_ACC_RDONLY, H5P_DEFAULT);
-    dataset = H5Dopen(rfile, "dset", H5P_DEFAULT);
-    hid_t readdataspace = H5Dget_space(dataset);
-    printf("opened file\n");
-    int rank = H5Sget_simple_extent_ndims(readdataspace);
-    hsize_t* dims = new hsize_t[rank];
-    ret = H5Sget_simple_extent_dims(readdataspace, dims, NULL);
-    double* matrix = new double [dims[0]];
-    ret = H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &matrix);
-
-    MatrixXd out = MatrixXd::Zero(2,2);
-    reshapeMatrix(out, matrix, 2, 2);
-    std::cout<<"Output Matrix:\n" <<out.format(CleanFmt)<<"\n\n";
-
-
-*/

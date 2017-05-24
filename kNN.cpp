@@ -23,6 +23,8 @@
 using namespace Eigen;
 
 kNN::kNN(int _nq, int _nv, int _ns, int MAX_SIZE) {
+    //MAX_SIZE is the maximum number of particles the database can store. Needed to initialize the size of matricies
+    //Though could theoretically be done with dynamically sized matricies, so then no need for max size.
     this->nq = _nq;
     this->nv = _nv;
     this->ns = _ns;
@@ -39,6 +41,7 @@ kNN::~kNN() {
     
 }
 
+//Save a particle in the database
 bool kNN::savePart(double* particle, double* nextPart, double* sensPart, double* nextSensPart) {
     for (int i = 0; i < nq+nv; i++) {
         this->states(i, this->size) = particle[i];
@@ -52,6 +55,7 @@ bool kNN::savePart(double* particle, double* nextPart, double* sensPart, double*
     return true;
 };
 
+//Parallel helper function for findPart. Returns index of minimum of the inputted partition.
 int kNN::parallel_findPart(double* sensorsData, int s, int e) {
     int min = 0;
     double minDiff = 0;
@@ -61,11 +65,9 @@ int kNN::parallel_findPart(double* sensorsData, int s, int e) {
             diff += pow((sensorsData[j] - this->sensors(j, i)), 2);
         }
         diff = sqrt(diff);
-        // printf("i: %d\ts: %d\n", i, s);
         if (i == s) {
             minDiff = diff;
             min = i;
-            // printf("parallel check1!!! s: %d\n\n", s);
         } else if (diff < minDiff) {
             minDiff = diff;
             min = i;
@@ -74,9 +76,13 @@ int kNN::parallel_findPart(double* sensorsData, int s, int e) {
     return min;
 }
 
+//Returns the vector corresponding to the particle with the closest sensor values to the input
 Eigen::VectorXd kNN::findPart(double* sensorsData) {
+    //Splits the database into threads number of partitions, and finds the minimum of each partition. Then finds the minimum of those to find
+    //the overall minimum
     int threads = 4;
     std::future<int>* thread_handles = new std::future<int>[threads];
+    //Launch threads
     for (int i = 0; i < threads; i++) {
         int s = i * this->size / threads;
         int e = (i+1) * this->size / threads;
@@ -85,12 +91,14 @@ Eigen::VectorXd kNN::findPart(double* sensorsData) {
         }
         thread_handles[i] = std::async(std::launch::async, &kNN::parallel_findPart, this, sensorsData, s, e);
     }
+    //Collect threads
     int threadMin[threads];
     for (int i = 0; i < threads; i++) {
         threadMin[i] = thread_handles[i].get();
     }
-    int min = 0;
-    double minDiff = 0;
+    int min = 0;    //index of closest particle
+    double minDiff = 0;     //minimum distance
+    //Find the minimum of the threadMins
     for (int i = 0; i < threads; i++) {
         double diff = 0;
         for (int j = 0; j < this->ns; j++) {
@@ -105,6 +113,7 @@ Eigen::VectorXd kNN::findPart(double* sensorsData) {
             min = threadMin[i];
         }
     }
+    //Get particle corresponding to min
     VectorXd output = VectorXd::Zero(nq+nv);
     for (int i = 0; i < this->nq+this->nv; i++) {
         output(i) = this->states(i, min);
@@ -112,6 +121,8 @@ Eigen::VectorXd kNN::findPart(double* sensorsData) {
     return output;
 };
 
+//Helper function for findNextPart. Returns an n long list of diffIndex objects (stores index of particle and its corresponding diff)
+//Uses the c++ sort list function, probably pretty slow. 
 std::list<diffIndex> kNN::parallel_findNext(double* particle, double* sensPart, int index, int n, int s, int e) {
     double diff;
     std::vector<diffIndex> vecSortList(n);
@@ -147,6 +158,11 @@ std::list<diffIndex> kNN::parallel_findNext(double* particle, double* sensPart, 
     return vecSortOut;
 }
 
+/*
+Propagates the inputted particle forward in time using the database. Particle is approximated by a weighted average of the n closest saved particles
+by sensor data.
+NOTE: Depricated function, no longer used in the kNNPF
+*/
 void kNN::findNextPart(double* particle, double* sensPart, int index, int n) {
     double t1 = util::now_t();
     VectorXd nextPart = VectorXd::Zero(nq+nv);      //These can be double arrays, don't need to be vectors
@@ -154,6 +170,7 @@ void kNN::findNextPart(double* particle, double* sensPart, int index, int n) {
     int threads = 4;
     std::future<std::list<diffIndex>>* thread_handles = new std::future<std::list<diffIndex>>[threads];
     std::list<diffIndex> diffList;
+    //Launch threads
     for (int i = 0; i < threads; i++) {
         int s = i * this->size / threads;
         int e = (i+1) * this->size / threads;
@@ -163,86 +180,37 @@ void kNN::findNextPart(double* particle, double* sensPart, int index, int n) {
         thread_handles[i] = std::async(std::launch::async, &kNN::parallel_findNext,
                                         this, particle, sensPart, index, n, s, e);
     }
+    //Collect threads, merge all the lists together
     for (int i = 0; i < threads; i++) {
         std::list<diffIndex> temp = thread_handles[i].get();
         diffList.merge(temp);
     }
     double minRMS[n];
     VectorXd partRMS = VectorXd::Zero(n);
+    //The merge function merges the lists so that the resulting list is still sorted, just need to pop off the smallest (front) particle
+    //n times.
     for (int i = 0; i < n; i++) {
         diffIndex temp = diffList.front();
         diffList.pop_front();
         minRMS[i] = temp.getIndex();
         partRMS(i) = temp.getDiff();
     }
-    partRMS = partRMS.cwiseInverse();
-    partRMS = partRMS / partRMS.sum();
+    partRMS = partRMS.cwiseInverse();   //Weights are inverse of distance
+    partRMS = partRMS / partRMS.sum();  //Normalize weights
     for (int i = 0; i < n; i++) {
         nextPart += partRMS(i) * this->nextStates.col(minRMS[i]);
         nextSensors += partRMS(i) * this->nextSens.col(minRMS[i]);
     }
+    //Set particle to next state
     for (int i = 0; i < this->nq+this->nv; i++) {
         particle[index + i] = nextPart(i);
     }
     for (int i = 0; i < this->ns; i++) {
         sensPart[index + i] = nextSensors(i);
     }    
-
-
-    //  int threads = 5;
-    // std::future<int>* thread_handles = new std::future<int>[threads];
-    // for (int i = 0; i < threads; i++) {
-    //     int s = i * this->size / threads;
-    //     int e = (i+1) * this->size / threads;
-    //     if (i == threads - 1) {
-    //         e = this->size;
-    //     }
-    //     thread_handles[i] = std::async(std::launch::async, &kNN::parallel_findNext, this, particle, index, n, s, e);
-    // }
-    // int threadMin[threads];
-    // for (int i = 0; i < threads; i++) {
-    //     threadMin[i] = thread_handles[i].get();
-    // }
-    // int min = 0;
-    // double minDiff = 0;
-    // for (int i = 0; i < threads; i++) {
-    //     double diff = 0;
-    //     for (int j = 0; j < this->ns; j++) {
-    //         diff += pow((particle[j + index] - this->states(j, threadMin[i])), 2);
-    //     }
-    //     diff = sqrt(diff);
-    //     if (i == 0) {
-    //         minDiff = diff;
-    //         min = threadMin[i];        
-    //     } else if (diff < minDiff) {
-    //         minDiff = diff;
-    //         min = threadMin[i];
-    //     }
-    // }
-    // // int min = 0;
-    // // double minDiff = 0;
-    // // for (int i = 0; i < this->size; i++) {
-    // //     double diff = 0;
-    // //     for (int j = 0; j < this->nq + this->nv; j++) {
-    // //         diff += pow((particle[index + j] - this->states(j, i)), 2);
-    // //     }
-    // //     diff = sqrt(diff);
-    // //     if (i == 1) {
-    // //         minDiff = diff;
-    // //         min = i;
-    // //     } else if (diff < minDiff) {
-    // //         minDiff = diff;
-    // //         min = i;
-    // //     }
-    // // }
-    // for (int i = 0; i < this->nq+this->nv; i++) {
-    //     particle[index + i] = this->nextStates(i, min);
-    // }
-    // for (int i = 0; i < this->ns; i++) {
-    //     sensPart[index + i] = this->nextSens(i, min);
-    // }
 }
 
+//Helper function for getClose and getEst. Returns list of n diffIndex objects 
 std::list<diffIndex> kNN::parallel_Est(double* sensors, VectorXd *rms, int n, int s, int e) {
     double t1 = util::now_t();
     double time_sort = 0;
@@ -261,6 +229,7 @@ std::list<diffIndex> kNN::parallel_Est(double* sensors, VectorXd *rms, int n, in
         diff = sqrt(diff);
         diff_time += util::now_t() - diff_t1;
         diffIndex temp(diff, i);
+        //LEGACY CODE: for sorting using c++ list sort function. Kept in case own sorting function breaks
         // sortList.push_back(diffIndex(diff, i));
         // double t2 = util::now_t();
         // sortList.sort();
@@ -289,16 +258,16 @@ std::list<diffIndex> kNN::parallel_Est(double* sensors, VectorXd *rms, int n, in
         my_time_sort += util::now_t() - t3;
         (*rms)(i) = diff;
     }
+    std::list<diffIndex> vecSortOut(vecSortList.begin(), vecSortList.end());
+    //Debugging Print Stuff
     // printf("Check vecSortList:\n");
     // int index = 0;
     // for (std::list<diffIndex>::iterator it = sortList.begin(); it != sortList.end(); ++it) {
     //     // std::cout<<vecSortList[index].getIndex()<<" ";
     //     std::cout<<vecSortList[index].getIndex() - (*it).getIndex()<<" ";
-    //     index++;
-        
+    //     index++;  
     // }
     // std::cout<<"\n";
-    std::list<diffIndex> vecSortOut(vecSortList.begin(), vecSortList.end());
     // printf("Total Sorting time: %f\n", time_sort);
     // printf("Total my sorting time: %f\n", my_time_sort);
     // printf("Total diff time: %f\n", diff_time);
@@ -307,6 +276,7 @@ std::list<diffIndex> kNN::parallel_Est(double* sensors, VectorXd *rms, int n, in
     return vecSortOut;
 }
 
+//Own sorting function for parallel Est. Faster than default c++ sort list function, i think
 //Check end case before calling sort function
 void kNN::sort(std::vector<diffIndex> &data, diffIndex input, int size) {
     for (int i = 0; i < size; i++) {
@@ -322,46 +292,11 @@ void kNN::sort(std::vector<diffIndex> &data, diffIndex input, int size) {
     }
 }
 
-double* kNN::parallel_min(VectorXd* rms, int n, int shift) {
-    double* minRMS = new double[n];
-    for (int i = 0; i < n; i++) {
-        int min;
-        (*rms).minCoeff(&min);
-        minRMS[i] = min + shift;
-        (*rms)(min) = 10;
-    }
-    return minRMS;
-}
-
+//Returns a state estimate based off the inputted sensors. Returns a weighted average of the n closest
+//particles to the inputted sensors.
 Eigen::VectorXd kNN::getEst(double* sensors, int n) {
     IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
     double t1 = util::now_t();
-    //Avg n best particles
-    // VectorXd rms = VectorXd::Zero(this->size);
-    // VectorXd est = VectorXd::Zero(nq+nv);
-    // double diff;
-    // for (int i = 0; i < this->size; i++) {
-    //     diff = 0;
-    //     for (int j = 0; j < this->ns; j++) {
-    //         diff += pow((sensors[j] - this->sensors(j, i)), 2);
-    //     }
-    //     diff = sqrt(diff);
-    //     rms(i) = diff; 
-    // }
-    // VectorXd estRMS = VectorXd::Zero(n);
-    // double tt1 = util::now_t();
-    // double minRMS [n];
-    // for (int i = 0; i < n; i++) {
-    //     int min;
-    //     rms.minCoeff(&min);
-    //     estRMS(i) = rms(min);
-    //     minRMS[i] = min;
-    //     rms(min) = 10;
-    // }
-    // printf("just sort: %f\n", util::now_t() - tt1);
-
-    //PARALLEL VERSION!!!
-
     //Calculate diffs of each particle
     VectorXd checkRMS = VectorXd::Zero(this->size);
     VectorXd parallel_est = VectorXd::Zero(nq+nv);
@@ -389,19 +324,6 @@ Eigen::VectorXd kNN::getEst(double* sensors, int n) {
         parallel_minRMS[i] = temp.getIndex();
         parallel_estRMS(i) = temp.getDiff();
     }
-
-    // printf("Check minRMS:\n");
-    // for (int i = 0; i < n; i++) {
-    //     std::cout<<minRMS[i] - parallel_minRMS[i]<<" ";
-    // }
-    // std::cout<<"\n";
-    // std::cout<<"Check estRMS\n"<<(estRMS - parallel_estRMS).format(CleanFmt)<<"\n";
-    // estRMS = estRMS.cwiseInverse();
-    // estRMS = estRMS / estRMS.sum();
-    // for (int i = 0; i < n; i++) {
-    //     est += estRMS(i) * states.col(minRMS[i]);
-    // }
-
     parallel_estRMS = parallel_estRMS.cwiseInverse();
     parallel_estRMS = parallel_estRMS / parallel_estRMS.sum();
     for (int i = 0; i < n; i++) {
@@ -410,9 +332,10 @@ Eigen::VectorXd kNN::getEst(double* sensors, int n) {
     // printf("Finding the particle took %f ms\n", util::now_t() - t1);
     
     return parallel_est;
-    // return est;
 }
 
+//The actual important function that kNNPF actually uses. Returns a vector of n double pointers of the n closest 
+//particles to the inputted sensors
 std::vector<double*> kNN::getClose(double* sensors, int n) {
     IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
     double t1 = util::now_t();
@@ -513,14 +436,9 @@ void kNN::saveData(std::string FILE_NAME) {
     ret = H5Dclose(nextSensDset);
     //Close file
     ret = H5Fclose(file);
-
-    // IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
-    // std::cout << "Saved States\n" << this->states.format(CleanFmt) << "\n";
-    // std::cout << "Saved nextStates\n" << this->nextStates.format(CleanFmt) << "\n";
-    // std::cout << "Saved sensors\n" << this->sensors.format(CleanFmt) << "\n";
-    // std::cout << "Saved nextSens\n" << this->nextSens.format(CleanFmt) << "\n";
 }
 
+//Read in data from h5 file 
 void kNN::readFile(std::string FILE_NAME) {
     herr_t ret;
     hid_t rfile;
@@ -570,17 +488,9 @@ void kNN::readFile(std::string FILE_NAME) {
     reshapeMatrix(this->sensors, sensorsArr, this->sensors.rows(), this->sensors.cols());
     reshapeMatrix(this->nextSens, nextSensArr, this->nextSens.rows(), this->nextSens.cols());
     this->size = statesDims[0] / (this->nq + this->nv);
-
-    // printf("Check that sizes are correct and same:\n states: %d\nnextStates: %d\nsensors: %d\nnextSens: %d", statesDims[0] / (this->nq + this->nv), 
-    //         nextStatesDims[0] / (this->nq + this->nv), sensorsDims[0] / (this->ns), nextSensDims[0] / (this->ns));
-
-    // IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
-    // std::cout << "Read States\n" << this->states.format(CleanFmt) << "\n";
-    // std::cout << "Read nextStates\n" << this->nextStates.format(CleanFmt) << "\n";
-    // std::cout << "Read sensors\n" << this->sensors.format(CleanFmt) << "\n";
-    // std::cout << "Read nextSens\n" << this->nextSens.format(CleanFmt) << "\n";
 }
 
+//Print a small portion of the current database. For debugging purposes
 void kNN::printSmall() {
     IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
     std::cout << (this->states.block(0, 0, nq+nv, 10)).format(CleanFmt) << "\n";
@@ -608,6 +518,8 @@ void kNN::reshapeMatrix(MatrixXd &out, double* data, int dim1, int dim2) {
     }
 }
 
+
+//diffIndex class. Used to keep track of a particles index and difference. 
 diffIndex::diffIndex(double diff, int index) {
     this->diff = diff;
     this->index = index;
@@ -617,11 +529,12 @@ diffIndex::~diffIndex() {
 
 }
 
+//Used in order to use c++ list sort function
 bool operator<(const diffIndex &data1, const diffIndex &data2) {
     return data1.diff < data2.diff;
 }
 
-//TODO: PROTECT ABSTRACTION?
+//TODO: PROTECT ABSTRACTION? Probably pointless
 double diffIndex::getDiff() {
     return this->diff;
 }
